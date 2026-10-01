@@ -1,0 +1,7 @@
+import { Link } from 'react-router-dom'
+import { ArrowLeft, CheckCircle2, Ticket, XCircle } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import Brand from '../components/Brand'
+import { useEventStore } from '../store/EventStore'
+
+export default function MeusIngressos(){ const { orders } = useEventStore(); return <div className="tickets-page"><header className="simple-header"><Link to="/" className="event-back"><ArrowLeft size={18}/>Início</Link><Brand/><div/></header><main className="tickets-wrap"><span className="section-kicker">MINHA CONTA</span><h1>Meus ingressos.</h1>{orders.length===0?<div className="tickets-empty"><Ticket/><h2>Você ainda não possui ingressos.</h2><Link to="/" className="primary-cta">Explorar eventos</Link></div>:<div className="my-ticket-grid">{orders.flatMap(order=>order.ticketCodes.map((t,i)=><article className="my-ticket" key={t.code}><img src={order.eventImage} alt={order.eventTitle}/><div className="my-ticket-content"><span>{order.eventDate} • {order.eventTime}</span><h2>{order.eventTitle}</h2><p>{order.ticketName} • ingresso {i+1}/{order.quantity}</p><div className="qr-box"><QRCodeSVG value={t.code} size={150} bgColor="#ffffff" fgColor="#07110d"/></div><code>{t.code}</code><div className={`ticket-status ${t.used?'used':'valid'}`}>{t.used?<><XCircle/>Já utilizado</>:<><CheckCircle2/>Válido</>}</div></div></article>))}</div>}</main></div> }
