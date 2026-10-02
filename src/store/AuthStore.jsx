@@ -1,13 +1,15 @@
 /* oxlint-disable react/only-export-components -- Context providers intentionally export their shared hook. */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
+export const PRIMARY_ADMIN_EMAIL = 'medquest41@gmail.com'
+
 const AuthContext = createContext(null)
 
 const USERS_KEY = 'ingressos_auth_users_v1'
 const SESSION_KEY = 'ingressos_auth_session_v1'
 
 export const ROLE_LABELS = {
-  admin: 'Administrador',
+  admin: 'Administrador Geral',
   organizador: 'Organizador',
   financeiro: 'Financeiro',
   checkin: 'Check-in',
@@ -45,12 +47,21 @@ async function hashPassword(password) {
     .join('')
 }
 
+function readUsers() {
+  const stored = readJson(USERS_KEY, [])
+  const next = stored.map(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL
+    ? { ...user, email: PRIMARY_ADMIN_EMAIL, role: 'admin', active: true }
+    : user)
+  if (JSON.stringify(next) !== JSON.stringify(stored)) persistUsers(next)
+  return next
+}
+
 function persistUsers(next) {
   localStorage.setItem(USERS_KEY, JSON.stringify(next))
 }
 
 export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => readJson(USERS_KEY, []))
+  const [users, setUsers] = useState(() => readUsers())
   const [sessionId, setSessionId] = useState(() => localStorage.getItem(SESSION_KEY) || '')
 
   const currentUser = useMemo(
@@ -58,9 +69,9 @@ export function AuthProvider({ children }) {
     [users, sessionId],
   )
 
-  const needsSetup = !users.some(user => user.role === 'admin')
+  const needsSetup = !users.some(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)
   useEffect(() => {
-    const sync = event => { if (event.key === USERS_KEY) setUsers(readJson(USERS_KEY, [])); if (event.key === SESSION_KEY) setSessionId(localStorage.getItem(SESSION_KEY) || '') }
+    const sync = event => { if (event.key === USERS_KEY) setUsers(readUsers()); if (event.key === SESSION_KEY) setSessionId(localStorage.getItem(SESSION_KEY) || '') }
     window.addEventListener('storage', sync)
     return () => window.removeEventListener('storage', sync)
   }, [])
@@ -77,9 +88,10 @@ export function AuthProvider({ children }) {
   }
 
   async function setupAdmin({ name, email, password }) {
-    if (users.some(user => user.role === 'admin')) throw new Error('O administrador principal já foi configurado.')
+    const latest = readUsers()
+    if (latest.some(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) throw new Error('O administrador principal já foi configurado.')
     if (!name?.trim()) throw new Error('Informe seu nome.')
-    if (!normalizeEmail(email)) throw new Error('Informe um e-mail válido.')
+    if (normalizeEmail(email) !== PRIMARY_ADMIN_EMAIL) throw new Error('Use o e-mail do administrador principal: ' + PRIMARY_ADMIN_EMAIL)
     if (String(password || '').length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.')
 
     const passwordHash = await hashPassword(password)
@@ -95,7 +107,7 @@ export function AuthProvider({ children }) {
       createdAt: new Date().toISOString(),
     }
 
-    commitUsers([admin, ...users])
+    commitUsers([admin, ...latest])
     localStorage.setItem(SESSION_KEY, admin.id)
     setSessionId(admin.id)
     return admin
@@ -104,7 +116,7 @@ export function AuthProvider({ children }) {
   async function login(email, password) {
     const targetEmail = normalizeEmail(email)
     const passwordHash = await hashPassword(password)
-    const user = users.find((item) => item.email === targetEmail)
+    const user = users.find((item) => normalizeEmail(item.email) === targetEmail)
 
     if (!user || user.passwordHash !== passwordHash) {
       throw new Error('E-mail ou senha incorretos.')
@@ -126,7 +138,8 @@ export function AuthProvider({ children }) {
 
   async function registerCustomer({ name, email, password }) {
     const normalizedEmail = normalizeEmail(email)
-    const latest = readJson(USERS_KEY, [])
+    const latest = readUsers()
+    if (normalizedEmail === PRIMARY_ADMIN_EMAIL) throw new Error('Configure o administrador principal pelo acesso /admin ou entre com sua senha.')
     if (!name?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw new Error('Informe nome e e-mail válidos.')
     if (latest.some(user => user.email === normalizedEmail)) throw new Error('Este e-mail já possui conta. Entre com sua senha.')
     if (String(password || '').length < 6) throw new Error('Use pelo menos 6 caracteres na senha.')
@@ -163,7 +176,7 @@ export function AuthProvider({ children }) {
       name: name.trim(),
       email: normalizedEmail,
       passwordHash: await hashPassword(password),
-      role,
+      role: normalizedEmail === PRIMARY_ADMIN_EMAIL ? 'admin' : role,
       organizerId: role === 'admin' ? 'org-main' : resolvedOrganizerId,
       organizerName: role === 'admin' ? 'Organização principal' : organization,
       active: true,
@@ -176,7 +189,7 @@ export function AuthProvider({ children }) {
 
   function toggleUserActive(userId) {
     if (currentUser?.role !== 'admin') return
-    if (userId === currentUser.id) return
+    if (userId === currentUser.id || users.some(user => user.id === userId && normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) return
 
     commitUsers(
       users.map((user) =>
@@ -187,9 +200,10 @@ export function AuthProvider({ children }) {
 
   function updateUserProfile(userId, changes) {
     if (currentUser?.role !== 'admin' || userId === currentUser.id) throw new Error('Não é possível alterar este perfil.')
+    if (users.some(user => user.id === userId && normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) throw new Error('O administrador principal deve manter acesso total.')
     if (!ROLE_LABELS[changes.role]) throw new Error('Perfil inválido.')
     if (!['admin','cliente'].includes(changes.role) && !changes.organizerId) throw new Error('Selecione a organização.')
-    const latest = readJson(USERS_KEY, [])
+    const latest = readUsers()
     commitUsers(latest.map(user => user.id === userId ? { ...user, role: changes.role, organizerId: changes.role === 'admin' ? 'org-main' : changes.role === 'cliente' ? null : changes.organizerId, organizerName: changes.organizerName || '' } : user))
   }
 

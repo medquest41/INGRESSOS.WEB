@@ -6,14 +6,14 @@ const roles = ['admin','organizador','financeiro','checkin','cliente']
 async function seed(page) {
   await page.goto('/')
   await page.evaluate(({roles,hash,events})=>{
-    localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(roles.map(role=>({id:role,name:'Teste '+role,email:role+'@example.test',passwordHash:hash,role,organizerId:'org-main',organizerName:'Organização principal',active:true}))))
+    localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(roles.map(role=>({id:role,name:'Teste '+role,email:role==='admin'?'medquest41@gmail.com':role+'@example.test',passwordHash:hash,role,organizerId:'org-main',organizerName:'Organização principal',active:true}))))
     localStorage.setItem('ingressos_events_v1',JSON.stringify(events.map((e,i)=>({...e,organizerId:i===1?'org-other':'org-main',published:i!==2,ticketTypes:e.ticketTypes.map(t=>({...t,available:10}))}))))
     localStorage.setItem('ingressos_orders_v1',JSON.stringify([{id:'legacy',eventId:'2',eventTitle:'Sunset Experience',ticketId:'pista',quantity:1,total:99,fee:9,subtotal:90,buyer:{name:'Outro Cliente',email:'outro@example.test'},ticketCodes:[{code:'LEGACY-SECRET',used:false}]}]))
   },{roles,hash:createHash('sha256').update(password).digest('hex'),events:defaultEvents})
 }
 async function login(page,role,destination='/admin') {
   await page.goto(destination)
-  await page.getByLabel('E-mail',{exact:true}).fill(role+'@example.test')
+  await page.getByLabel('E-mail',{exact:true}).fill(role==='admin'?'medquest41@gmail.com':role+'@example.test')
   await page.getByLabel('Senha',{exact:true}).fill(password)
   await page.getByRole('button',{name:'Entrar',exact:true}).click()
 }
@@ -95,7 +95,8 @@ test('mobile checkout and check-in layouts fit viewport',async({page})=>{
 test('first admin setup and customer signup preserve existing events',async({page})=>{
  await page.goto('/admin')
  await page.getByLabel('Seu nome').fill('Admin Inicial')
- await page.getByLabel('E-mail',{exact:true}).fill('inicial@example.test')
+ await expect(page.getByLabel('E-mail',{exact:true})).toHaveValue('medquest41@gmail.com')
+ await expect(page.getByLabel('E-mail',{exact:true})).toHaveAttribute('readonly', '')
  await page.getByLabel('Senha',{exact:true}).fill(password)
  await page.getByRole('button',{name:'Criar administrador',exact:true}).click()
  await expect(page.getByRole('heading',{name:'Visão geral.'})).toBeVisible()
@@ -140,4 +141,52 @@ test('admin can create, change profile, reset password and deactivate a team mem
  await page.getByLabel('E-mail',{exact:true}).fill('equipe@example.test');await page.getByLabel('Senha',{exact:true}).fill('Outra-senha-123')
  await page.getByRole('button',{name:'Entrar',exact:true}).click()
  await expect(page.locator('.auth-error')).toContainText('desativado')
+})
+
+test('existing primary account is promoted without duplicates or data loss',async({page})=>{
+ await seed(page)
+ const before = await page.evaluate(()=>{
+   const users=JSON.parse(localStorage.getItem('ingressos_auth_users_v1'))
+   users[0]={...users[0],email:' MEDQUEST41@GMAIL.COM ',role:'cliente',active:false}
+   localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(users))
+   return {users,events:localStorage.getItem('ingressos_events_v1'),orders:localStorage.getItem('ingressos_orders_v1')}
+ })
+ await login(page,'admin')
+ await expect(page.getByRole('heading',{name:'Visão geral.'})).toBeVisible()
+ for(const name of ['Eventos','Pedidos','Equipe','Financeiro','Check-in']) await expect(page.getByRole('button',{name,exact:true})).toBeVisible()
+ await page.reload()
+ const after=await page.evaluate(()=>({users:JSON.parse(localStorage.getItem('ingressos_auth_users_v1')),events:localStorage.getItem('ingressos_events_v1'),orders:localStorage.getItem('ingressos_orders_v1')}))
+ expect(after.users).toEqual(before.users.map((u,i)=>i===0?{...u,email:'medquest41@gmail.com',role:'admin',active:true}:u))
+ expect(after.events).toBe(before.events)
+ expect(after.orders).toBe(before.orders)
+ expect(after.users.every(u=>!('password' in u))).toBe(true)
+})
+test('bootstrap keeps an existing administrator and stores only the new password hash',async({page})=>{
+ await seed(page)
+ const oldUsers=await page.evaluate(()=>{
+   const users=JSON.parse(localStorage.getItem('ingressos_auth_users_v1'))
+   users[0].email='legacy-admin@example.test'
+   localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(users))
+   return users
+ })
+ await page.goto('/admin')
+ await page.getByLabel('Seu nome').fill('Administrador principal')
+ await page.getByLabel('Senha',{exact:true}).fill(password)
+ await page.getByRole('button',{name:'Criar administrador',exact:true}).click()
+ await expect(page.getByRole('heading',{name:'Visão geral.'})).toBeVisible()
+ const users=await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_auth_users_v1')))
+ expect(users.slice(1)).toEqual(oldUsers)
+ expect(users[0]).toMatchObject({email:'medquest41@gmail.com',role:'admin',passwordHash:createHash('sha256').update(password).digest('hex')})
+ expect(users[0]).not.toHaveProperty('password')
+ await page.getByRole('button',{name:'Sair',exact:true}).click()
+ await page.getByLabel('E-mail',{exact:true}).fill('legacy-admin@example.test')
+ await page.getByLabel('Senha',{exact:true}).fill(password)
+ await page.getByRole('button',{name:'Entrar',exact:true}).click()
+ await page.getByRole('button',{name:'Equipe',exact:true}).click()
+ const primary=page.locator('.team-list article').filter({hasText:'medquest41@gmail.com'})
+ await primary.getByLabel('Perfil de Administrador principal').selectOption('cliente')
+ await expect(page.getByText('O administrador principal deve manter acesso total.')).toBeVisible()
+ await primary.getByRole('button',{name:'Desativar',exact:true}).click()
+ const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_auth_users_v1')))
+ expect(stored[0]).toEqual(users[0])
 })

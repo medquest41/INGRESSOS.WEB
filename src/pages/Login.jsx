@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import Brand from '../components/Brand'
-import { useAuth } from '../store/AuthStore'
+import { PRIMARY_ADMIN_EMAIL, useAuth } from '../store/AuthStore'
 
 export default function Login() {
   const { currentUser, needsSetup, setupAdmin, login, registerCustomer } = useAuth()
@@ -25,7 +25,7 @@ export default function Login() {
 
     try {
       if (setup) {
-        await setupAdmin(form)
+        await setupAdmin({ ...form, email: PRIMARY_ADMIN_EMAIL })
       } else if (register) {
         await registerCustomer(form)
       } else {
@@ -80,7 +80,7 @@ export default function Login() {
 
           <label>
             E-mail
-            <div className="auth-input"><Mail /><input required type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="seu@email.com" /></div>
+            <div className="auth-input"><Mail /><input required type="email" autoComplete="email" readOnly={setup} value={setup ? PRIMARY_ADMIN_EMAIL : form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="seu@email.com" /></div>
           </label>
 
           <label>

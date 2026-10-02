@@ -47,3 +47,9 @@ npm run test:e2e
 ```
 
 Os testes utilizam o Google Chrome instalado. Use uma instância do site em http://localhost:5173. Os testes criam contexto isolado e dados fictícios, sem alterar o perfil normal do usuário. Câmera física, banco remoto e pagamento real exigem validação no ambiente de implantação.
+
+## Administrador Geral principal (modo local)
+
+O e-mail principal é medquest41@gmail.com. Em um navegador sem essa conta, abra /admin sem sessão ativa e informe seu nome e uma senha na configuração inicial; o e-mail já vem fixo. Nenhuma senha padrão é criada. O fluxo existente armazena somente o hash da senha.
+
+Se esse e-mail já existir no armazenamento local, seu registro é atualizado para admin ativo, preservando ID, hash de senha e demais dados. Outros usuários, eventos e pedidos são preservados. O perfil principal não pode ser desativado ou rebaixado pela gestão de equipe. Esta configuração é exclusiva da autenticação local/mock; não cria usuários no Supabase.
