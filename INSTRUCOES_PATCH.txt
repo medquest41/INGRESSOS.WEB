@@ -1,0 +1,25 @@
+PATCH_INGRESSOS_LOGIN_PERMISSOES_V3
+
+EXTRAIR DIRETAMENTE EM:
+D:\SITE-INGRESSOS\ingressos-local
+
+Quando o Windows perguntar, escolha:
+SUBSTITUIR OS ARQUIVOS NO DESTINO
+
+Depois rode:
+npm.cmd run dev
+
+O QUE MUDA:
+- /admin agora e protegido por login.
+- /login cria o primeiro Administrador na primeira abertura.
+- O primeiro cadastro pede nome, e-mail e senha escolhidos por voce.
+- Perfis: Administrador, Organizador, Financeiro e Check-in.
+- Administrador ve tudo e possui aba Equipe para criar acessos.
+- Organizador ve apenas eventos e pedidos vinculados a organizacao dele.
+- Financeiro ve dashboard e pedidos.
+- Check-in ve somente validacao e nao consegue validar evento de outra organizacao.
+- Eventos antigos recebem automaticamente a organizacao principal sem apagar dados.
+- Admin pode vincular cada evento a um organizador.
+
+IMPORTANTE:
+Esta etapa usa autenticacao LOCAL para desenvolvimento. A senha nao e salva em texto puro; e armazenado um hash SHA-256 no navegador. Ainda assim, isso NAO substitui autenticacao de producao. Antes de publicar o site, conectar ao Supabase/Auth para login real no servidor, recuperacao de senha, verificacao de e-mail e politicas de seguranca.

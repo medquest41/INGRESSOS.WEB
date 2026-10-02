@@ -141,4 +141,3 @@ test('admin can create, change profile, reset password and deactivate a team mem
  await page.getByRole('button',{name:'Entrar',exact:true}).click()
  await expect(page.locator('.auth-error')).toContainText('desativado')
 })
-

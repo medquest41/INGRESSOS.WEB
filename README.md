@@ -1,16 +1,49 @@
-# React + Vite
+# Plataforma de ingressos
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Aplicação React/Vite existente, preservando o visual verde e dourado e `src/data/defaultEvents.js`.
 
-Currently, two official plugins are available:
+## Executar
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Requer Node.js 22.12+ (validado com 24.21).
 
-## React Compiler
+```sh
+npm ci
+npm run dev
+npm run lint
+npm test
+npm run build
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Abra http://localhost:5173. Para testar a câmera no celular será necessário HTTPS; o armazenamento local não é compartilhado entre dispositivos. Não use esta demonstração para vendas/portaria reais.
 
-## Expanding the Oxlint configuration
+## Funcionalidades
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- Home e catálogo `/eventos`, cards inteiros clicáveis, links por slug com compatibilidade por ID, copiar link e visualização restrita de eventos ocultos.
+- Login local; primeiro administrador em `/admin`; cadastro de cliente no login. Equipe: Administrador, Organizador, Financeiro, Check-in e Cliente.
+- Organizador/Financeiro/Check-in vinculados à organização. Cliente acessa seus próprios pedidos; pedidos antigos são reconhecidos pelo e-mail da conta.
+- Checkout com CPF verificado, nome, telefone, e-mail da conta, nascimento, quantidade, cupom, taxa e total. PIX/cartão simulados; aprovação/recusa explícitas, sem dados bancários.
+- Pedido aprovado emite número único e QR por unidade. Mesas/camarotes representam uma unidade com entrada única do grupo (não há mapa de assentos ou convites individuais).
+- Estoque calculado considerando pedidos aprovados. Cancelamento libera estoque e invalida QR; pedido já utilizado não pode ser cancelado.
+- Check-in por câmera ou digitação: válido, usado, cancelado, inválido e sem permissão. Web Locks e gravação em snapshot único impedem dupla entrada concorrente entre abas do mesmo navegador.
+- Admin: dashboard, eventos, lotes/setores, mesas/camarotes, edição, duplicação, publicação, ocultação, arquivamento/restauração, pedidos, clientes, cupons, financeiro, CSV por evento/origem, equipe e histórico operacional.
+- Divulgação: acrescente `?ref=instagram` ou `?utm_source=instagram` ao link público; o checkout preserva a origem no pedido.
+
+## Preservação dos dados
+
+As chaves antigas `ingressos_events_v1` e `ingressos_orders_v1` são lidas na primeira operação. A nova versão grava um snapshot em `ingressos_platform_v2`; as chaves antigas não são apagadas. `ingressos_auth_users_v1` e `ingressos_auth_session_v1` continuam compatíveis. Não limpe o armazenamento do navegador.
+
+A pasta duplicada `ingressos-local/` encontrada dentro do projeto foi mantida e não faz parte do aplicativo principal. Não foi recriado `src/data/events.js`. Botões que apagavam todos os eventos ou restauravam os exemplos sobre os dados foram removidos.
+
+## Limites e integração externa
+
+Tudo permanece em modo local. A proteção de interfaces e operações não substitui autorização de servidor; qualquer pessoa com acesso ao armazenamento do navegador pode alterar esses dados. Contas locais não verificam e-mail e os hashes legados de senha são mantidos por compatibilidade. Dados de demonstração devem ser fictícios.
+
+Consulte `docs/INTEGRACOES.md` para a estrutura de Supabase/Postgres e Mercado Pago. Preencher `.env` sozinho **não ativa** vendas reais. Não há credenciais inventadas ou segredos versionados.
+
+## Testes de navegador
+
+```sh
+npm run test:e2e
+```
+
+Os testes utilizam o Google Chrome instalado. Use uma instância do site em http://localhost:5173. Os testes criam contexto isolado e dados fictícios, sem alterar o perfil normal do usuário. Câmera física, banco remoto e pagamento real exigem validação no ambiente de implantação.
