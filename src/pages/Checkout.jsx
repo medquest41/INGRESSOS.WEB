@@ -1,20 +1,44 @@
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCircle2, CreditCard, QrCode, ShieldCheck, Ticket } from 'lucide-react'
+import { ArrowLeft, CreditCard, QrCode } from 'lucide-react'
 import Brand from '../components/Brand'
 import { useEventStore } from '../store/EventStore'
-
-const brl = (v) => v.toLocaleString('pt-BR', { style:'currency', currency:'BRL' })
-const code = (i) => `ING-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2,7).toUpperCase()}-${i+1}`
-
-export default function Checkout(){
-  const [params] = useSearchParams(); const navigate = useNavigate(); const { events, addOrder } = useEventStore()
-  const event = events.find(e=>e.id===params.get('event')); const ticket = event?.ticketTypes.find(t=>t.id===params.get('ticket')); const quantity = Math.max(1, Number(params.get('q')||1))
-  const [method,setMethod]=useState('pix'); const [done,setDone]=useState(false); const [buyer,setBuyer]=useState({name:'',cpf:'',email:'',phone:''})
-  const subtotal = ticket ? ticket.price*quantity : 0, fee=subtotal*.10, total=subtotal+fee
-  const valid = buyer.name && buyer.cpf && buyer.email && buyer.phone
-  function finish(e){ e.preventDefault(); if(!event||!ticket||!valid) return; const order={id:`PED-${Date.now()}`,createdAt:new Date().toISOString(),eventId:event.id,eventTitle:event.title,eventImage:event.image,eventDate:event.date,eventTime:event.time,ticketId:ticket.id,ticketName:ticket.name,quantity,subtotal,fee,total,method,buyer,ticketCodes:Array.from({length:quantity},(_,i)=>({code:code(i),used:false}))}; addOrder(order); setDone(true); setTimeout(()=>navigate('/ingressos'),1200) }
-  if(!event||!ticket) return <div className="empty-page"><h1>Compra inválida.</h1><Link className="primary-cta" to="/">Voltar</Link></div>
-  if(done) return <div className="checkout-done"><CheckCircle2/><h1>Pedido criado!</h1><p>Seus ingressos já estão em “Meus ingressos”.</p></div>
-  return <div className="checkout-page"><header className="simple-header"><Link to={`/evento/${event.id}`} className="event-back"><ArrowLeft size={18}/>Voltar</Link><Brand/><div/></header><main className="checkout-wrap"><section><span className="section-kicker">CHECKOUT</span><h1>Finalize sua experiência.</h1><form className="buyer-form" onSubmit={finish}><h3>Dados do comprador</h3><div className="form-grid"><label>Nome completo<input required value={buyer.name} onChange={e=>setBuyer({...buyer,name:e.target.value})}/></label><label>CPF<input required value={buyer.cpf} onChange={e=>setBuyer({...buyer,cpf:e.target.value})}/></label><label>E-mail<input required type="email" value={buyer.email} onChange={e=>setBuyer({...buyer,email:e.target.value})}/></label><label>Telefone<input required value={buyer.phone} onChange={e=>setBuyer({...buyer,phone:e.target.value})}/></label></div><h3>Forma de pagamento</h3><div className="payment-options"><button type="button" className={method==='pix'?'active':''} onClick={()=>setMethod('pix')}><QrCode/>PIX<span>Aprovação rápida</span></button><button type="button" className={method==='card'?'active':''} onClick={()=>setMethod('card')}><CreditCard/>Cartão<span>Estrutura pronta</span></button></div><div className="demo-warning">Pagamento em modo demonstração. Mercado Pago real será conectado na próxima etapa.</div><button className="checkout-button" disabled={!valid}>Finalizar pedido</button></form></section><aside className="checkout-summary"><img src={event.image} alt={event.title}/><span>{event.category}</span><h2>{event.title}</h2><p>{ticket.name} • {quantity}x</p><div><span>Subtotal</span><strong>{brl(subtotal)}</strong></div><div><span>Taxa</span><strong>{brl(fee)}</strong></div><div className="checkout-total"><span>Total</span><strong>{brl(total)}</strong></div><small><ShieldCheck/>Ambiente de demonstração protegido.</small></aside></main></div>
+import { useAuth } from '../store/AuthStore'
+import { getEventPublicPath } from '../utils/eventSlug'
+const brl = value => Number(value).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+export default function Checkout() {
+  const [params] = useSearchParams()
+  const navigate = useNavigate()
+  const { events, placeOrder, getQuote, getRemaining } = useEventStore()
+  const { currentUser } = useAuth()
+  const event = events.find(e => e.id === params.get('event'))
+  const ticket = event?.ticketTypes.find(t => t.id === params.get('ticket'))
+  const [quantity, setQuantity] = useState(Number(params.get('q') || 1))
+  const [buyer, setBuyer] = useState({ name: currentUser.name, email: currentUser.email, cpf: '', phone: '', birthDate: '' })
+  const [method, setMethod] = useState('pix')
+  const [outcome, setOutcome] = useState('approved')
+  const [coupon, setCoupon] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [today] = useState(()=>new Date().toISOString().slice(0,10))
+  const pending = useRef(false)
+  const idempotencyKey = useRef(crypto.randomUUID())
+  let totals, quoteError = ''
+  try { totals = getQuote(event, ticket, quantity, coupon) } catch (err) { quoteError = err.message }
+  async function finish(e) {
+    e.preventDefault()
+    if (pending.current || !totals) return
+    pending.current = true; setBusy(true); setError('')
+    try {
+      await placeOrder({ eventId: event.id, ticketId: ticket.id, quantity, buyer, method, outcome, coupon, source: params.get('ref') || params.get('utm_source') || 'direto', idempotencyKey: idempotencyKey.current })
+      navigate('/ingressos', { replace: true, state: { approved: true } })
+    } catch (err) { setError(err.message) } finally { pending.current = false; setBusy(false) }
+  }
+  if (!event?.published || event.archived || !ticket) return <div className="empty-page"><h1>Ingresso indisponível.</h1><Link to="/eventos">Ver eventos</Link></div>
+  return <div className="checkout-page"><header className="simple-header"><Link to={getEventPublicPath(event)} className="event-back"><ArrowLeft size={18}/>Voltar</Link><Brand/><Link to="/ingressos">Minha conta</Link></header><main className="checkout-wrap"><section><span className="section-kicker">CHECKOUT</span><h1>Finalize sua experiência.</h1><form className="buyer-form" onSubmit={finish}><h3>Dados do comprador</h3><div className="form-grid">
+    {Object.entries({ name: 'Nome completo', cpf: 'CPF', email: 'E-mail da conta', phone: 'Telefone com DDD', birthDate: 'Data de nascimento' }).map(([field,label]) => <label key={field}>{label}<input required type={field === 'birthDate' ? 'date' : field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} max={field === 'birthDate' ? today : undefined} readOnly={field === 'email'} value={buyer[field]} onChange={e => setBuyer({ ...buyer, [field]: e.target.value })}/></label>)}
+    <label>Quantidade<input type="number" required min="1" max={Math.min(10, getRemaining(event,ticket))} value={quantity} onChange={e=>setQuantity(Number(e.target.value))}/></label><label>Cupom de desconto<input value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())}/></label></div>
+    {ticket.type === 'table' && <p>Uma unidade corresponde a uma mesa/camarote. O grupo entra junto usando um único QR Code.</p>}
+    <h3>Forma de pagamento</h3><div className="payment-options"><button type="button" className={method==='pix'?'active':''} onClick={()=>setMethod('pix')}><QrCode/>PIX<span>Simulação</span></button><button type="button" className={method==='card'?'active':''} onClick={()=>setMethod('card')}><CreditCard/>Cartão<span>Simulação sem dados bancários</span></button></div><div className="demo-warning">Modo demonstração: nenhuma cobrança será realizada. Os ingressos são locais deste navegador.</div><label>Resultado da simulação<select value={outcome} onChange={e=>setOutcome(e.target.value)}><option value="approved">Aprovar pagamento</option><option value="declined">Recusar pagamento</option></select></label>
+    {(error || quoteError) && <p role="alert" className="auth-error">{error || quoteError}</p>}<button className="checkout-button" disabled={busy || !totals}>{busy ? 'Processando...' : 'Confirmar compra simulada'}</button></form></section><aside className="checkout-summary"><img src={event.image} alt={event.title}/><span>{event.category}</span><h2>{event.title}</h2><p>{ticket.name} • {ticket.batch} • {quantity}x</p>{totals && <>{[['Subtotal',totals.subtotal],['Desconto',-totals.discount],['Taxa',totals.fee],['Total',totals.total]].map(([label,value])=><div key={label}><span>{label}</span><strong>{brl(value)}</strong></div>)}</>}</aside></main></div>
 }

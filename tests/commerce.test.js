@@ -1,0 +1,17 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { quote, validCPF, validateBuyer, remaining, checkTicket, ownsOrder, canManage, ownsEvent } from '../src/utils/commerce.js'
+import { getEventSlug, matchesEventRoute } from '../src/utils/eventSlug.js'
+import { mockPayment } from '../src/services/payment.js'
+const event = { id:'e1', title:'Festa de Verão', organizerId:'org1', published:true }
+const ticket = { id:'pista', price:149.9, available:2 }
+const user = { id:'u1', role:'organizador', organizerId:'org1' }
+const order = { id:'o1', eventId:'e1', ticketId:'pista', quantity:1, buyer:{email:'a@exemplo.com'}, ticketCodes:[{code:'ING-1',used:false}] }
+test('CPF: check digits, repeated digits and invalid input',()=>{assert.equal(validCPF('529.982.247-25'),true);assert.equal(validCPF('11111111111'),false);assert.equal(validCPF('52998224724'),false)})
+test('buyer: required fields and future birthday rejected',()=>{const buyer={name:'Teste Comprador',cpf:'52998224725',email:'a@exemplo.com',phone:'41999999999',birthDate:'2000-01-01'};assert.doesNotThrow(()=>validateBuyer(buyer));assert.throws(()=>validateBuyer({...buyer,birthDate:'2999-01-01'}));assert.throws(()=>validateBuyer({...buyer,phone:'12'}))})
+test('totals rounded, coupons event-scoped and stock enforced',()=>{assert.deepEqual(quote(event,ticket,1,'',[],[]),{subtotal:149.9,discount:0,fee:14.99,total:164.89,coupon:''});assert.throws(()=>quote(event,ticket,3,'',[],[]));assert.throws(()=>quote(event,ticket,1.5,'',[],[]));assert.throws(()=>quote({...event,published:false},ticket,1,'',[],[]));const c={code:'VIP',eventId:'e1',type:'percent',value:10};assert.equal(quote(event,ticket,1,'vip',[c],[]).total,148.4);assert.throws(()=>quote(event,ticket,1,'VIP',[{...c,eventId:'e2'}],[]));assert.throws(()=>quote(event,ticket,1,'VIP',[{...c,limit:1}],[{...order,coupon:'VIP'}]))})
+test('cancelled orders release stock; legacy orders consume stock',()=>{assert.equal(remaining(event,ticket,[order]),1);assert.equal(remaining(event,ticket,[{...order,status:'cancelled'}]),2)})
+test('check-in: valid, used, cancelled, invalid and forbidden',()=>{assert.equal(checkTicket([order],[event],user,'ING-1').found,true);assert.equal(checkTicket([{...order,ticketCodes:[{code:'ING-1',used:true}]}],[event],user,'ING-1').alreadyUsed,true);assert.equal(checkTicket([{...order,status:'cancelled'}],[event],user,'ING-1').cancelled,true);assert.equal(checkTicket([order],[event],user,'bad').found,false);assert.equal(checkTicket([order],[event],{...user,organizerId:'org2'},'ING-1').forbidden,true);assert.equal(checkTicket([order],[event],{...user,role:'financeiro'},'ING-1').forbidden,true)})
+test('permissions and legacy ticket ownership',()=>{assert.equal(canManage(user,event),true);assert.equal(canManage({...user,role:'checkin'},event),false);assert.equal(ownsEvent({...user,role:'financeiro',organizerId:'org2'},event),false);assert.equal(ownsOrder({id:'x',email:'a@exemplo.com'},order),true);assert.equal(ownsOrder({id:'x',email:'a@exemplo.com'},{...order,userId:'y'}),false)})
+test('friendly links preserve old IDs and normalize full URLs',()=>{assert.equal(getEventSlug(event),'festa-de-verao');assert.equal(matchesEventRoute(event,'e1'),true);assert.equal(getEventSlug({...event,slug:'https://exemplo.com/evento/minha-festa?ref=ig'}),'minha-festa')})
+test('mock approval and refusal have explicit outcomes',async()=>{assert.equal((await mockPayment('pix')).provider,'mock');await assert.rejects(mockPayment('card','declined'));await assert.rejects(mockPayment('invalid'))})
