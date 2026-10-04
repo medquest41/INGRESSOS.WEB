@@ -1,32 +1,13 @@
-# Integrações preparadas — ainda não ativadas
+# Integrações — 04/10/2026
 
-## Supabase Auth e Postgres
+O adaptador Supabase está conectado aos providers e às telas. Não existe fallback local em produção. O estado de ativação remota e os passos exatos estão em [RELATORIO_FINAL.md](../RELATORIO_FINAL.md).
 
-- Cliente oficial em `src/services/supabase.js`, com login, cadastro, recuperação e leitura de dados.
-- Migração inicial em `supabase/migrations/001_platform.sql`: organizações, perfis, eventos, lotes, pedidos, ingressos, cupons, auditoria, índices, políticas de leitura/edição e função transacional de check-in.
-- As credenciais públicas entram em `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
-- A chave de serviço fica somente no servidor. Nunca usar prefixo VITE_ para segredos.
-- Perfis não aceitam escrita do navegador. É necessário provisionar perfis de cliente após cadastro e criar o primeiro admin por operação confiável do servidor. Não confiar em role enviada em metadados de cadastro.
-- A migração foi preparada e revisada estaticamente; não foi executada em banco remoto por falta de conexão. Testar as políticas com dois organizadores antes da produção.
+- Cliente: src/lib/supabase.js, com publishable/anon e sessão persistente.
+- Auth: src/store/AuthStore.jsx; providers locais separados e acessíveis somente em DEV explícito.
+- Dados: src/services/remoteData.js e src/store/EventStore.jsx; RLS e RPCs fazem autorização e cálculo no servidor.
+- Banco: supabase/migrations/001_platform.sql até 004_preservation_reservation_limits.sql.
+- Admin principal: supabase/setup/promote-primary-admin.sql, sem senha ou promoção automática por metadados.
+- E-mails: supabase/templates/confirmation.html e recovery.html; configurar templates, redirects e SMTP no Dashboard.
+- Pagamento: server/mercadopago.mjs e payment-handlers.mjs são módulos seguros de servidor preparados; não são endpoints publicados. Sem Mercado Pago ativo, pedidos pagos ficam pendentes e não emitem ingressos.
 
-## Mercado Pago
-
-`server/mercadopago.mjs` contém criação de preferência Checkout Pro, consulta de pagamento e validação HMAC de webhook com limite de idade. É um adaptador de servidor, não um endpoint publicado.
-
-Para concluir a integração:
-
-1. Implantar um servidor/Edge Functions com autenticação Supabase e configurações HTTPS.
-2. Implementar transação de reserva de estoque e cálculo de preços/cupons no banco; nunca aceitar total ou aprovação vindos do navegador.
-3. Criar pedido pendente e preferência com `external_reference` do pedido. Direcionar o cliente ao checkout hospedado para PIX/cartão.
-4. Publicar webhook; validar assinatura, consultar o pagamento na API e conferir vendedor, moeda, valor e referência. Validar repetição/idempotência antes de emitir ingressos.
-5. Atualizar pedido e emitir códigos numa única transação. Tratar expiração de reserva, pagamento recusado, estorno, cancelamento e eventos repetidos.
-6. Conectar os providers da interface ao adaptador remoto, adaptar identificadores/valores em centavos e migrar dados locais mediante backup. Não ativar parcialmente Auth remoto com dados sensíveis locais.
-7. Validar confirmação de e-mail, recuperação de senha, entrega de ingresso, câmera em HTTPS, acesso concorrente entre dispositivos e políticas de cada perfil.
-
-Não foram feitas chamadas de cobrança nem alteração de banco externo.
-
-Referências oficiais consultadas:
-- https://supabase.com/docs/guides/database/postgres/row-level-security
-- https://supabase.com/docs/reference/javascript/auth-admin-getuserbyid
-- https://www.mercadopago.com.br/developers/en/docs/links-and-debts/additional-content/your-integrations/notifications/webhooks
-- https://github.com/mercadopago/openapi/blob/main/schemas/webhooks.yaml
+A sondagem pública acessou Auth, mas a tabela events retornou HTTP 404. As migrations não foram aplicadas remotamente por ausência de acesso administrativo disponível. Os testes de banco executam as migrations em PGlite; testes das telas usam respostas interceptadas. Não confundir estas verificações com homologação remota.

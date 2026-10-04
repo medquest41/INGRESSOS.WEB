@@ -1,3 +1,5 @@
+> Registro histórico da entrega anterior. Para o estado atual, consulte ../RELATORIO_FINAL.md e AUDITORIA-2026-10-03.md.
+
 # Auditoria e entrega — 02/10/2026
 
 ## Estado recebido
