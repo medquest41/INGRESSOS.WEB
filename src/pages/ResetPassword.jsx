@@ -1,0 +1,8 @@
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { supabase, result } from '../lib/supabase'
+export default function ResetPassword(){
+ const [password,setPassword]=useState(''),[confirmation,setConfirmation]=useState(''),[message,setMessage]=useState(''),[busy,setBusy]=useState(false),[done,setDone]=useState(false)
+ async function submit(e){e.preventDefault();setBusy(true);try{if(password!==confirmation)throw new Error('As senhas não coincidem.');if(!supabase)throw new Error('Recuperação disponível apenas no modo Supabase.');const session=await result(supabase.auth.getSession());if(!session.session)throw new Error('Link inválido ou expirado. Solicite uma nova recuperação.');await result(supabase.auth.updateUser({password}));await result(supabase.auth.signOut());setDone(true);setMessage('Senha atualizada. Entre novamente.')}catch(err){setMessage(err.message)}finally{setBusy(false)}}
+ return <main className="auth-wrap"><form className="auth-card" onSubmit={submit}><h1>Redefinir senha</h1><p>Abra o link de recuperação recebido por e-mail para definir sua nova senha.</p>{!done&&<><label>Nova senha<input required type="password" minLength={8} autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)}/></label><label>Confirmar senha<input required type="password" minLength={8} autoComplete="new-password" value={confirmation} onChange={e=>setConfirmation(e.target.value)}/></label><button className="checkout-button" disabled={busy}>{busy?'Salvando...':'Salvar senha'}</button></>}<p role="status">{message}</p><Link to="/login">Voltar para entrar</Link></form></main>
+}

@@ -5,6 +5,7 @@ import Evento from './pages/Evento'
 import Checkout from './pages/Checkout'
 import MeusIngressos from './pages/MeusIngressos'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import Admin from './pages/Admin'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -17,6 +18,7 @@ export default function App() {
       <Route path="/checkout" element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
       <Route path="/ingressos" element={<ProtectedRoute><MeusIngressos /></ProtectedRoute>} />
       <Route path="/login" element={<Login />} />
+      <Route path="/redefinir-senha" element={<ResetPassword />} />
       <Route
         path="/admin"
         element={

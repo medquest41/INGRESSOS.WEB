@@ -1,0 +1,13 @@
+import { useState } from 'react'
+import { useEventStore } from '../store/EventStore'
+import { useAuth } from '../store/AuthStore'
+import { defaultEvents } from '../data/defaultEvents'
+import { getEventSlug } from '../utils/eventSlug'
+export default function LocalDataImport(){
+ const {events,saveEvent}=useEventStore();const {organizations}=useAuth()
+ const [message,setMessage]=useState(''),[busy,setBusy]=useState(false),[organization,setOrganization]=useState('')
+ function localEvents(){const raw=localStorage.getItem('ingressos_platform_v2');return raw?JSON.parse(raw).events:JSON.parse(localStorage.getItem('ingressos_events_v1')||'null')||defaultEvents}
+ function backup(){try{const rows=localEvents();const url=URL.createObjectURL(new Blob([JSON.stringify(rows,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='eventos-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);setMessage('Backup dos eventos exportado. Nenhum dado local foi apagado.')}catch(err){setMessage(err.message)}}
+ async function migrate(){setBusy(true);try{if(!organizations.some(o=>o.id===organization&&o.active))throw new Error('Selecione a organização de destino.');const rows=localEvents();let count=0;const slugs=new Set(events.map(e=>e.slug));for(const e of rows){const slug=getEventSlug(e);if(slugs.has(slug))continue;await saveEvent({...e,id:crypto.randomUUID(),legacyId:String(e.id),legacyOrganizerName:e.organizerName,organizerId:organization,slug,ticketTypes:e.ticketTypes.map(t=>({...t,id:crypto.randomUUID(),legacyId:String(t.id)}))});slugs.add(slug);count++}setMessage(count+' eventos importados; links já existentes foram preservados. Pedidos locais permanecem somente no navegador.')}catch(err){setMessage(err.message)}finally{setBusy(false)}}
+ return <section className="admin-panel"><h2>Preservar eventos deste navegador</h2><p>Exporte um backup e selecione a organização de destino. A importação mantém eventos locais intactos e ignora links já existentes. Pedidos simulados não são convertidos em vendas reais.</p><label>Organização para importar eventos<select value={organization} onChange={e=>setOrganization(e.target.value)}><option value="">Selecione</option>{organizations.filter(o=>o.active).map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label><button className="ghost-btn" onClick={backup}>Exportar backup de eventos</button><button className="primary-small" disabled={busy||!organization} onClick={migrate}>{busy?'Importando...':'Importar eventos locais preservando links'}</button><p role="status">{message}</p></section>
+}

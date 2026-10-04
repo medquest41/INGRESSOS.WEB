@@ -1,240 +1,71 @@
-/* oxlint-disable react/only-export-components -- Context providers intentionally export their shared hook. */
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-
+/* oxlint-disable react/only-export-components */
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { paged } from '../lib/pagination'
+import { supabase, result, isLocalDemo, runtime } from '../lib/supabase'
+import { LocalAuthProvider, useLocalAuth } from './LocalAuthStore'
 export const PRIMARY_ADMIN_EMAIL = 'medquest41@gmail.com'
-
-const AuthContext = createContext(null)
-
-const USERS_KEY = 'ingressos_auth_users_v1'
-const SESSION_KEY = 'ingressos_auth_session_v1'
-
-export const ROLE_LABELS = {
-  admin: 'Administrador Geral',
-  organizador: 'Organizador',
-  financeiro: 'Financeiro',
-  checkin: 'Check-in',
-  cliente: 'Cliente',
-}
-
-function readJson(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function normalizeEmail(value = '') {
-  return String(value).trim().toLowerCase()
-}
-
-function slug(value = '') {
-  return String(value)
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 48)
-}
-
-async function hashPassword(password) {
-  const bytes = new TextEncoder().encode(String(password))
-  const digest = await crypto.subtle.digest('SHA-256', bytes)
-  return Array.from(new Uint8Array(digest))
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function readUsers() {
-  const stored = readJson(USERS_KEY, [])
-  const next = stored.map(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL
-    ? { ...user, email: PRIMARY_ADMIN_EMAIL, role: 'admin', active: true }
-    : user)
-  if (JSON.stringify(next) !== JSON.stringify(stored)) persistUsers(next)
-  return next
-}
-
-function persistUsers(next) {
-  localStorage.setItem(USERS_KEY, JSON.stringify(next))
-}
-
-export function AuthProvider({ children }) {
-  const [users, setUsers] = useState(() => readUsers())
-  const [sessionId, setSessionId] = useState(() => localStorage.getItem(SESSION_KEY) || '')
-
-  const currentUser = useMemo(
-    () => users.find((user) => user.id === sessionId && user.active !== false) || null,
-    [users, sessionId],
-  )
-
-  const needsSetup = !users.some(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)
+export const ROLE_LABELS = { admin: 'Administrador Geral', organizador: 'Organizador', financeiro: 'Financeiro', checkin: 'Check-in', cliente: 'Cliente' }
+const Context = createContext(null)
+function LocalBridge({ children }) { const value = useLocalAuth(); return <Context.Provider value={{ ...value, loading: false, isLocalDemo: true }}>{children}</Context.Provider> }
+const profile = (p, email) => ({ ...p, email: p.email || email, organizerId: p.organization_id, organizerName: p.organizations?.name || '' })
+function RemoteAuthProvider({ children }) {
+  const [session, setSession] = useState(null)
+  const [currentUser, setCurrentUser] = useState(null)
+  const [users, setUsers] = useState([])
+  const [organizations, setOrganizations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const generation = useRef(0)
+  const sessionIdentity = useRef(null)
+  const [revision, setRevision] = useState(0)
   useEffect(() => {
-    const sync = event => { if (event.key === USERS_KEY) setUsers(readUsers()); if (event.key === SESSION_KEY) setSessionId(localStorage.getItem(SESSION_KEY) || '') }
-    window.addEventListener('storage', sync)
-    return () => window.removeEventListener('storage', sync)
+    let active = true
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      if (active) { generation.current++; const id=next?.user?.id||null;if(sessionIdentity.current!==id){setCurrentUser(null);setUsers([]);setOrganizations([]);setLoading(true)}sessionIdentity.current=id;setSession(next);setRevision(v=>v+1) }
+    })
+    supabase.auth.getSession().then(({error: err}) => { if (active && err) {setError(err.message); setLoading(false)} })
+    return () => { active = false; subscription.unsubscribe() }
   }, [])
-
   useEffect(() => {
-    if (sessionId && !currentUser) {
-      localStorage.removeItem(SESSION_KEY)
+    const id = ++generation.current
+    let cancelled = false
+    async function load() {
+      try {
+        setError('')
+        if (!session) return
+        const p = await result(supabase.from('profiles').select('*,organizations(name)').eq('id',session.user.id).single())
+        if (!p.active) throw new Error('Acesso desativado. Fale com o administrador.')
+        const rows = p.role === 'admin' ? await result(paged(()=>supabase.from('profiles').select('*,organizations(name)',{count:'exact'}).order('id'))) : [p]
+        const orgs = await result(paged(()=>supabase.from('organizations').select('*',{count:'exact'}).order('name').order('id')))
+        if (!cancelled && id === generation.current) {setCurrentUser(profile(p,session.user.email)); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs)}
+      } catch (err) { if (!cancelled && id === generation.current) {setError(err.message);setCurrentUser(null);setUsers([]);setOrganizations([])} }
+      finally { if (!cancelled && id === generation.current) setLoading(false) }
     }
-  }, [sessionId, currentUser])
-
-  function commitUsers(next) {
-    persistUsers(next)
-    setUsers(next)
+    load()
+    return () => {cancelled = true}
+  }, [session, revision])
+  const refresh = () => setRevision(v=>v+1)
+  async function login(email,password) { return result(supabase.auth.signInWithPassword({ email: email.trim(), password })) }
+  async function logout() { try {await result(supabase.auth.signOut());setCurrentUser(null);setUsers([])} catch(err){setError(err.message)} }
+  async function registerCustomer({name,email,password}) {
+    const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim()},emailRedirectTo:location.origin+'/login'}}))
+    return { confirmationRequired: !data.session }
   }
-
-  async function setupAdmin({ name, email, password }) {
-    const latest = readUsers()
-    if (latest.some(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) throw new Error('O administrador principal já foi configurado.')
-    if (!name?.trim()) throw new Error('Informe seu nome.')
-    if (normalizeEmail(email) !== PRIMARY_ADMIN_EMAIL) throw new Error('Use o e-mail do administrador principal: ' + PRIMARY_ADMIN_EMAIL)
-    if (String(password || '').length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.')
-
-    const passwordHash = await hashPassword(password)
-    const admin = {
-      id: `user-${Date.now()}`,
-      name: name.trim(),
-      email: normalizeEmail(email),
-      passwordHash,
-      role: 'admin',
-      organizerId: 'org-main',
-      organizerName: 'Organização principal',
-      active: true,
-      createdAt: new Date().toISOString(),
-    }
-
-    commitUsers([admin, ...latest])
-    localStorage.setItem(SESSION_KEY, admin.id)
-    setSessionId(admin.id)
-    return admin
+  async function resetPassword(email) { return result(supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/redefinir-senha'})) }
+  async function changeUserPassword(userId) { const u=users.find(x=>x.id===userId); if(!u?.email) throw new Error('Usuário não encontrado.'); await resetPassword(u.email) }
+  async function createUser(input) {
+    await result(supabase.rpc('assign_member',{member_email:input.email.trim(),member_role:input.role,organization:input.organizerId==='org-main'?null:input.organizerId||null,organization_name:input.organizerName||null}))
+    refresh()
   }
-
-  async function login(email, password) {
-    const targetEmail = normalizeEmail(email)
-    const passwordHash = await hashPassword(password)
-    const user = users.find((item) => normalizeEmail(item.email) === targetEmail)
-
-    if (!user || user.passwordHash !== passwordHash) {
-      throw new Error('E-mail ou senha incorretos.')
-    }
-
-    if (user.active === false) {
-      throw new Error('Este acesso está desativado. Fale com o administrador.')
-    }
-
-    localStorage.setItem(SESSION_KEY, user.id)
-    setSessionId(user.id)
-    return user
-  }
-
-  function logout() {
-    localStorage.removeItem(SESSION_KEY)
-    setSessionId('')
-  }
-
-  async function registerCustomer({ name, email, password }) {
-    const normalizedEmail = normalizeEmail(email)
-    const latest = readUsers()
-    if (normalizedEmail === PRIMARY_ADMIN_EMAIL) throw new Error('Configure o administrador principal pelo acesso /admin ou entre com sua senha.')
-    if (!name?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw new Error('Informe nome e e-mail válidos.')
-    if (latest.some(user => user.email === normalizedEmail)) throw new Error('Este e-mail já possui conta. Entre com sua senha.')
-    if (String(password || '').length < 6) throw new Error('Use pelo menos 6 caracteres na senha.')
-    const user = { id: crypto.randomUUID(), name: name.trim(), email: normalizedEmail, passwordHash: await hashPassword(password), role: 'cliente', active: true, createdAt: new Date().toISOString() }
-    commitUsers([...latest, user])
-    localStorage.setItem(SESSION_KEY, user.id)
-    setSessionId(user.id)
-    return user
-  }
-
-  async function createUser({ name, email, password, role, organizerId, organizerName }) {
-    if (currentUser?.role !== 'admin') throw new Error('Apenas o administrador pode criar acessos.')
-
-    const normalizedEmail = normalizeEmail(email)
-    if (!name?.trim()) throw new Error('Informe o nome do usuário.')
-    if (!normalizedEmail) throw new Error('Informe um e-mail válido.')
-    if (users.some((user) => user.email === normalizedEmail)) throw new Error('Este e-mail já possui acesso.')
-    if (!ROLE_LABELS[role]) throw new Error('Selecione um perfil válido.')
-    if (String(password || '').length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.')
-
-    const organization = organizerName?.trim() || name.trim()
-    let resolvedOrganizerId = organizerId || null
-
-    if (role === 'organizador' && !resolvedOrganizerId) {
-      resolvedOrganizerId = `org-${slug(organization) || Date.now()}`
-    }
-
-    if (['financeiro', 'checkin'].includes(role) && !resolvedOrganizerId) {
-      resolvedOrganizerId = 'org-main'
-    }
-
-    const user = {
-      id: `user-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash: await hashPassword(password),
-      role: normalizedEmail === PRIMARY_ADMIN_EMAIL ? 'admin' : role,
-      organizerId: role === 'admin' ? 'org-main' : resolvedOrganizerId,
-      organizerName: role === 'admin' ? 'Organização principal' : organization,
-      active: true,
-      createdAt: new Date().toISOString(),
-    }
-
-    commitUsers([user, ...users])
-    return user
-  }
-
-  function toggleUserActive(userId) {
-    if (currentUser?.role !== 'admin') return
-    if (userId === currentUser.id || users.some(user => user.id === userId && normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) return
-
-    commitUsers(
-      users.map((user) =>
-        user.id === userId ? { ...user, active: user.active === false } : user,
-      ),
-    )
-  }
-
-  function updateUserProfile(userId, changes) {
-    if (currentUser?.role !== 'admin' || userId === currentUser.id) throw new Error('Não é possível alterar este perfil.')
-    if (users.some(user => user.id === userId && normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)) throw new Error('O administrador principal deve manter acesso total.')
-    if (!ROLE_LABELS[changes.role]) throw new Error('Perfil inválido.')
-    if (!['admin','cliente'].includes(changes.role) && !changes.organizerId) throw new Error('Selecione a organização.')
-    const latest = readUsers()
-    commitUsers(latest.map(user => user.id === userId ? { ...user, role: changes.role, organizerId: changes.role === 'admin' ? 'org-main' : changes.role === 'cliente' ? null : changes.organizerId, organizerName: changes.organizerName || '' } : user))
-  }
-
-  async function changeUserPassword(userId, password) {
-    if (currentUser?.role !== 'admin') throw new Error('Apenas o administrador pode alterar senhas.')
-    if (String(password || '').length < 6) throw new Error('A senha deve ter pelo menos 6 caracteres.')
-
-    const passwordHash = await hashPassword(password)
-    commitUsers(users.map((user) => (user.id === userId ? { ...user, passwordHash } : user)))
-  }
-
-  const value = {
-      users,
-      currentUser,
-      needsSetup,
-      setupAdmin,
-      login,
-      registerCustomer,
-      logout,
-      createUser,
-      toggleUserActive,
-      changeUserPassword,
-      updateUserProfile,
-      roleLabels: ROLE_LABELS,
-    }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  async function toggleUserActive(id) { const u=users.find(x=>x.id===id);await result(supabase.rpc('set_member',{member_id:id,member_role:u.role,organization:u.organizerId,enabled:!u.active}));refresh() }
+  async function updateUserProfile(id,changes) {await result(supabase.rpc('set_member',{member_id:id,member_role:changes.role,organization:changes.organizerId==='org-main'?null:changes.organizerId,enabled:users.find(x=>x.id===id).active}));refresh()}
+  async function saveOrganization(org) {await result(supabase.rpc('save_organization',{organization:org.id||null,label:org.name,enabled:org.active!==false}));refresh()}
+  const value={currentUser,users,organizations,loading,error,needsSetup:false,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
+  return <Context.Provider value={value}>{error && <div role="alert" className="auth-error">{error} <button onClick={refresh}>Tentar novamente</button>{session && <button onClick={logout}>Sair</button>}</div>}{children}</Context.Provider>
 }
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth precisa estar dentro de AuthProvider')
-  return ctx
+export function AuthProvider({ children }) {
+  if (runtime.mode === 'error') return <main className="empty-page"><h1>Configuração necessária</h1><p role="alert">{runtime.error}</p></main>
+  if (isLocalDemo) return <LocalAuthProvider><LocalBridge><div className="demo-warning" role="status">Demonstração DEV: dados somente neste navegador, sem cobrança.</div>{children}</LocalBridge></LocalAuthProvider>
+  return <RemoteAuthProvider>{children}</RemoteAuthProvider>
 }
+export function useAuth() { const ctx=useContext(Context);if(!ctx)throw new Error('AuthProvider ausente');return ctx }

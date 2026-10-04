@@ -27,6 +27,8 @@ import {
 import Brand from '../components/Brand'
 import AdminOperations from '../components/AdminOperations'
 import CameraScanner from '../components/CameraScanner'
+import OrganizationManager from '../components/OrganizationManager'
+import LocalDataImport from '../components/LocalDataImport'
 import { approved } from '../utils/commerce'
 import { useEventStore } from '../store/EventStore'
 import { useAuth } from '../store/AuthStore'
@@ -78,12 +80,13 @@ function brl(value) {
 }
 
 export default function Admin() {
-  const { events, orders, saveEvent, cancelOrder, markTicketUsed } = useEventStore()
+  const { events, orders, saveEvent, cancelOrder, markTicketUsed, summary = [], checkins = [] } = useEventStore()
   const {
     currentUser,
     users,
     roleLabels,
     logout,
+    isLocalDemo, organizations = [],
     createUser,
     toggleUserActive,
     changeUserPassword,
@@ -97,6 +100,8 @@ export default function Admin() {
   const canManageTeam = role === 'admin'
   const defaultTab = role === 'checkin' ? 'checkin' : role === 'financeiro' ? 'orders' : 'dashboard'
 
+  const [orderSearch,setOrderSearch]=useState('')
+  const [orderStatus,setOrderStatus]=useState('')
   const [tab, setTab] = useState(defaultTab)
   const [editing, setEditing] = useState(null)
   const [scan, setScan] = useState('')
@@ -115,7 +120,8 @@ export default function Admin() {
 
   const organizerOptions = useMemo(() => {
     const map = new Map()
-    map.set('org-main', 'Organização principal')
+    if(isLocalDemo) map.set('org-main', 'Organização principal')
+    organizations.forEach(org=>map.set(org.id,org.name))
     users.forEach((user) => {
       if (user.organizerId) map.set(user.organizerId, user.organizerName || user.name)
     })
@@ -123,7 +129,7 @@ export default function Admin() {
       if (event.organizerId) map.set(event.organizerId, event.organizerName || 'Organizador')
     })
     return Array.from(map, ([id, name]) => ({ id, name }))
-  }, [users, events])
+  }, [users, events, organizations, isLocalDemo])
 
   const visibleEvents = useMemo(() => {
     if (role === 'admin') return events
@@ -224,6 +230,7 @@ export default function Admin() {
     const id = String(Date.now())
     const duplicated = clone(event)
     duplicated.id = id
+    delete duplicated.legacyId
     duplicated.title = `${event.title} - Cópia`
     duplicated.slug = `${slugifyEventTitle(event.title)}-copia-${id.slice(-4)}`
     duplicated.published = false
@@ -231,9 +238,9 @@ export default function Admin() {
     duplicated.badge = 'CÓPIA'
     duplicated.ticketTypes = (duplicated.ticketTypes || []).map((ticket, index) => ({
       ...ticket,
-      id: `${ticket.id || 'ing'}-${id}-${index}`,
+      id: `${ticket.id || 'ing'}-${id}-${index}`, legacyId: undefined,
     }))
-    try { await saveEvent(duplicated); setEditing(duplicated) } catch (err) { window.alert(err.message) }
+    try { await saveEvent(duplicated); setEditing(isLocalDemo?duplicated:null) } catch (err) { window.alert(err.message) }
   }
 
   async function togglePublished(event) {
@@ -291,6 +298,7 @@ export default function Admin() {
   }
 
   async function resetPassword(user) {
+    if(!isLocalDemo){try{await changeUserPassword(user.id);setTeamSuccess('Link de recuperação enviado.')}catch(err){setTeamError(err.message)}return}
     const next = window.prompt(`Nova senha para ${user.name} (mínimo 6 caracteres):`)
     if (!next) return
     try {
@@ -318,7 +326,7 @@ export default function Admin() {
           {canSeeOrders && <button className={tab === 'orders' ? 'active' : ''} onClick={() => goTab('orders')}><Ticket />Pedidos</button>}
           {canCheckin && <button className={tab === 'checkin' ? 'active' : ''} onClick={() => goTab('checkin')}><ScanLine />Check-in</button>}
           {canManageTeam && <button className={tab === 'team' ? 'active' : ''} onClick={() => goTab('team')}><UserCog />Equipe</button>}
-          {canSeeOrders && ['customers','finance','reports','history'].map(key=><button key={key} className={tab===key?'active':''} onClick={()=>goTab(key)}><LayoutDashboard/>{{customers:'Clientes',finance:'Financeiro',reports:'Relatórios',history:'Histórico'}[key]}</button>)}
+          {canSeeOrders && (role==='financeiro'?['finance','reports','history']:['customers','finance','reports','history']).map(key=><button key={key} className={tab===key?'active':''} onClick={()=>goTab(key)}><LayoutDashboard/>{{customers:'Clientes',finance:'Financeiro',reports:'Relatórios',history:'Histórico'}[key]}</button>)}
           {canManageEvents && <button className={tab==='coupons'?'active':''} onClick={()=>goTab('coupons')}><Ticket/>Cupons</button>}
         </nav>
 
@@ -346,7 +354,7 @@ export default function Admin() {
               <div><span>Eventos ativos</span><strong>{activeEvents.length}</strong></div>
               <div><span>Pedidos</span><strong>{visibleOrders.length}</strong></div>
               <div><span>Ingressos vendidos</span><strong>{sold}</strong></div>
-              <div><span>Faturamento demo</span><strong>{brl(revenue)}</strong></div>
+              <div><span>{isLocalDemo?'Faturamento demo':'Vendas confirmadas'}</span><strong>{brl(revenue)}</strong></div>
             </div>
 
             <section className="admin-panel">
@@ -454,7 +462,8 @@ export default function Admin() {
                     <input type="number" min="0" step="0.01" placeholder="Preço" value={ticket.price} onChange={(e) => updateTicket(index, 'price', e.target.value)} />
                     <input type="number" min="0" placeholder="Capacidade total" title="Capacidade total, incluindo unidades já vendidas" value={ticket.available} onChange={(e) => updateTicket(index, 'available', e.target.value)} />
                     <select value={ticket.type} onChange={(e) => updateTicket(index, 'type', e.target.value)}><option value="individual">Individual</option><option value="table">Mesa/Camarote</option></select>
-                    <button className="danger" onClick={() => removeTicket(index)}><Trash2 /></button>
+                    {!isLocalDemo && <><label>Início do lote<input type="datetime-local" value={ticket.startsAt?new Date(ticket.startsAt).toISOString().slice(0,16):''} onChange={e=>updateTicket(index,'startsAt',e.target.value?new Date(e.target.value+'Z').toISOString():'')}/> UTC</label><label>Fim do lote<input type="datetime-local" value={ticket.endsAt?new Date(ticket.endsAt).toISOString().slice(0,16):''} onChange={e=>updateTicket(index,'endsAt',e.target.value?new Date(e.target.value+'Z').toISOString():'')}/> UTC</label><label>Ordem do lote<input type="number" min="0" value={ticket.position||0} onChange={e=>updateTicket(index,'position',Number(e.target.value))}/></label><label><input type="checkbox" checked={ticket.sequential||false} onChange={e=>updateTicket(index,'sequential',e.target.checked)}/> Aguardar lotes anteriores do setor</label><label><input type="checkbox" checked={ticket.active!==false} onChange={e=>updateTicket(index,'active',e.target.checked)}/> Lote ativo</label></>}
+                    <button className="danger" aria-label="Remover lote" onClick={() => removeTicket(index)}><Trash2 /></button>
                   </div>
                 ))}
               </section>
@@ -466,10 +475,11 @@ export default function Admin() {
           <>
             <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>Pedidos.</h1></div></div>
             <section className="admin-panel">
-              {visibleOrders.length === 0 ? <p className="muted">Nenhum pedido ainda.</p> : visibleOrders.map((order) => (
+              <div className="form-grid"><label>Buscar pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Pedido, evento ou cliente"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
+              {visibleOrders.length === 0 ? <p className="muted">Nenhum pedido ainda.</p> : visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&[o.id,o.eventTitle,o.buyer?.name,o.buyer?.email].join(' ').toLowerCase().includes(orderSearch.toLowerCase())).map((order) => (
                 <div className="order-row" key={order.id}>
                   <div><strong>{order.id}</strong><span>{order.buyer.name} • {order.eventTitle}</span></div>
-                  <div><strong>{brl(order.total)}</strong><span>{order.quantity} ingresso(s) • {String(order.method || '').toUpperCase()} • {approved(order)?'Aprovado':'Cancelado'} • {order.source||'direto'}</span>{approved(order) && <button className="ghost-btn" onClick={async()=>{if(window.confirm('Cancelar este pedido simulado e invalidar seus ingressos?')) {try {await cancelOrder(order.id)} catch(err){window.alert(err.message)}}}}>Cancelar pedido</button>}</div>
+                  <div><strong>{brl(order.total)}</strong><span>{order.quantity} ingresso(s) • {String(order.method || '').toUpperCase()} • {{approved:'Aprovado',pending:'Pendente',cancelled:'Cancelado',refunded:'Estornado'}[order.status||'approved']} • {order.source||'direto'}</span>{(approved(order)||order.status==='pending') && <button className="ghost-btn" onClick={async()=>{if(window.confirm('Cancelar este pedido e invalidar seus ingressos?')) {try {await cancelOrder(order.id)} catch(err){window.alert(err.message)}}}}>Cancelar pedido</button>}</div>
                 </div>
               ))}
             </section>
@@ -480,6 +490,7 @@ export default function Admin() {
           <>
             <div className="admin-title"><div><span className="section-kicker">PORTARIA</span><h1>Validar ingresso.</h1></div></div>
             <section className="checkin-panel">
+              {!isLocalDemo && <><div>{summary.map(s=><p key={s.event_id}>{events.find(e=>e.id===s.event_id)?.title}: {s.checked_in} / {s.issued} entradas</p>)}</div><details><summary>Histórico recente</summary>{checkins.map(c=><p key={c.id}>{new Date(c.created_at).toLocaleString('pt-BR')} • operador {c.operator_id}</p>)}</details></>}
               <ScanLine /><h2>Digite ou escaneie o código</h2>
               <p className="muted">Este acesso valida apenas ingressos dos eventos permitidos para este perfil.</p>
               <CameraScanner onScan={code=>{setScan(code); doScan(code)}}/><div className="checkin-form"><input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="ING-..." /><button className="primary-small" onClick={() => doScan()}>Validar</button></div>
@@ -496,14 +507,15 @@ export default function Admin() {
           <>
             <div className="admin-title"><div><span className="section-kicker">ACESSOS E PERMISSÕES</span><h1>Equipe.</h1></div></div>
 
+            {!isLocalDemo && <><OrganizationManager/><LocalDataImport/></>}
             <div className="team-layout">
               <form className="admin-panel team-create-card" onSubmit={submitUser}>
-                <div className="team-card-title"><UserPlus /><div><h2>Novo acesso</h2><p>Crie um login separado para cada pessoa.</p></div></div>
+                <div className="team-card-title"><UserPlus /><div><h2>Novo acesso</h2><p>{isLocalDemo ? 'Crie um login separado para cada pessoa.' : 'Vincule uma conta já cadastrada e confirmada. Para convidar alguém, use o Dashboard Supabase Auth.'}</p></div></div>
 
                 <div className="form-grid team-form-grid">
                   <label>Nome<input required value={userDraft.name} onChange={(e) => setUserDraft({ ...userDraft, name: e.target.value })} /></label>
                   <label>E-mail<input required type="email" value={userDraft.email} onChange={(e) => setUserDraft({ ...userDraft, email: e.target.value })} /></label>
-                  <label>Senha inicial<input required minLength={6} type="password" value={userDraft.password} onChange={(e) => setUserDraft({ ...userDraft, password: e.target.value })} /></label>
+                  {isLocalDemo && <label>Senha inicial<input required minLength={6} type="password" value={userDraft.password} onChange={(e) => setUserDraft({ ...userDraft, password: e.target.value })} /></label>}
                   <label>Perfil
                     <select value={userDraft.role} onChange={(e) => setUserDraft({ ...userDraft, role: e.target.value, organizerId: e.target.value === 'admin' ? 'org-main' : userDraft.organizerId })}>
                       <option value="organizador">Organizador</option>
@@ -514,7 +526,7 @@ export default function Admin() {
                   </label>
 
                   {userDraft.role === 'organizador' ? (
-                    <label className="full">Empresa / organizador<input required value={userDraft.organizerName} onChange={(e) => setUserDraft({ ...userDraft, organizerName: e.target.value })} placeholder="Ex.: Empresa X Eventos" /></label>
+                    <label className="full">Empresa / organizador<input required={!userDraft.organizerId} value={userDraft.organizerName} onChange={(e) => setUserDraft({ ...userDraft, organizerName: e.target.value })} placeholder="Ex.: Empresa X Eventos" /></label>
                   ) : !['admin','cliente'].includes(userDraft.role) ? (
                     <label className="full">Vincular à organização
                       <select value={userDraft.organizerId || 'org-main'} onChange={(e) => {
@@ -527,6 +539,7 @@ export default function Admin() {
                   ) : null}
                 </div>
 
+                {!isLocalDemo && userDraft.role==='organizador' && <label>Organização existente<select value={userDraft.organizerId} onChange={e=>setUserDraft({...userDraft,organizerId:e.target.value})}><option value="">Criar nova organização</option>{organizerOptions.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
                 {teamError && <div className="auth-error">{teamError}</div>}
                 {teamSuccess && <div className="team-success">{teamSuccess}</div>}
                 <button className="primary-small team-submit"><UserPlus />Criar acesso</button>
@@ -544,9 +557,9 @@ export default function Admin() {
                         <small>{roleLabels[user.role]}{user.organizerName ? ` • ${user.organizerName}` : ''}</small>
                       </div>
                       <div className="team-user-actions">
-                        {user.id !== currentUser.id && <><select aria-label={'Perfil de '+user.name} value={user.role} onChange={e=>{try{updateUserProfile(user.id,{role:e.target.value,organizerId:user.organizerId||'org-main',organizerName:user.organizerName||'Organização principal'})}catch(err){setTeamError(err.message)}}}>{Object.entries(roleLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>{!['admin','cliente'].includes(user.role)&&<select aria-label={'Organização de '+user.name} value={user.organizerId||'org-main'} onChange={e=>{const org=organizerOptions.find(item=>item.id===e.target.value);try{updateUserProfile(user.id,{role:user.role,organizerId:org.id,organizerName:org.name})}catch(err){setTeamError(err.message)}}}>{organizerOptions.map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select>}</>}
+                        {user.id !== currentUser.id && <><select aria-label={'Perfil de '+user.name} value={user.role} onChange={async e=>{try{await updateUserProfile(user.id,{role:e.target.value,organizerId:user.organizerId||'org-main',organizerName:user.organizerName||'Organização principal'})}catch(err){setTeamError(err.message)}}}>{Object.entries(roleLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>{!['admin','cliente'].includes(user.role)&&<select aria-label={'Organização de '+user.name} value={user.organizerId||'org-main'} onChange={async e=>{const org=organizerOptions.find(item=>item.id===e.target.value);try{await updateUserProfile(user.id,{role:user.role,organizerId:org.id,organizerName:org.name})}catch(err){setTeamError(err.message)}}}>{organizerOptions.map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select>}</>}
                         <button className="ghost-btn" onClick={() => resetPassword(user)}>Nova senha</button>
-                        {user.id !== currentUser.id && <button className="ghost-btn" onClick={() => toggleUserActive(user.id)}>{user.active === false ? 'Ativar' : 'Desativar'}</button>}
+                        {user.id !== currentUser.id && <button className="ghost-btn" onClick={async () => {try{await toggleUserActive(user.id)}catch(err){setTeamError(err.message)}}}>{user.active === false ? 'Ativar' : 'Desativar'}</button>}
                       </div>
                     </article>
                   ))}

@@ -3,9 +3,13 @@ dist
 .env
 .env.*
 !.env.example
+!.env.demo
 .DS_Store
 *.log
 
 test-results/
 playwright-report/
 ingressos-local/
+
+supabase/.temp/
+supabase/.branches/

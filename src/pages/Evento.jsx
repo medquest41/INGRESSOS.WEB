@@ -53,7 +53,7 @@ export default function Evento() {
   }
 
   const subtotal = selectedTicket ? selectedTicket.price * quantity : 0
-  const fee = subtotal * 0.1
+  const fee = Math.round(subtotal * Number(event.feeRate ?? 0.1) * 100) / 100
   const total = subtotal + fee
 
   function choose(ticket) {
@@ -66,6 +66,7 @@ export default function Evento() {
     const params = new URLSearchParams({ event: event.id, ticket: selectedTicket.id, q: String(quantity) })
     const source = searchParams.get('ref') || searchParams.get('utm_source')
     if (source) params.set('ref', source)
+    if (searchParams.get('campaign')) params.set('campaign',searchParams.get('campaign'))
     navigate(`/checkout?${params}`)
   }
 

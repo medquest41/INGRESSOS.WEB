@@ -57,7 +57,7 @@ export function matchesEventRoute(event, routeKey) {
   const titleSlug = slugifyEventTitle(event?.title || '')
   const nameSlug = slugifyEventTitle(event?.name || '')
 
-  return [id, slug, titleSlug, nameSlug]
+  return [id, String(event.legacyId||''), slug, titleSlug, nameSlug]
     .filter(Boolean)
     .some((candidate) => candidate === normalizedRoute)
 }

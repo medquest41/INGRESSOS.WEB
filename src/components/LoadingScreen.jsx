@@ -1,0 +1,2 @@
+import Brand from './Brand'
+export default function LoadingScreen({text='Carregando eventos e pedidos...'}) {return <main className="loading-screen"><Brand/><p role="status">{text}</p><div className="loading-grid" aria-hidden="true">{[1,2,3].map(n=><div className="loading-card" key={n}><div className="loading-image skeleton"/><div className="loading-line skeleton"/><div className="loading-line short skeleton"/></div>)}</div></main>}

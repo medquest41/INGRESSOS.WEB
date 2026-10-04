@@ -5,29 +5,34 @@ import Brand from '../components/Brand'
 import { PRIMARY_ADMIN_EMAIL, useAuth } from '../store/AuthStore'
 
 export default function Login() {
-  const { currentUser, needsSetup, setupAdmin, login, registerCustomer } = useAuth()
+  const { currentUser, needsSetup, setupAdmin, login, registerCustomer, resetPassword, loading, isLocalDemo } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
-  const [error, setError] = useState('')
+  const [error, setError] = useState(()=>new URLSearchParams(location.hash.slice(1)).get('error_description')||'')
+  const [notice,setNotice]=useState('')
   const [busy, setBusy] = useState(false)
   const [register, setRegister] = useState(false)
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
-  const destination = location.state?.from || '/ingressos'
+  const from = location.state?.from
+  const destination = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login') && !/[\\\r\n]/.test(from) ? from : '/ingressos'
+
+  if (loading) return <div className="empty-page" role="status">Verificando sessão...</div>
 
   if (currentUser) return <Navigate to={currentUser.role === 'cliente' && destination === '/admin' ? '/ingressos' : destination} replace />
 
   async function submit(event) {
     event.preventDefault()
     setBusy(true)
-    setError('')
+    setError('');setNotice('')
 
     try {
       if (setup) {
         await setupAdmin({ ...form, email: PRIMARY_ADMIN_EMAIL })
       } else if (register) {
-        await registerCustomer(form)
+        const response = await registerCustomer(form)
+        if (response?.confirmationRequired) { setNotice('Cadastro recebido. Confirme seu e-mail antes de entrar.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
@@ -69,7 +74,7 @@ export default function Login() {
         <form className="auth-card" onSubmit={submit}>
           <div className="auth-card-icon"><ShieldCheck /></div>
           <span>{setup ? 'CONFIGURAÇÃO INICIAL' : 'ACESSO AO PAINEL'}</span>
-          <h2>{setup ? 'Administrador principal' : 'Entrar'}</h2>
+          <h2>{setup ? 'Administrador principal' : register ? 'Criar conta' : 'Entrar'}</h2>
 
           {(setup || register) && (
             <label>
@@ -85,10 +90,12 @@ export default function Login() {
 
           <label>
             Senha
-            <div className="auth-input"><LockKeyhole /><input required minLength={6} type="password" autoComplete={setup ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo de 6 caracteres" /></div>
+            <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type="password" autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo de 6 caracteres" /></div>
           </label>
 
-          {error && <div className="auth-error">{error}</div>}
+          {error && <div className="auth-error" role="alert">{error}</div>}
+          {notice && <p className="team-success" role="status">{notice}</p>}
+          {!isLocalDemo && <button type="button" className="ghost-btn" disabled={busy} onClick={async()=>{setBusy(true);try{if(!form.email)throw new Error('Informe seu e-mail acima.');await resetPassword(form.email);setError('');setNotice('Se houver uma conta, você receberá o link de recuperação.')}catch(err){setError(err.message)}finally{setBusy(false)}}}>Esqueci minha senha</button>}
           {!setup && <button type="button" className="ghost-btn" onClick={() => setRegister(!register)}>{register ? 'Já tenho conta — entrar' : 'Criar conta de cliente'}</button>}
 
           <button className="checkout-button" disabled={busy}>
@@ -97,7 +104,7 @@ export default function Login() {
           </button>
 
           <small className="auth-local-note">
-            Segurança local de desenvolvimento. Antes da publicação, este login será conectado ao Supabase para autenticação real no servidor.
+            {isLocalDemo ? 'Demonstração local de desenvolvimento.' : 'Acesso protegido pelo Supabase. Confirme seu e-mail após o cadastro.'}
           </small>
         </form>
       </main>
