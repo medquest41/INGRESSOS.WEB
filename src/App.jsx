@@ -7,6 +7,7 @@ import MeusIngressos from './pages/MeusIngressos'
 import Login from './pages/Login'
 import ResetPassword from './pages/ResetPassword'
 import Admin from './pages/Admin'
+import CriarEvento from './pages/CriarEvento'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -19,6 +20,7 @@ export default function App() {
       <Route path="/ingressos" element={<ProtectedRoute><MeusIngressos /></ProtectedRoute>} />
       <Route path="/login" element={<Login />} />
       <Route path="/redefinir-senha" element={<ResetPassword />} />
+      <Route path="/criar-evento" element={<CriarEvento />} />
       <Route
         path="/admin"
         element={
@@ -27,6 +29,7 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route path="/admin/evento/:eventKey/:section?" element={<ProtectedRoute roles={['admin','organizador','financeiro','checkin']}><Admin /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

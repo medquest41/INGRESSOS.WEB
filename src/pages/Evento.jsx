@@ -17,6 +17,8 @@ import {
   Users,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import { calculateFees } from '../utils/fees'
+import AttractionList from '../components/AttractionList'
 import { useEventStore } from '../store/EventStore'
 import { getEventPublicPath, matchesEventRoute } from '../utils/eventSlug'
 import { useAuth } from '../store/AuthStore'
@@ -29,7 +31,7 @@ export default function Evento() {
   const eventKey = routeParams.eventKey ?? routeParams.id ?? routeParams.slug ?? ''
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { events, getRemaining } = useEventStore()
+  const { events, getRemaining, isLocalDemo } = useEventStore()
   const { currentUser } = useAuth()
 
   const event = useMemo(
@@ -53,8 +55,7 @@ export default function Evento() {
   }
 
   const subtotal = selectedTicket ? selectedTicket.price * quantity : 0
-  const fee = Math.round(subtotal * Number(event.feeRate ?? 0.1) * 100) / 100
-  const total = subtotal + fee
+  const { fee, total } = calculateFees(subtotal, 0, event.feeRate ?? 0.1, event.feePayer || 'buyer')
 
   function choose(ticket) {
     setSelectedTicket(ticket)
@@ -128,19 +129,7 @@ export default function Evento() {
           </aside>
         </section>
 
-        <section className="attractions-section">
-          <span className="section-kicker">ATRAÇÕES</span>
-          <h2>Prepare-se para a noite.</h2>
-          <div className="attraction-grid">
-            {(event.attractions || []).map((attraction, index) => (
-              <div className="attraction-card" key={`${attraction}-${index}`}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                <strong>{attraction}</strong>
-                <small>CONFIRMADO</small>
-              </div>
-            ))}
-          </div>
-        </section>
+        <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
 
         <section className="ticket-section" id="ingressos">
           <div className="ticket-section-title">

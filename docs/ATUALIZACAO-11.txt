@@ -1,0 +1,100 @@
+INGRESSOS EXPERIENCES — ATUALIZAÇÃO 11
+=====================================
+
+Esta é uma atualização INCREMENTAL para instalar sobre o projeto atual que já possui as Atualizações 01 a 10.
+
+O QUE MUDA
+----------
+1. Atrações em abas/cartões recolhíveis:
+   - Só uma atração fica aberta por vez.
+   - As fechadas mostram o nome em uma faixa compacta.
+   - Ao clicar em "Adicionar atração", a nova atração é criada NO TOPO, abre automaticamente e a página rola até ela.
+   - Fotos, campos, ordem e atrações antigas são preservados.
+
+2. Preço do ingresso:
+   - Um ingresso com preço zero aparece com o campo visualmente vazio no editor.
+   - Você pode clicar e digitar o valor direto, sem precisar apagar o 0.
+
+3. Salvar ingressos e preços:
+   - Novo botão dentro da própria seção "Ingressos e preços".
+   - Usa o mesmo salvamento seguro do evento.
+
+4. Excluir evento:
+   - Novo botão "Excluir evento" com confirmação digitando o nome do evento.
+   - Evento que já possui pedidos NÃO pode ser apagado; o sistema bloqueia e orienta usar Arquivar.
+   - Assim, pedidos, compradores e histórico não são destruídos por engano.
+
+5. Botão Visualizar:
+   - Abre usando a origem atual do navegador, incluindo a porta local :5188.
+   - Em produção usa automaticamente o domínio em que o site estiver aberto.
+
+6. Login maior no computador:
+   - Card, campos, título e botões maiores no desktop.
+   - Continua responsivo no celular.
+
+7. Cabeçalho da página pública do evento:
+   - O menu/logo deixa de ficar flutuando em cima da foto.
+   - O cabeçalho ganha sua própria área verde escura e a foto começa abaixo dele.
+
+8. Taxa da plataforma por evento:
+   - Novos eventos continuam com taxa padrão de 10%.
+   - O administrador principal pode alterar a taxa de cada evento pela nova aba "Taxas".
+   - Por padrão o organizador NÃO pode mudar a taxa.
+   - O administrador principal pode liberar essa permissão evento por evento.
+   - A proteção também existe no banco, não somente na interface.
+   - Cada pedido novo registra no snapshot a taxa usada naquela compra.
+
+9. Financeiro:
+   - Mostra separadamente Total cobrado, Taxa da plataforma, Valor bruto dos ingressos e Líquido do evento antes das taxas reais do Mercado Pago.
+
+INSTALAÇÃO DO ZIP
+-----------------
+1. Salve o ZIP em:
+   D:\SITE-INGRESSOS\NOVASATUALIZAÇÕESINGRESSOS
+
+2. Feche a janela do "INICIAR SITE INGRESSOS" antes de extrair.
+
+3. Extraia o conteúdo do ZIP em:
+   D:\SITE-INGRESSOS\ingressos-local
+
+4. Quando o Windows perguntar, escolha para SUBSTITUIR somente os arquivos existentes incluídos no ZIP.
+
+5. Não apague outras pastas do projeto.
+
+PASSO DO SUPABASE — NECESSÁRIO PARA TAXAS E EXCLUSÃO SEGURA
+-----------------------------------------------------------
+O ZIP contém:
+   ATIVAR-ATUALIZACAO-11.sql
+
+e também a migration versionada:
+   supabase\migrations\008_event_platform_fee_and_safe_delete.sql
+
+Execute o conteúdo de ATIVAR-ATUALIZACAO-11.sql UMA VEZ no SQL Editor do projeto Supabase "ingressos-web".
+
+IMPORTANTE:
+- O arquivo existir no computador NÃO significa que já foi executado no Supabase remoto.
+- Este SQL não contém senha, access token, service_role nem segredo.
+- Não inclua seu .env.local no Git ou em ZIPs enviados para outras pessoas.
+
+DEPOIS
+------
+Abra novamente:
+   INICIAR SITE INGRESSOS
+
+e acesse:
+   http://127.0.0.1:5188/
+
+TESTES FEITOS NESTA CÓPIA
+-------------------------
+- 23 testes automatizados: PASSARAM.
+- As migrations PostgreSQL, incluindo a 008, foram executadas nos testes locais.
+- Os arquivos JSX alterados foram validados pelo parser sem erro de sintaxe.
+- Build/lint completos não rodaram neste ambiente porque o node_modules do ZIP foi instalado no Windows e os binários nativos daqui são Linux. Isso não representa falha dos testes do projeto.
+
+NÃO ALTERADO
+------------
+- .env.local
+- Credenciais do Mercado Pago
+- Tokens/chaves do Supabase
+- Projetos DALGAS ou CMC Pets
+- Pedidos/compradores existentes

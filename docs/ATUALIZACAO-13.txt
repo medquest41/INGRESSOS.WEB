@@ -1,0 +1,68 @@
+INGRESSOS — ATUALIZAÇÃO 13
+==========================
+
+FOCO DESTA ATUALIZAÇÃO
+- Não altera Checkout, Pix, cartão, Mercado Pago ou webhook.
+- Foi feita para poder ser instalada junto da atualização de pagamentos que está sendo trabalhada separadamente.
+
+O QUE MUDOU
+1. ADMINISTRADOR GERAL > CONTAS
+   - A aba "Equipe" passa a aparecer como "Contas" para o Administrador Geral principal.
+   - Busca por nome, e-mail e CPF encontrado em compras.
+   - Adicionar/convidar contas sem colocar senha no código.
+   - Perfis disponíveis: Organizador, Financeiro, Check-in e Cliente.
+   - Ativar/desativar conta.
+   - Recuperação de senha por e-mail.
+   - Excluir conta com segurança:
+       * se não houver histórico, a conta pode ser removida;
+       * se houver pedidos/check-ins/histórico, ela é desativada e os registros são preservados.
+   - O Administrador Geral principal não pode ser excluído.
+
+2. CLIENTES ORGANIZADOS POR EVENTO
+   - No Admin Geral > Clientes, primeiro aparecem os eventos.
+   - Cada evento mostra quantidade de clientes, ingressos vendidos e pedidos.
+   - Clicar no evento abre apenas os clientes daquele evento.
+   - Existe também "Buscar cliente em todos os eventos" para localizar por nome, e-mail ou CPF.
+
+3. "CRIAR MEU EVENTO" NO SITE PÚBLICO
+   - Em DEV/local continua aparecendo "Admin".
+   - No site público, visitante/cliente vê "Criar meu evento".
+   - Um cliente logado pode criar sua organização e passa a ter perfil de Organizador.
+   - Depois disso ele entra no painel e pode criar/editar SOMENTE os próprios eventos e acompanhar vendas, clientes, financeiro, cupons e check-in conforme as permissões existentes.
+   - Configurações exclusivas do Administrador Geral continuam protegidas.
+   - A taxa padrão continua sendo 10%; esta atualização não altera a regra de taxa protegida trabalhada na atualização 010.
+
+BANCO / SQL
+Esta atualização adiciona a migration:
+  supabase/migrations/011_self_service_organizers_and_account_admin.sql
+
+Também existe uma cópia pronta na raiz:
+  ATIVAR-ATUALIZACAO-13.sql
+
+ORDEM RECOMENDADA
+- Se você recebeu do Work o SQL 010 de proteção final das taxas, execute o 010 primeiro.
+- Depois execute ATIVAR-ATUALIZACAO-13.sql no Supabase do projeto ingressos-web.
+
+COMO INSTALAR
+1. Salve INGRESSOS-ATUALIZACAO-13.zip em:
+   D:\SITE-INGRESSOS\NOVASATUALIZAÇÕESINGRESSOS
+2. Extraia o conteúdo em:
+   D:\SITE-INGRESSOS\ingressos-local
+3. Aceite substituir SOMENTE os arquivos presentes no ZIP.
+4. No Supabase > projeto ingressos-web > SQL Editor, execute ATIVAR-ATUALIZACAO-13.sql UMA VEZ.
+5. Reinicie o arquivo INICIAR SITE INGRESSOS.
+
+SEGURANÇA
+- Nenhum .env.local, token, service_role, ACCESS_TOKEN ou senha está incluído neste pacote.
+- Convites usam apenas o fluxo público/seguro do Supabase Auth.
+- Somente ingressosaltatemporada@gmail.com recebe a tela de gestão total de Contas.
+- Organizadores continuam limitados à própria organização/eventos pelo banco e pelo painel.
+
+TESTES
+- npm test: 25 testes aprovados, 0 falhas.
+- A migration 011 foi aplicada e exercitada em PostgreSQL/PGlite local: criação de organizador, convite e exclusão de conta sem histórico.
+- JSX dos arquivos alterados foi validado com o parser Babel.
+- Build/lint completos não puderam executar neste ambiente porque o node_modules veio do Windows e não contém os binários nativos Linux do Vite/Oxlint. Isso não é um erro detectado no código.
+
+IMPORTANTE
+Esta atualização NÃO declara o site pronto para produção. Mercado Pago real, webhook, SMTP/e-mails e deploy ainda devem ser validados no ambiente publicado.

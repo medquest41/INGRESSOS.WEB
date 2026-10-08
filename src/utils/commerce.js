@@ -1,3 +1,4 @@
+import { calculateFees } from './fees.js'
 export const money = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100
 export const ownsEvent = (user, event) => Boolean(user && event && (user.role === 'admin' || (user.role !== 'cliente' && user.organizerId && user.organizerId === event.organizerId)))
 export const canManage = (user, event) => ['admin', 'organizador'].includes(user?.role) && ownsEvent(user, event)
@@ -34,8 +35,7 @@ export function quote(event, ticket, quantity, couponCode, coupons, orders) {
     if (!coupon || (coupon.expiresAt && coupon.expiresAt < new Date().toISOString().slice(0, 10)) || (coupon.limit > 0 && orders.filter(order => approved(order) && order.coupon === code && order.eventId === event.id).length >= coupon.limit)) throw new Error('Cupom inválido, expirado ou esgotado.')
     discount = money(Math.min(subtotal, coupon.type === 'fixed' ? coupon.value : subtotal * coupon.value / 100))
   }
-  const fee = money((subtotal - discount) * Number(event.feeRate ?? 0.1))
-  return { subtotal, discount, fee, total: money(subtotal - discount + fee), coupon: code }
+  return { subtotal, discount, ...calculateFees(subtotal, discount, event.feeRate ?? 0.1, event.feePayer ?? 'buyer'), coupon: code }
 }
 export function checkTicket(orders, events, user, code) {
   if (!['admin', 'organizador', 'checkin'].includes(user?.role)) return { found: false, forbidden: true }

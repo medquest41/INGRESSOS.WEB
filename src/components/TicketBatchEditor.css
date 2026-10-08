@@ -1,0 +1,18 @@
+.ticket-batch-editor { margin-top: 20px; padding: 22px; border: 1px solid rgba(212,175,55,.28); border-radius: 18px; background: linear-gradient(145deg,rgba(212,175,55,.04),rgba(22,224,121,.025)); box-shadow: 0 10px 26px rgba(0,0,0,.12); }
+.ticket-batch-editor header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+.ticket-batch-editor header span { color: var(--gold,#d4af37); font-size: 11px; font-weight: 700; letter-spacing: .09em; }
+.ticket-batch-editor h4 { margin: 5px 0 0; font-size: 21px; }
+.ticket-batch-fields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 18px; }
+.ticket-batch-fields label { display: flex; flex-direction: column; gap: 8px; min-width: 0; font-size: 14px; color: #c5d3ca; }
+.ticket-batch-fields input,.ticket-batch-fields select { width: 100%; min-width: 0; box-sizing: border-box; min-height: 48px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: #07110d; color: white; font: inherit; }
+.ticket-batch-fields small { color: #8fa298; font-size: 12px; line-height: 1.5; }
+.ticket-batch-fields .ticket-price-field { color: var(--gold,#d4af37); font-weight: 700; }
+.ticket-batch-fields .ticket-price-field input { border-color: rgba(212,175,55,.5); font-size: 20px; }
+.ticket-batch-editor .ticket-batch-check { display: flex; align-items: center; gap: 10px; margin-top: 20px; font-size: 14px; }
+.ticket-batch-editor .ticket-batch-check input[type=checkbox] { width: 18px; height: 18px; min-width: 18px; min-height: 18px; padding: 0; margin: 0; accent-color: #16e079; }
+.ticket-batch-schedule { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.ticket-batch-schedule summary { cursor: pointer; font-size: 14px; color: #c5d3ca; }
+.ticket-batch-schedule p,.ticket-editor-explanation { color: #9fb0a7; font-size: 13px; line-height: 1.6; }
+.ticket-batch-editor input:focus-visible,.ticket-batch-editor select:focus-visible,.ticket-batch-schedule summary:focus-visible { outline: 2px solid var(--gold,#d4af37); outline-offset: 3px; }
+@media(max-width:1050px) { .ticket-batch-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width:650px) { .ticket-batch-fields { grid-template-columns: 1fr; } .ticket-batch-editor { padding: 16px; } }

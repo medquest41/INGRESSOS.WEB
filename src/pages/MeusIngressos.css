@@ -1,0 +1,6 @@
+.my-event-filter { margin: 22px 0; }
+.customer-event-tickets { margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(212,175,55,.3); }
+.customer-event-tickets > h2 { font-size: clamp(24px,4vw,36px); overflow-wrap: anywhere; }
+.customer-event-tickets .admin-panel { margin-bottom: 18px; }
+.customer-event-tickets .my-ticket-grid { margin-top: 20px; }
+@media print { .my-event-filter { display: none; } .customer-event-tickets { break-before: auto; } }

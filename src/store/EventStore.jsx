@@ -7,6 +7,8 @@ import { isLocalDemo } from '../lib/supabase'
 import { eventPayload,loadRemote,rpc } from '../services/remoteData'
 import LoadingScreen from '../components/LoadingScreen'
 import { validateBuyer } from '../utils/commerce'
+import { calculateFees } from '../utils/fees'
+import { startPayment } from '../services/realPayment'
 const Context=createContext(null)
 const quoteRemote=(ticketId,quantity,coupon)=>rpc('quote_order',{batch_id:ticketId,units:quantity,coupon_code:coupon||''})
 const empty={events:[],orders:[],coupons:[],history:[],summary:[],checkins:[]}
@@ -31,12 +33,12 @@ function RemoteEventProvider({children}){
  async function mutate(name,args){const response=await rpc(name,args);refresh();return response}
  async function saveEvent(input){return mutate('save_event',{payload:eventPayload(input,organizations)})}
  async function placeOrder(input){validateBuyer({...input.buyer,email:currentUser.email});return mutate('create_order',{batch_id:input.ticketId,units:input.quantity,buyer_data:input.buyer,coupon_code:input.coupon||'',request_id:input.idempotencyKey,referral:input.source||null,campaign_name:input.campaign||null})}
- async function markTicketUsed(code){
+ async function markTicketUsed(code,eventId){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code.trim()))return {found:false}
-  const status=await mutate('check_in',{ticket_code:code.trim()});return {found:['valid','used','cancelled'].includes(status),alreadyUsed:status==='used',cancelled:status==='cancelled',forbidden:status==='forbidden'}
+  const status=await mutate(eventId?'check_in_event':'check_in',eventId?{ticket_code:code.trim(),expected_event:eventId}:{ticket_code:code.trim()});return {found:['valid','used','cancelled'].includes(status),alreadyUsed:status==='used',cancelled:status==='cancelled',forbidden:status==='forbidden',wrongEvent:status==='wrong_event'}
  }
- const value={...data,loading,error,refresh,isLocalDemo:false,saveEvent,placeOrder,markTicketUsed,cancelOrder:id=>mutate('cancel_order',{purchase_id:id}),saveCoupon:payload=>mutate('save_coupon',{payload}),getRemaining:(_event,ticket)=>ticket?.open?ticket.remaining:0,
- getQuote:(event,ticket,quantity)=>{if(!event?.published||event.archived||!ticket?.open)throw new Error('Ingresso indisponível neste lote.');if(!Number.isInteger(quantity)||quantity<1||quantity>10||quantity>ticket.remaining)throw new Error('Quantidade indisponível.');const subtotal=ticket.price*quantity,fee=Math.round(subtotal*event.feeRate*100)/100;return {subtotal,discount:0,fee,total:subtotal+fee}},
+ const value={...data,loading,error,refresh,isLocalDemo:false,saveEvent,deleteEvent:id=>mutate('delete_event',{target:id}),placeOrder,markTicketUsed,startPayment,recordPayout:(id,reference)=>mutate('record_payout',{purchase_id:id,transfer_reference:reference}),cancelOrder:id=>mutate('cancel_order',{purchase_id:id}),saveCoupon:payload=>mutate('save_coupon',{payload}),getRemaining:(_event,ticket)=>ticket?.open?ticket.remaining:0,
+ getQuote:(event,ticket,quantity)=>{if(!event?.published||event.archived||!ticket?.open)throw new Error('Ingresso indisponível neste lote.');if(!Number.isInteger(quantity)||quantity<1||quantity>10||quantity>ticket.remaining)throw new Error('Quantidade indisponível.');const subtotal=ticket.price*quantity;return {subtotal,discount:0,...calculateFees(subtotal,0,event.feeRate??0.1,event.feePayer||'buyer')}},
  quoteRemote}
  const isAuthPage=['/login','/redefinir-senha'].includes(location.pathname)
  return <Context.Provider value={value}>{!isAuthPage&&error?<main className="empty-page"><h1>Não foi possível carregar os dados</h1><p role="alert">{error}</p><button className="primary-small" onClick={refresh}>Tentar novamente</button><Link to="/login">Acessar conta</Link></main>:!isAuthPage&&(loading||authLoading)?<LoadingScreen/>:children}</Context.Provider>

@@ -1,7 +1,7 @@
 /* oxlint-disable react/only-export-components -- Context providers intentionally export their shared hook. */
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
-export const PRIMARY_ADMIN_EMAIL = 'medquest41@gmail.com'
+export const PRIMARY_ADMIN_EMAIL = 'ingressosaltatemporada@gmail.com'
 
 const AuthContext = createContext(null)
 
@@ -215,6 +215,30 @@ export function LocalAuthProvider({ children }) {
     commitUsers(users.map((user) => (user.id === userId ? { ...user, passwordHash } : user)))
   }
 
+  async function inviteUser(input) {
+    const user = await createUser(input)
+    return { status: 'created', userId: user.id }
+  }
+
+  function deleteUserSafely(userId) {
+    if (currentUser?.role !== 'admin') throw new Error('Apenas o administrador principal pode excluir contas.')
+    const target = users.find(user => user.id === userId)
+    if (!target) throw new Error('Conta não encontrada.')
+    if (userId === currentUser.id || normalizeEmail(target.email) === PRIMARY_ADMIN_EMAIL) throw new Error('Esta conta não pode ser excluída.')
+    commitUsers(users.filter(user => user.id !== userId))
+    return 'deleted'
+  }
+
+  function becomeOrganizer(organizationName) {
+    if (!currentUser) throw new Error('Entre na sua conta.')
+    if (currentUser.role === 'organizador') return currentUser.organizerId
+    if (currentUser.role !== 'cliente') throw new Error('Este perfil já possui uma função administrativa.')
+    if (String(organizationName || '').trim().length < 2) throw new Error('Informe o nome do organizador ou empresa.')
+    const organizerId = `org-${slug(organizationName) || Date.now()}`
+    commitUsers(users.map(user => user.id === currentUser.id ? { ...user, role: 'organizador', organizerId, organizerName: String(organizationName).trim() } : user))
+    return organizerId
+  }
+
   const value = {
       users,
       currentUser,
@@ -224,6 +248,10 @@ export function LocalAuthProvider({ children }) {
       registerCustomer,
       logout,
       createUser,
+      inviteUser,
+      deleteUserSafely,
+      becomeOrganizer,
+      invitations: [],
       toggleUserActive,
       changeUserPassword,
       updateUserProfile,

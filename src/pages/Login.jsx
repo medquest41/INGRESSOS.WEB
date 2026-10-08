@@ -32,7 +32,7 @@ export default function Login() {
         await setupAdmin({ ...form, email: PRIMARY_ADMIN_EMAIL })
       } else if (register) {
         const response = await registerCustomer(form)
-        if (response?.confirmationRequired) { setNotice('Cadastro recebido. Confirme seu e-mail antes de entrar.'); setRegister(false); return }
+        if (response?.confirmationRequired) { setNotice('Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
@@ -96,7 +96,7 @@ export default function Login() {
           {error && <div className="auth-error" role="alert">{error}</div>}
           {notice && <p className="team-success" role="status">{notice}</p>}
           {!isLocalDemo && <button type="button" className="ghost-btn" disabled={busy} onClick={async()=>{setBusy(true);try{if(!form.email)throw new Error('Informe seu e-mail acima.');await resetPassword(form.email);setError('');setNotice('Se houver uma conta, você receberá o link de recuperação.')}catch(err){setError(err.message)}finally{setBusy(false)}}}>Esqueci minha senha</button>}
-          {!setup && <button type="button" className="ghost-btn" onClick={() => setRegister(!register)}>{register ? 'Já tenho conta — entrar' : 'Criar conta de cliente'}</button>}
+          {!setup && <button type="button" className="ghost-btn" onClick={() => setRegister(!register)}>{register ? 'Já tenho conta — entrar' : 'Criar conta'}</button>}
 
           <button className="checkout-button" disabled={busy}>
             {busy ? 'Aguarde...' : setup ? 'Criar administrador' : register ? 'Criar conta' : 'Entrar'}

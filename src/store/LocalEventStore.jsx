@@ -2,9 +2,10 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { defaultEvents } from '../data/defaultEvents'
 import { getEventSlug } from '../utils/eventSlug'
-import { useAuth } from './AuthStore'
+import { PRIMARY_ADMIN_EMAIL, useAuth } from './AuthStore'
 import { canManage, ownsEvent, ownsOrder, quote, validateBuyer, checkTicket, approved, remaining } from '../utils/commerce'
 import { mockPayment } from '../services/payment'
+import { calculateFees, payoutAmount } from '../utils/fees'
 const EventContext = createContext(null)
 const KEY = 'ingressos_platform_v2'
 function read(key, fallback) {
@@ -13,7 +14,7 @@ function read(key, fallback) {
   try { return JSON.parse(raw) } catch { throw new Error('Dados locais inválidos. Preserve o armazenamento e restaure um backup: ' + key) }
 }
 function normalize(event) {
-  return { ...event, id: String(event.id), slug: getEventSlug(event), archived: Boolean(event.archived), published: event.published !== false, organizerId: event.organizerId || 'org-main', organizerName: event.organizerName || 'Organização principal', ticketTypes: (event.ticketTypes || []).map(t => ({ ...t, id: String(t.id), price: Number(t.price) || 0, available: Number(t.available) || 0 })) }
+  return { ...event, id: String(event.id), slug: getEventSlug(event), archived: Boolean(event.archived), published: event.published !== false, feeRate: event.feeRate == null || event.feeRate === '' ? 0.1 : (Number.isFinite(Number(event.feeRate)) ? Number(event.feeRate) : 0.1), feeEditableByOrganizer: Boolean(event.feeEditableByOrganizer), organizerId: event.organizerId || 'org-main', organizerName: event.organizerName || 'Organização principal', ticketTypes: (event.ticketTypes || []).map(t => ({ ...t, id: String(t.id), price: Number(t.price) || 0, available: Number(t.available) || 0 })) }
 }
 function load() {
   return read(KEY, null) || { events: read('ingressos_events_v1', defaultEvents).map(normalize), orders: read('ingressos_orders_v1', []), coupons: [], history: [] }
@@ -45,7 +46,17 @@ export function LocalEventProvider({ children }) {
       const old = fresh.events.find(e => e.id === input.id)
       if (!canManage(currentUser, old || input)) throw new Error('Sem permissão para editar este evento.')
       const event = normalize(input)
-      if (currentUser.role !== 'admin') { event.organizerId = currentUser.organizerId; event.organizerName = currentUser.organizerName }
+      const primaryAdmin = currentUser.role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL
+      if (!primaryAdmin) {
+        if (currentUser.role !== 'admin') { event.organizerId = currentUser.organizerId; event.organizerName = currentUser.organizerName }
+        event.feeRate = Number(old?.feeRate ?? 0.1)
+        event.feeEditableByOrganizer = false
+      } else {
+        event.feeRate = Math.min(1, Math.max(0, Number(event.feeRate) || 0))
+      }
+      event.feeEditableByOrganizer = false
+      if(input.feeRate==='')throw new Error('Informe a taxa.');
+      calculateFees(0,0,event.feeRate??0.1,event.feePayer||'buyer')
       if (!event.title?.trim() || !event.slug) throw new Error('Informe o nome e o slug do evento.')
       if (fresh.events.some(e => e.id !== event.id && e.slug === event.slug)) throw new Error('Este link já pertence a outro evento.')
       if (new Set(event.ticketTypes.map(t => t.id)).size !== event.ticketTypes.length || event.ticketTypes.some(t => !t.name?.trim() || !Number.isFinite(t.price) || t.price < 0 || !Number.isInteger(t.available) || t.available < 0)) throw new Error('Verifique nomes, preços e quantidades dos lotes.')
@@ -55,6 +66,15 @@ export function LocalEventProvider({ children }) {
         if (sold && (!updated || updated.available < sold)) throw new Error('Não remova lotes vendidos nem reduza a capacidade abaixo das vendas.')
       }
       fresh.events = old ? fresh.events.map(e => e.id === event.id ? event : e) : [event, ...fresh.events]
+    })
+  }
+  async function deleteEvent(eventId) {
+    return mutate('Evento excluído', eventId, fresh => {
+      const event = fresh.events.find(e => e.id === eventId)
+      if (!canManage(currentUser, event)) throw new Error('Sem permissão para excluir este evento.')
+      if (fresh.orders.some(order => order.eventId === eventId)) throw new Error('Este evento possui pedidos e não pode ser excluído. Use Arquivar para preservar o histórico.')
+      fresh.events = fresh.events.filter(e => e.id !== eventId)
+      fresh.coupons = fresh.coupons.filter(c => c.eventId !== eventId)
     })
   }
   async function placeOrder(input) {
@@ -68,15 +88,16 @@ export function LocalEventProvider({ children }) {
       validateBuyer(buyer)
       const totals = quote(event, ticket, input.quantity, input.coupon, fresh.coupons, fresh.orders)
       const payment = await mockPayment(input.method, input.outcome)
-      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, unitLabel: ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), ...totals, ...payment, ticketCodes: Array.from({ length: input.quantity }, () => ({ code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
+      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, unitLabel: ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), platformFeeRate: Number(event.feeRate ?? 0.1), ...totals,providerFee:0,payoutStatus:'pending', ...payment, ticketCodes: Array.from({ length: input.quantity }, () => ({ code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
       fresh.orders.unshift(order)
       return order
     })
   }
-  async function markTicketUsed(code) {
+  async function markTicketUsed(code, eventId) {
     return transaction(() => {
       const fresh = load()
       const result = checkTicket(fresh.orders, fresh.events, currentUser, code.trim())
+      if (eventId && result.order && String(result.order.eventId) !== String(eventId)) return { found: false, wrongEvent: true }
       if (result.found && !result.alreadyUsed && !result.cancelled) {
         result.ticket.used = true
         result.ticket.usedAt = new Date().toISOString()
@@ -106,9 +127,18 @@ export function LocalEventProvider({ children }) {
       fresh.coupons = [item, ...fresh.coupons.filter(c => c.id !== item.id)]
     })
   }
+  async function recordPayout(id, reference) {
+    return mutate('Repasse registrado (simulação)', data.orders.find(o=>o.id===id)?.eventId, fresh=>{
+      if(currentUser?.role!=='admin')throw new Error('Somente a administração registra repasses.')
+      const order=fresh.orders.find(o=>o.id===id)
+      if(!order||order.status!=='approved'||payoutAmount(order)==null||payoutAmount(order)<=0||order.payoutStatus==='paid')throw new Error('Repasse indisponível.')
+      if(reference.trim().length<3||reference.trim().length>200)throw new Error('Informe a referência da transferência.')
+      order.payoutActual=payoutAmount(order);order.payoutStatus='paid';order.payoutAt=new Date().toISOString();order.payoutReference=reference.trim()
+    })
+  }
   const events = data.events.filter(e => (e.published && !e.archived) || ownsEvent(currentUser, e))
   const orders = data.orders.filter(o => ownsOrder(currentUser, o) || (['admin', 'organizador', 'financeiro', 'checkin'].includes(currentUser?.role) && ownsEvent(currentUser, data.events.find(e => e.id === o.eventId))))
-  return <EventContext.Provider value={{ events, orders, saveEvent, placeOrder, cancelOrder, markTicketUsed, saveCoupon, coupons: data.coupons.filter(c => ownsEvent(currentUser, data.events.find(e => e.id === c.eventId))), history: data.history.filter(h => currentUser?.role === 'admin' || ownsEvent(currentUser, data.events.find(e => e.id === h.eventId))), getRemaining: (event, ticket) => remaining(event, ticket, data.orders), getQuote: (event, ticket, quantity, coupon) => quote(event, ticket, quantity, coupon, data.coupons, data.orders) }}>{children}</EventContext.Provider>
+  return <EventContext.Provider value={{ events, orders, recordPayout, saveEvent, deleteEvent, placeOrder, cancelOrder, markTicketUsed, saveCoupon, coupons: data.coupons.filter(c => ownsEvent(currentUser, data.events.find(e => e.id === c.eventId))), history: data.history.filter(h => currentUser?.role === 'admin' || ownsEvent(currentUser, data.events.find(e => e.id === h.eventId))), getRemaining: (event, ticket) => remaining(event, ticket, data.orders), getQuote: (event, ticket, quantity, coupon) => quote(event, ticket, quantity, coupon, data.coupons, data.orders) }}>{children}</EventContext.Provider>
 }
 export function useLocalEventStore() {
   const ctx = useContext(EventContext)

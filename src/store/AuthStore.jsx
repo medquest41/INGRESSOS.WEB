@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { paged } from '../lib/pagination'
 import { supabase, result, isLocalDemo, runtime } from '../lib/supabase'
 import { LocalAuthProvider, useLocalAuth } from './LocalAuthStore'
-export const PRIMARY_ADMIN_EMAIL = 'medquest41@gmail.com'
+export const PRIMARY_ADMIN_EMAIL = 'ingressosaltatemporada@gmail.com'
 export const ROLE_LABELS = { admin: 'Administrador Geral', organizador: 'Organizador', financeiro: 'Financeiro', checkin: 'Check-in', cliente: 'Cliente' }
 const Context = createContext(null)
 function LocalBridge({ children }) { const value = useLocalAuth(); return <Context.Provider value={{ ...value, loading: false, isLocalDemo: true }}>{children}</Context.Provider> }
@@ -13,6 +13,7 @@ function RemoteAuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [users, setUsers] = useState([])
   const [organizations, setOrganizations] = useState([])
+  const [invitations, setInvitations] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const generation = useRef(0)
@@ -21,7 +22,7 @@ function RemoteAuthProvider({ children }) {
   useEffect(() => {
     let active = true
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
-      if (active) { generation.current++; const id=next?.user?.id||null;if(sessionIdentity.current!==id){setCurrentUser(null);setUsers([]);setOrganizations([]);setLoading(true)}sessionIdentity.current=id;setSession(next);setRevision(v=>v+1) }
+      if (active) { generation.current++; const id=next?.user?.id||null;if(sessionIdentity.current!==id){setCurrentUser(null);setUsers([]);setOrganizations([]);setInvitations([]);setLoading(true)}sessionIdentity.current=id;setSession(next);setRevision(v=>v+1) }
     })
     supabase.auth.getSession().then(({error: err}) => { if (active && err) {setError(err.message); setLoading(false)} })
     return () => { active = false; subscription.unsubscribe() }
@@ -37,8 +38,13 @@ function RemoteAuthProvider({ children }) {
         if (!p.active) throw new Error('Acesso desativado. Fale com o administrador.')
         const rows = p.role === 'admin' ? await result(paged(()=>supabase.from('profiles').select('*,organizations(name)',{count:'exact'}).order('id'))) : [p]
         const orgs = await result(paged(()=>supabase.from('organizations').select('*',{count:'exact'}).order('name').order('id')))
-        if (!cancelled && id === generation.current) {setCurrentUser(profile(p,session.user.email)); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs)}
-      } catch (err) { if (!cancelled && id === generation.current) {setError(err.message);setCurrentUser(null);setUsers([]);setOrganizations([])} }
+        let inviteRows = []
+        if (p.role === 'admin' && String(p.email || session.user.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL) {
+          try { inviteRows = await result(paged(()=>supabase.from('admin_invitations').select('*',{count:'exact'}).order('created_at',{ascending:false}))) }
+          catch { inviteRows = [] }
+        }
+        if (!cancelled && id === generation.current) {setCurrentUser(profile(p,session.user.email)); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs);setInvitations(inviteRows)}
+      } catch (err) { if (!cancelled && id === generation.current) {setError(err.message);setCurrentUser(null);setUsers([]);setOrganizations([]);setInvitations([])} }
       finally { if (!cancelled && id === generation.current) setLoading(false) }
     }
     load()
@@ -59,8 +65,28 @@ function RemoteAuthProvider({ children }) {
   }
   async function toggleUserActive(id) { const u=users.find(x=>x.id===id);await result(supabase.rpc('set_member',{member_id:id,member_role:u.role,organization:u.organizerId,enabled:!u.active}));refresh() }
   async function updateUserProfile(id,changes) {await result(supabase.rpc('set_member',{member_id:id,member_role:changes.role,organization:changes.organizerId==='org-main'?null:changes.organizerId,enabled:users.find(x=>x.id===id).active}));refresh()}
-  async function saveOrganization(org) {await result(supabase.rpc('save_organization',{organization:org.id||null,label:org.name,enabled:org.active!==false}));refresh()}
-  const value={currentUser,users,organizations,loading,error,needsSetup:false,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
+  async function saveOrganization(org) {const id=await result(supabase.rpc('save_organization',{organization:org.id||null,label:org.name,enabled:org.active!==false}));refresh();return id}
+
+  async function inviteUser(input) {
+    const outcome = await result(supabase.rpc('prepare_account_invite',{
+      invite_name: input.name.trim(),
+      invite_email: input.email.trim(),
+      invite_role: input.role,
+      organization: input.organizerId === 'org-main' ? null : input.organizerId || null,
+      organization_name: input.organizerName || null,
+    }))
+    if (outcome?.status === 'pending') {
+      await result(supabase.auth.signInWithOtp({
+        email: input.email.trim(),
+        options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/login' },
+      }))
+    }
+    refresh()
+    return outcome
+  }
+  async function deleteUserSafely(id) { const status=await result(supabase.rpc('safe_delete_member',{member_id:id}));refresh();return status }
+  async function becomeOrganizer(name) { const id=await result(supabase.rpc('become_organizer',{organization_name:name.trim()}));refresh();return id }
+  const value={currentUser,users,organizations,invitations,loading,error,needsSetup:false,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,inviteUser,deleteUserSafely,becomeOrganizer,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
   return <Context.Provider value={value}>{error && <div role="alert" className="auth-error">{error} <button onClick={refresh}>Tentar novamente</button>{session && <button onClick={logout}>Sair</button>}</div>}{children}</Context.Provider>
 }
 export function AuthProvider({ children }) {

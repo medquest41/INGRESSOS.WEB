@@ -1,0 +1,15 @@
+.event-order-group { margin-top: 24px; padding: 20px; border: 1px solid rgba(212,175,55,.25); border-radius: 16px; }
+.event-order-group > header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 14px; }
+.event-order-group h2 { margin: 0 0 8px; font-size: 22px; }
+.event-order-group p { color: #9fb0a7; font-size: 13px; line-height: 1.5; }
+.event-order-item { display: grid; grid-template-columns: 1fr auto; gap: 16px; padding: 20px 0; border-top: 1px solid var(--border); }
+.event-order-item:first-of-type { margin-top: 18px; }
+.event-order-item > div { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.event-order-item span { color: #b5c6bb; font-size: 14px; }
+.event-order-item small { color: #81958a; font-size: 12px; overflow-wrap: anywhere; }
+.event-order-values { text-align: right; }
+.event-order-item details { grid-column: 1 / -1; font-size: 13px; }
+.event-order-item summary { cursor: pointer; color: var(--gold,#d4af37); }
+.event-order-item > button { justify-self: start; }
+.event-order-group > nav { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+@media(max-width:650px) { .event-order-group { padding: 14px; } .event-order-item { grid-template-columns: 1fr; } .event-order-values { text-align: left; } }

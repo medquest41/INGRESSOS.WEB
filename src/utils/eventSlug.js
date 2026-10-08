@@ -48,6 +48,13 @@ export function getEventPublicPath(event) {
   return `/evento/${getEventSlug(event)}`
 }
 
+// A origem inclui a porta local e acompanha o domínio publicado em produção.
+export function getEventPublicUrl(event, { preview = false, origin = window.location.origin } = {}) {
+  const url = new URL(getEventPublicPath(event), origin)
+  if (preview) url.searchParams.set('preview', '1')
+  return url.href
+}
+
 export function matchesEventRoute(event, routeKey) {
   if (!event || routeKey == null) return false
 

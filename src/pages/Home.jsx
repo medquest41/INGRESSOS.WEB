@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronRight, Clock3, MapPin, Menu, Search, ShieldCheck, Sparkles, Star, Ticket, UserRound, X } from 'lucide-react'
 import Brand from '../components/Brand'
 import { useEventStore } from '../store/EventStore'
+import { useAuth } from '../store/AuthStore'
 import { getEventPublicPath } from '../utils/eventSlug'
 
 const categories = ['Todos', 'FESTA', 'RÉVEILLON', 'SUNSET', 'SHOW', 'FESTIVAL']
@@ -10,11 +11,15 @@ const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL
 
 export default function Home({ catalog = false }) {
   const { events } = useEventStore()
+  const { currentUser, isLocalDemo } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState('Todos')
   const [query, setQuery] = useState('')
   const published = events.filter((e) => e.published && !e.archived)
   const featured = published[0]
+  const panelUser = currentUser && ['admin','organizador','financeiro','checkin'].includes(currentUser.role)
+  const creatorPath = isLocalDemo || panelUser ? '/admin' : '/criar-evento'
+  const creatorLabel = isLocalDemo ? 'Admin' : panelUser ? 'Meu painel' : 'Criar meu evento'
 
   const visibleEvents = published.filter((event) => {
     const categoryOk = activeCategory === 'Todos' || event.category === activeCategory
@@ -38,7 +43,7 @@ export default function Home({ catalog = false }) {
     event.currentTarget.style.setProperty('--ry', '0deg')
   }
 
-  if (!featured) return <div className="empty-page"><Brand /><h1>Nenhum evento publicado.</h1><Link to="/admin" className="primary-cta">Abrir Admin</Link></div>
+  if (!featured) return <div className="empty-page"><Brand /><h1>Nenhum evento publicado.</h1><Link to={creatorPath} className="primary-cta">{creatorLabel}</Link></div>
 
   return (
     <div className="app-shell">
@@ -47,10 +52,10 @@ export default function Home({ catalog = false }) {
         <nav className="desktop-nav"><Link to="/eventos">Eventos</Link><a href="#experiencia">Experiência</a><Link to="/ingressos">Meus ingressos</Link></nav>
         <div className="topbar-actions">
           <Link className="login-button" to="/ingressos"><UserRound size={18}/>Minha conta</Link>
-          <Link className="primary-small" to="/admin">Admin <ArrowRight size={17}/></Link>
+          <Link className="primary-small" to={creatorPath}>{creatorLabel} <ArrowRight size={17}/></Link>
           <button className="mobile-menu-button" onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button>
         </div>
-        {menuOpen && <div className="mobile-menu"><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link><Link to="/admin">Admin</Link></div>}
+        {menuOpen && <div className="mobile-menu"><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link><Link to={creatorPath}>{creatorLabel}</Link></div>}
       </header>
 
       <main>
@@ -89,7 +94,7 @@ export default function Home({ catalog = false }) {
 
         <section className="experience-section" id="experiencia"><div className="experience-card"><div className="experience-copy"><span className="section-kicker">MAIS QUE UM INGRESSO</span><h2>Da compra até a entrada. Tudo simples.</h2><p>Escolha seu evento, compre seu ingresso e apresente o QR Code na entrada.</p><div className="steps"><div><span>01</span><strong>Escolha</strong><p>Encontre o evento perfeito.</p></div><div><span>02</span><strong>Compre</strong><p>Finalize com segurança.</p></div><div><span>03</span><strong>Viva</strong><p>Apresente o QR Code e aproveite.</p></div></div></div><div className="ticket-preview"><div className="ticket-preview-glow"/><div className="digital-ticket"><div className="ticket-header"><span>INGRESSO DIGITAL</span><Ticket size={22}/></div><div className="ticket-event-photo"><img src={featured.image} alt="Ingresso digital"/></div><h3>{featured.title}</h3><div className="ticket-info"><span>{featured.shortDate} • {featured.time}</span><span>PISTA PREMIUM</span></div><div className="fake-qr">{Array.from({length:9}).map((_,i)=><div key={i}/>)}</div><small>QR Code exclusivo • uso único</small></div></div></div></section>
       </main>
-      <footer><Brand/><p>Experiências incríveis começam com o ingresso certo.</p><Link to="/admin">Painel Admin</Link></footer>
+      <footer><Brand/><p>Experiências incríveis começam com o ingresso certo.</p><Link to={creatorPath}>{creatorLabel}</Link></footer>
     </div>
   )
 }

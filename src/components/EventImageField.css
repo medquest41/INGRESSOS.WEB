@@ -1,0 +1,9 @@
+.event-image-field { grid-column: 1 / -1; display: grid; gap: 12px; min-width: 0; padding: 18px; border: 1px dashed rgba(212,175,55,.4); border-radius: 16px; }
+.event-image-field small,.event-image-field p { color: #9fb0a7; font-size: 13px; line-height: 1.5; margin: 0; }
+.event-image-field input { min-width: 0; }
+.event-image-field label { display: grid; gap: 8px; color: #9fb0a7; font-size: 12px; }
+.event-image-field input:not([hidden]) { width: 100%; min-height: 48px; box-sizing: border-box; padding: 12px 14px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; background: #08150e; color: #e8f1ec; font: inherit; }
+.event-image-field input:focus-visible { outline: 2px solid #e8c875; outline-offset: 2px; }
+.event-image-field input[hidden] { display: none; }
+.event-image-field .event-image-preview { width: 100%; max-width: 520px; height: 230px; object-fit: contain; background: #07110d; border-radius: 12px; }
+.event-image-actions { display: flex; flex-wrap: wrap; gap: 10px; }

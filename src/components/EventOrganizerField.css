@@ -1,0 +1,4 @@
+.event-organizer-field { grid-column: 1 / -1; min-width: 0; }
+.event-organizer-field > small { display: block; margin: 8px 0; color: #9fb0a7; }
+.event-organizer-field button { margin: 10px 8px 0 0; }
+.event-organizer-field input { width: 100%; box-sizing: border-box; }

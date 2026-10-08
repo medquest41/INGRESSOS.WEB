@@ -27,10 +27,6 @@ if not exist "node_modules" (
   )
 )
 
-echo Abrindo servidor local...
-start "Servidor Ingressos" cmd /k "cd /d \"%~dp0\" && npm.cmd run dev"
-
-timeout /t 3 /nobreak >nul
-start "" "http://localhost:5173/"
-
-exit
+echo Abrindo Ingressos em http://127.0.0.1:5188/
+node scripts/start-site.mjs
+if errorlevel 1 pause

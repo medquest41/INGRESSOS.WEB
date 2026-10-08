@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Archive,
   ArrowLeft,
@@ -21,17 +21,27 @@ import {
   Ticket,
   Trash2,
   UserCog,
-  UserPlus,
   XCircle,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import EventAdminContext from '../components/EventAdminContext'
+import EventOrderList from '../components/EventOrderList'
+import { matchesBuyerSearch } from '../utils/buyerSearch'
 import AdminOperations from '../components/AdminOperations'
+import AdminAccounts from '../components/AdminAccounts'
+import AdminCustomersByEvent from '../components/AdminCustomersByEvent'
 import CameraScanner from '../components/CameraScanner'
 import OrganizationManager from '../components/OrganizationManager'
+import EventOrganizerField from '../components/EventOrganizerField'
+import EventFeeSettings from '../components/EventFeeSettings'
+import TicketBatchEditor from '../components/TicketBatchEditor'
+import EventImageField from '../components/EventImageField'
+import AttractionEditor from '../components/AttractionEditor'
+import { normalizeAttractions, prepareAttractions } from '../utils/attractions'
 import LocalDataImport from '../components/LocalDataImport'
 import { approved } from '../utils/commerce'
 import { useEventStore } from '../store/EventStore'
-import { useAuth } from '../store/AuthStore'
+import { PRIMARY_ADMIN_EMAIL, useAuth } from '../store/AuthStore'
 import { getEventPublicPath, slugifyEventTitle } from '../utils/eventSlug'
 
 function blankEvent(user) {
@@ -55,8 +65,10 @@ function blankEvent(user) {
     salesStatus: 'Vendas abertas',
     image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1800&q=90',
     description: '',
-    attractions: ['Atração principal'],
+    attractions: [],
     highlights: ['Estrutura premium'],
+    feeRate: 0.1,
+    feeEditableByOrganizer: false,
     ticketTypes: [
       {
         id: `ing-${Date.now()}`,
@@ -79,44 +91,56 @@ function brl(value) {
   return Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
+function formatCpf(value) {
+  const digits = String(value || '').replace(/\D/g, '')
+  if (digits.length !== 11) return value || ''
+  return `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`
+}
+
 export default function Admin() {
-  const { events, orders, saveEvent, cancelOrder, markTicketUsed, summary = [], checkins = [] } = useEventStore()
+  const { events, orders, saveEvent, deleteEvent, cancelOrder, markTicketUsed, getRemaining, summary = [], checkins = [] } = useEventStore()
   const {
     currentUser,
     users,
     roleLabels,
     logout,
     isLocalDemo, organizations = [],
-    createUser,
-    toggleUserActive,
-    changeUserPassword,
-    updateUserProfile,
   } = useAuth()
 
   const role = currentUser.role
   const canManageEvents = ['admin', 'organizador'].includes(role)
   const canSeeOrders = ['admin', 'organizador', 'financeiro'].includes(role)
   const canCheckin = ['admin', 'organizador', 'checkin'].includes(role)
-  const canManageTeam = role === 'admin'
+  const isPrimaryAdmin = role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL
+  const canManageTeam = isPrimaryAdmin
   const defaultTab = role === 'checkin' ? 'checkin' : role === 'financeiro' ? 'orders' : 'dashboard'
 
   const [orderSearch,setOrderSearch]=useState('')
   const [orderStatus,setOrderStatus]=useState('')
-  const [tab, setTab] = useState(defaultTab)
+  const { eventKey, section } = useParams()
+  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const eventId = eventKey || searchParams.get('event') || ''
+  const requestedTab = eventKey ? section : searchParams.get('tab')
+  const tab = ['dashboard','events','orders','checkin','team','customers','finance','reports','history','coupons','fees'].includes(requestedTab) ? requestedTab : defaultTab
+  function setTab(next) {
+    if (eventKey && next !== 'team') navigate('/admin/evento/' + encodeURIComponent(eventKey) + '/' + next)
+    else setSearchParams(previous => { const params = new URLSearchParams(previous);params.set('tab',next);return params })
+    if (eventKey && next === 'team') navigate('/admin?tab=team')
+  }
+  function selectEvent(id) {
+    setSearchParams(previous => { const params=new URLSearchParams(previous);if(id)params.set('event',id);else params.delete('event');return params })
+    setScanResult(null)
+  }
   const [editing, setEditing] = useState(null)
+  const [uploadingHero, setUploadingImage] = useState(false)
+  const [uploadingAttractions, setUploadingAttractions] = useState(false)
+  const uploadingImage = uploadingHero || uploadingAttractions
   const [scan, setScan] = useState('')
-  const [scanResult, setScanResult] = useState(null)
+  const [scanFeedback, setScanFeedback] = useState(null)
+  const scanResult = scanFeedback?.eventId === eventId ? scanFeedback.status : null
+  function setScanResult(status) { setScanFeedback(status ? { eventId, status } : null) }
   const [copiedId, setCopiedId] = useState(null)
-  const [teamError, setTeamError] = useState('')
-  const [teamSuccess, setTeamSuccess] = useState('')
-  const [userDraft, setUserDraft] = useState({
-    name: '',
-    email: '',
-    password: '',
-    role: 'organizador',
-    organizerId: '',
-    organizerName: '',
-  })
 
   const organizerOptions = useMemo(() => {
     const map = new Map()
@@ -131,10 +155,15 @@ export default function Admin() {
     return Array.from(map, ([id, name]) => ({ id, name }))
   }, [users, events, organizations, isLocalDemo])
 
-  const visibleEvents = useMemo(() => {
+  const availableEvents = useMemo(() => {
     if (role === 'admin') return events
-    return events.filter((event) => event.organizerId === currentUser.organizerId)
-  }, [events, role, currentUser.organizerId])
+    if (role === 'checkin' && !isLocalDemo) return events.filter(event => summary.some(item => item.event_id === event.id))
+    return events.filter(event => event.organizerId === currentUser.organizerId)
+  }, [events, role, currentUser.organizerId, isLocalDemo, summary])
+  const selectedEvent = availableEvents.find(event => String(event.id) === eventId)
+  const visibleEvents = useMemo(() => availableEvents.filter(event => !eventId || String(event.id) === eventId), [availableEvents,eventId])
+  const scopedSummary = summary.filter(item => !eventId || String(item.event_id) === eventId)
+  const scopedCheckins = checkins.filter(item => !eventId || String(item.event_id) === eventId)
 
   const visibleEventIds = useMemo(
     () => new Set(visibleEvents.map((event) => String(event.id))),
@@ -142,9 +171,8 @@ export default function Admin() {
   )
 
   const visibleOrders = useMemo(() => {
-    if (role === 'admin') return orders
-    return orders.filter((order) => visibleEventIds.has(String(order.eventId)))
-  }, [orders, role, visibleEventIds])
+    return orders.filter(order => visibleEventIds.has(String(order.eventId)))
+  }, [orders, visibleEventIds])
 
   const revenue = useMemo(() => visibleOrders.filter(approved).reduce((sum, order) => sum + Number(order.total || 0), 0), [visibleOrders])
   const sold = useMemo(() => visibleOrders.filter(approved).reduce((sum, order) => sum + Number(order.quantity || 0), 0), [visibleOrders])
@@ -159,7 +187,19 @@ export default function Admin() {
   function startNew() {
     if (!canManageEvents) return
     setEditing(blankEvent(currentUser))
+    if (eventKey) navigate('/admin?tab=events')
+    else setTab('events')
+  }
+
+  function editEvent(event) {
+    if (!canManageEvents) return
+    setEditing(clone(event))
     setTab('events')
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  function showEventManagement() {
+    window.scrollTo({ top: 0, behavior: 'auto' })
   }
 
   function updateTicket(index, field, value) {
@@ -195,17 +235,12 @@ export default function Admin() {
     setEditing({ ...editing, ticketTypes: editing.ticketTypes.filter((_, itemIndex) => itemIndex !== index) })
   }
 
-  function applyOrganizer(event, organizerId) {
-    const organization = organizerOptions.find((item) => item.id === organizerId)
-    return {
-      ...event,
-      organizerId,
-      organizerName: organization?.name || 'Organizador',
-    }
-  }
-
   async function save() {
-    if (!canManageEvents || !editing) return
+    if (!canManageEvents || !editing || uploadingImage) return
+    if (!isLocalDemo && role === 'admin' && (!editing.organizerId || editing.organizerId === 'org-main')) {
+      window.alert('Selecione ou cadastre um organizador antes de salvar o evento.')
+      return
+    }
 
     const minimumPrice = editing.ticketTypes.length
       ? Math.min(...editing.ticketTypes.map((ticket) => Number(ticket.price) || 0))
@@ -220,6 +255,7 @@ export default function Admin() {
       ...enforcedOrganizer,
       slug: editing.slug?.trim() || slugifyEventTitle(editing.title),
       archived: Boolean(editing.archived),
+      attractions: prepareAttractions(editing.attractions, isLocalDemo),
       price: minimumPrice,
     })
     setEditing(null) } catch (err) { window.alert(err.message) }
@@ -258,6 +294,16 @@ export default function Admin() {
     try { await saveEvent({ ...event, archived: false }) } catch (err) { window.alert(err.message) }
   }
 
+  async function removeEventPermanently(event) {
+    if (!canManageEvents || !deleteEvent) return
+    const typed = window.prompt(`Para excluir "${event.title}", digite exatamente o nome do evento.\n\nEventos com pedidos ou histórico de vendas não serão apagados; o sistema vai bloquear a exclusão.`)
+    if (typed !== event.title) return
+    try {
+      await deleteEvent(event.id)
+      if (String(event.id) === String(eventId)) navigate('/admin?tab=events')
+    } catch (err) { window.alert(err.message) }
+  }
+
   async function copyPublicLink(event) {
     const url = `${window.location.origin}${getEventPublicPath(event)}`
     try {
@@ -272,8 +318,10 @@ export default function Admin() {
   async function doScan(code = scan) {
     if (!canCheckin) return
     try {
-      const result = await markTicketUsed(String(code).trim())
-      setScanResult(result.forbidden ? 'forbidden' : !result.found ? 'invalid' : result.cancelled ? 'cancelled' : result.alreadyUsed ? 'used' : 'valid')
+      if (!selectedEvent) { window.alert('Selecione o evento antes de validar ingressos.');return }
+      const result = await markTicketUsed(String(code).trim(), selectedEvent.id)
+      const status = result.wrongEvent ? 'wrong_event' : result.forbidden ? 'forbidden' : !result.found ? 'invalid' : result.cancelled ? 'cancelled' : result.alreadyUsed ? 'used' : 'valid'
+      setScanFeedback({ eventId, status, ...result })
     } catch (err) { window.alert(err.message) }
   }
 
@@ -283,33 +331,8 @@ export default function Admin() {
     return { label: 'Oculto', className: 'status-off' }
   }
 
-  async function submitUser(event) {
-    event.preventDefault()
-    setTeamError('')
-    setTeamSuccess('')
 
-    try {
-      await createUser(userDraft)
-      setTeamSuccess('Acesso criado com sucesso.')
-      setUserDraft({ name: '', email: '', password: '', role: 'organizador', organizerId: '', organizerName: '' })
-    } catch (err) {
-      setTeamError(err.message || 'Não foi possível criar o acesso.')
-    }
-  }
-
-  async function resetPassword(user) {
-    if(!isLocalDemo){try{await changeUserPassword(user.id);setTeamSuccess('Link de recuperação enviado.')}catch(err){setTeamError(err.message)}return}
-    const next = window.prompt(`Nova senha para ${user.name} (mínimo 6 caracteres):`)
-    if (!next) return
-    try {
-      await changeUserPassword(user.id, next)
-      setTeamSuccess(`Senha de ${user.name} alterada.`)
-      setTeamError('')
-    } catch (err) {
-      setTeamError(err.message || 'Não foi possível alterar a senha.')
-    }
-  }
-
+  if (eventKey && !selectedEvent) return <main className="empty-page"><h1>Evento não disponível</h1><p>Este evento não existe ou não está autorizado para sua conta.</p><Link to="/admin?tab=events">Voltar ao painel</Link></main>
   return (
     <div className="admin-page">
       <aside className="admin-sidebar">
@@ -325,7 +348,7 @@ export default function Admin() {
           {canManageEvents && <button className={tab === 'events' ? 'active' : ''} onClick={() => goTab('events')}><CalendarDays />Eventos</button>}
           {canSeeOrders && <button className={tab === 'orders' ? 'active' : ''} onClick={() => goTab('orders')}><Ticket />Pedidos</button>}
           {canCheckin && <button className={tab === 'checkin' ? 'active' : ''} onClick={() => goTab('checkin')}><ScanLine />Check-in</button>}
-          {canManageTeam && <button className={tab === 'team' ? 'active' : ''} onClick={() => goTab('team')}><UserCog />Equipe</button>}
+          {canManageTeam && <button className={tab === 'team' ? 'active' : ''} onClick={() => goTab('team')}><UserCog />Contas</button>}
           {canSeeOrders && (role==='financeiro'?['finance','reports','history']:['customers','finance','reports','history']).map(key=><button key={key} className={tab===key?'active':''} onClick={()=>goTab(key)}><LayoutDashboard/>{{customers:'Clientes',finance:'Financeiro',reports:'Relatórios',history:'Histórico'}[key]}</button>)}
           {canManageEvents && <button className={tab==='coupons'?'active':''} onClick={()=>goTab('coupons')}><Ticket/>Cupons</button>}
         </nav>
@@ -337,14 +360,17 @@ export default function Admin() {
       </aside>
 
       <main className="admin-main">
-        <p className="demo-warning">Demonstração local — login, vendas e check-in neste navegador. Pagamentos simulados.</p>
-        {((canSeeOrders && ['customers','finance','reports','history'].includes(tab)) || (canManageEvents && tab==='coupons')) && <AdminOperations tab={tab}/>}
+        {!editing && tab !== 'team' && <EventAdminContext event={selectedEvent} eventId={eventId} events={availableEvents} eventPage={Boolean(eventKey)} tab={tab} role={role} canManageFees={isPrimaryAdmin} onSelect={selectEvent} onEdit={()=>editEvent(selectedEvent)}/>}
+        {isLocalDemo && <p className="demo-warning">Demonstração local — login, vendas e check-in neste navegador. Pagamentos simulados.</p>}
+        {tab==='customers' && isPrimaryAdmin && !eventId
+          ? <AdminCustomersByEvent events={availableEvents} orders={orders} />
+          : ((canSeeOrders && ['customers','finance','reports','history'].includes(tab)) || (canManageEvents && tab==='coupons')) && <AdminOperations key={eventId + ':' + tab} tab={tab} eventId={eventId}/>}
         {tab === 'dashboard' && role !== 'checkin' && (
           <>
             <div className="admin-title">
               <div>
                 <span className="section-kicker">{role === 'organizador' ? 'PAINEL DO ORGANIZADOR' : role === 'financeiro' ? 'PAINEL FINANCEIRO' : 'PAINEL ADMINISTRATIVO'}</span>
-                <h1>Visão geral.</h1>
+                <h1>{eventId ? 'Sobre o evento.' : 'Visão geral.'}</h1>
                 {role === 'organizador' && <p className="admin-context-line"><Building2 size={14} />{currentUser.organizerName}</p>}
               </div>
               {canManageEvents && <button onClick={startNew} className="primary-small"><Plus />Novo evento</button>}
@@ -358,7 +384,7 @@ export default function Admin() {
             </div>
 
             <section className="admin-panel">
-              <h2>Eventos recentes</h2>
+              <h2>{eventId ? 'Informações do evento' : 'Eventos recentes'}</h2>
               {visibleEvents.slice(0, 5).map((event) => {
                 const status = eventStatus(event)
                 return (
@@ -366,11 +392,25 @@ export default function Admin() {
                     <img src={event.image} alt="" />
                     <div><strong>{event.title}</strong><span>{event.date} • {event.location}</span></div>
                     <span className={status.className}>{status.label}</span>
+                    {canManageEvents && selectedEvent?.id === event.id
+                      ? <button className="ghost-btn admin-event-management-link" onClick={() => editEvent(event)}>Editar evento</button>
+                      : selectedEvent?.id !== event.id && <Link className="admin-event-management-link" onClick={showEventManagement} to={'/admin/evento/'+encodeURIComponent(event.id)+'/dashboard'}>Gerenciar evento</Link>}
                   </div>
                 )
               })}
               {visibleEvents.length === 0 && <p className="muted">Nenhum evento disponível para este acesso.</p>}
             </section>
+            {selectedEvent && <section className="admin-panel" aria-label="Dados deste evento">
+              <h2>Sobre {selectedEvent.title}</h2>
+              <p>{selectedEvent.description}</p>
+              <p>{selectedEvent.date} • {selectedEvent.time} • {selectedEvent.location}</p>
+              <p>{selectedEvent.address} • {selectedEvent.city}</p>
+              <h3>Atrações deste evento</h3>
+              {normalizeAttractions(selectedEvent.attractions).length ? <ul>{normalizeAttractions(selectedEvent.attractions).map(item => <li key={item.id}>{item.name} • {item.startTime || 'Horário a definir'}{!item.visible && ' • Oculta no site'}</li>)}</ul> : <p className="muted">Nenhuma atração cadastrada. Use Editar este evento para adicionar.</p>}
+              <h3>Ingressos e lotes deste evento</h3>
+              {(selectedEvent.ticketTypes || []).map(ticket=><div className="order-row" key={ticket.id}><div><strong>{ticket.name} • {ticket.batch}</strong><span>{ticket.sector || ticket.name} • {ticket.active===false?'Inativo':'Ativo'}</span></div><div><strong>{brl(ticket.price)}</strong><span>{getRemaining(selectedEvent,ticket)} disponível(is) de {ticket.available}</span></div></div>)}
+              <Link className="ghost-btn" to={getEventPublicPath(selectedEvent)+'?preview=1'} target="_blank">Ver página do evento</Link>
+            </section>}
           </>
         )}
 
@@ -399,9 +439,10 @@ export default function Admin() {
                       <span className={status.className}>{status.label}</span>
                     </div>
                     <div className="event-admin-actions event-admin-actions-rich">
-                      <Link className="admin-action-button" to={`${publicPath}?preview=1`} target="_blank"><Eye size={16} />Visualizar</Link>
+                      <Link className="admin-event-management-link" onClick={showEventManagement} to={'/admin/evento/'+encodeURIComponent(event.id)+'/dashboard'}>Gerenciar evento</Link>
+                      <a className="admin-action-button" href={`${window.location.origin}${publicPath}?preview=1`} target="_blank" rel="noreferrer"><Eye size={16} />Visualizar</a>
                       <button className="admin-action-button" onClick={() => copyPublicLink(event)}><Copy size={16} />{copiedId === event.id ? 'Copiado!' : 'Copiar link'}</button>
-                      <button className="admin-action-button" onClick={() => setEditing(clone(event))}><Pencil size={16} />Editar</button>
+                      <button className="admin-action-button" onClick={() => editEvent(event)}><Pencil size={16} />Editar</button>
                       <button className="admin-action-button" onClick={() => duplicateEvent(event)}><Files size={16} />Duplicar</button>
                       {!event.archived && <button className="admin-action-button" onClick={() => togglePublished(event)}>{event.published ? <EyeOff size={16} /> : <Eye size={16} />}{event.published ? 'Ocultar' : 'Mostrar'}</button>}
                       {!event.archived ? (
@@ -409,6 +450,7 @@ export default function Admin() {
                       ) : (
                         <button className="admin-action-button" onClick={() => restoreEvent(event)}><RefreshCw size={16} />Restaurar</button>
                       )}
+                      <button className="admin-action-button danger" onClick={() => removeEventPermanently(event)}><Trash2 size={16} />Excluir evento</button>
                     </div>
                   </article>
                 )
@@ -421,7 +463,7 @@ export default function Admin() {
           <>
             <div className="admin-title">
               <div><span className="section-kicker">EDITOR DE EVENTO</span><h1>{editing.title || 'Novo evento'}</h1></div>
-              <div className="admin-actions"><button className="ghost-btn" onClick={() => setEditing(null)}>Cancelar</button><button className="primary-small" onClick={save}><Save />Salvar</button></div>
+              <div className="admin-actions"><button className="ghost-btn" disabled={uploadingImage} onClick={() => setEditing(null)}>Cancelar</button><button className="primary-small" disabled={uploadingImage} onClick={save}><Save />{uploadingImage ? 'Enviando imagem...' : 'Salvar'}</button></div>
             </div>
 
             <div className="event-editor">
@@ -431,11 +473,7 @@ export default function Admin() {
                   <label>Nome<input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></label>
                   <label>Categoria<input value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} /></label>
                   {role === 'admin' && (
-                    <label className="full">Organizador
-                      <select value={editing.organizerId || 'org-main'} onChange={(e) => setEditing(applyOrganizer(editing, e.target.value))}>
-                        {organizerOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
-                      </select>
-                    </label>
+                    <EventOrganizerField value={editing.organizerId} options={organizerOptions} onChange={organization => setEditing(event => ({ ...event, organizerId: organization.id, organizerName: organization.name }))} />
                   )}
                   <label className="full">Slug / link público<input value={editing.slug || ''} onChange={(e) => setEditing({ ...editing, slug: slugifyEventTitle(e.target.value) })} placeholder={slugifyEventTitle(editing.title) || 'nome-do-evento'} /></label>
                   <label>Data curta<input value={editing.shortDate} onChange={(e) => setEditing({ ...editing, shortDate: e.target.value })} /></label>
@@ -446,126 +484,67 @@ export default function Admin() {
                   <label>Cidade/UF<input value={editing.city} onChange={(e) => setEditing({ ...editing, city: e.target.value })} /></label>
                   <label>Badge<input value={editing.badge} onChange={(e) => setEditing({ ...editing, badge: e.target.value })} /></label>
                   <label>Status de venda<input value={editing.salesStatus} onChange={(e) => setEditing({ ...editing, salesStatus: e.target.value })} /></label>
-                  <label className="full">URL da imagem<input value={editing.image} onChange={(e) => setEditing({ ...editing, image: e.target.value })} /></label>
+                  <EventImageField value={editing.image} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={image => setEditing(event => event ? { ...event, image } : event)} onBusyChange={setUploadingImage} />
                   <label className="full">Descrição<textarea value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></label>
                   <label className="check-label"><input type="checkbox" checked={Boolean(editing.published)} onChange={(e) => setEditing({ ...editing, published: e.target.checked, archived: false })} /> Publicado no site</label>
                 </div>
               </section>
 
+              <AttractionEditor value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
+
               <section>
-                <div className="editor-section-head"><h3>Ingressos / lotes</h3><button className="ghost-btn" onClick={addTicket}><Plus />Adicionar</button></div>
+                <div className="editor-section-head"><h3>Ingressos e preços</h3><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
+                <p className="ticket-editor-explanation">Cada cartão é um tipo ou lote de ingresso, como Pista e VIP. Para oferecer 100 ingressos de Pista, use um cartão com quantidade 100. Adicione outro cartão somente para outro tipo ou lote.</p>
                 {editing.ticketTypes.map((ticket, index) => (
-                  <div className="ticket-editor-row" key={ticket.id}>
-                    <input placeholder="Nome" value={ticket.name} onChange={(e) => updateTicket(index, 'name', e.target.value)} />
-                    <input aria-label="Setor" placeholder="Setor" value={ticket.sector || ''} onChange={(e) => updateTicket(index, 'sector', e.target.value)} />
-                    <input placeholder="Lote" value={ticket.batch} onChange={(e) => updateTicket(index, 'batch', e.target.value)} />
-                    <input type="number" min="0" step="0.01" placeholder="Preço" value={ticket.price} onChange={(e) => updateTicket(index, 'price', e.target.value)} />
-                    <input type="number" min="0" placeholder="Capacidade total" title="Capacidade total, incluindo unidades já vendidas" value={ticket.available} onChange={(e) => updateTicket(index, 'available', e.target.value)} />
-                    <select value={ticket.type} onChange={(e) => updateTicket(index, 'type', e.target.value)}><option value="individual">Individual</option><option value="table">Mesa/Camarote</option></select>
-                    {!isLocalDemo && <><label>Início do lote<input type="datetime-local" value={ticket.startsAt?new Date(ticket.startsAt).toISOString().slice(0,16):''} onChange={e=>updateTicket(index,'startsAt',e.target.value?new Date(e.target.value+'Z').toISOString():'')}/> UTC</label><label>Fim do lote<input type="datetime-local" value={ticket.endsAt?new Date(ticket.endsAt).toISOString().slice(0,16):''} onChange={e=>updateTicket(index,'endsAt',e.target.value?new Date(e.target.value+'Z').toISOString():'')}/> UTC</label><label>Ordem do lote<input type="number" min="0" value={ticket.position||0} onChange={e=>updateTicket(index,'position',Number(e.target.value))}/></label><label><input type="checkbox" checked={ticket.sequential||false} onChange={e=>updateTicket(index,'sequential',e.target.checked)}/> Aguardar lotes anteriores do setor</label><label><input type="checkbox" checked={ticket.active!==false} onChange={e=>updateTicket(index,'active',e.target.checked)}/> Lote ativo</label></>}
-                    <button className="danger" aria-label="Remover lote" onClick={() => removeTicket(index)}><Trash2 /></button>
-                  </div>
+                  <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
+                <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
               </section>
             </div>
           </>
         )}
 
+        {tab === 'fees' && selectedEvent && (isPrimaryAdmin || (role === 'organizador' && selectedEvent.feeEditableByOrganizer)) && (
+          <EventFeeSettings event={selectedEvent} role={role} isPrimaryAdmin={isPrimaryAdmin} saveEvent={saveEvent} />
+        )}
+
         {tab === 'orders' && canSeeOrders && (
           <>
-            <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>Pedidos.</h1></div></div>
+            <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>{selectedEvent ? 'Pedidos deste evento.' : 'Pedidos.'}</h1></div></div>
             <section className="admin-panel">
-              <div className="form-grid"><label>Buscar pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Pedido, evento ou cliente"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
-              {visibleOrders.length === 0 ? <p className="muted">Nenhum pedido ainda.</p> : visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&[o.id,o.eventTitle,o.buyer?.name,o.buyer?.email].join(' ').toLowerCase().includes(orderSearch.toLowerCase())).map((order) => (
-                <div className="order-row" key={order.id}>
-                  <div><strong>{order.id}</strong><span>{order.buyer.name} • {order.eventTitle}</span></div>
-                  <div><strong>{brl(order.total)}</strong><span>{order.quantity} ingresso(s) • {String(order.method || '').toUpperCase()} • {{approved:'Aprovado',pending:'Pendente',cancelled:'Cancelado',refunded:'Estornado'}[order.status||'approved']} • {order.source||'direto'}</span>{(approved(order)||order.status==='pending') && <button className="ghost-btn" onClick={async()=>{if(window.confirm('Cancelar este pedido e invalidar seus ingressos?')) {try {await cancelOrder(order.id)} catch(err){window.alert(err.message)}}}}>Cancelar pedido</button>}</div>
-                </div>
-              ))}
+              <div className="form-grid"><label>Buscar pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Pedido, evento, nome, e-mail ou CPF"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
+              <EventOrderList key={eventId + ':' + orderStatus + ':' + orderSearch} eventId={eventId} events={visibleEvents} orders={visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&matchesBuyerSearch(o,orderSearch))} cancelOrder={cancelOrder} canViewCpf={['admin','organizador'].includes(role)}/>
             </section>
           </>
         )}
 
         {tab === 'checkin' && canCheckin && (
           <>
-            <div className="admin-title"><div><span className="section-kicker">PORTARIA</span><h1>Validar ingresso.</h1></div></div>
+            <div className="admin-title"><div><span className="section-kicker">PORTARIA</span><h1>Check-in do evento.</h1></div></div>
             <section className="checkin-panel">
-              {!isLocalDemo && <><div>{summary.map(s=><p key={s.event_id}>{events.find(e=>e.id===s.event_id)?.title}: {s.checked_in} / {s.issued} entradas</p>)}</div><details><summary>Histórico recente</summary>{checkins.map(c=><p key={c.id}>{new Date(c.created_at).toLocaleString('pt-BR')} • operador {c.operator_id}</p>)}</details></>}
+              {!isLocalDemo && <><div>{scopedSummary.map(s=><p key={s.event_id}>{events.find(e=>e.id===s.event_id)?.title}: {s.checked_in} / {s.issued} entradas</p>)}</div><details><summary>Histórico recente</summary>{scopedCheckins.map(c=><p key={c.id}>{new Date(c.created_at).toLocaleString('pt-BR')} • operador {c.operator_id}</p>)}</details></>}
               <ScanLine /><h2>Digite ou escaneie o código</h2>
               <p className="muted">Este acesso valida apenas ingressos dos eventos permitidos para este perfil.</p>
-              <CameraScanner onScan={code=>{setScan(code); doScan(code)}}/><div className="checkin-form"><input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="ING-..." /><button className="primary-small" onClick={() => doScan()}>Validar</button></div>
-              {scanResult && (
+              {selectedEvent ? <CameraScanner onScan={code=>{setScan(code); doScan(code)}}/> : <p>Selecione um evento no filtro acima para abrir a portaria.</p>}<div className="checkin-form"><input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="ING-..." /><button className="primary-small" disabled={!selectedEvent} onClick={() => doScan()}>Validar</button></div>
+              {scanResult && <>
                 <div className={`scan-result ${scanResult}`}>
-                  {scanResult === 'valid' ? <><CheckCircle2 />INGRESSO VÁLIDO</> : scanResult === 'used' ? <><XCircle />JÁ UTILIZADO</> : scanResult === 'cancelled' ? <><XCircle />CANCELADO</> : scanResult === 'forbidden' ? <><ShieldCheck />SEM PERMISSÃO PARA ESTE EVENTO</> : <><XCircle />INVÁLIDO</>}
+                  {scanResult === 'wrong_event' ? <><XCircle />INGRESSO DE OUTRO EVENTO — ENTRADA NÃO REGISTRADA</> : scanResult === 'valid' ? <><CheckCircle2 />INGRESSO VÁLIDO — ENTRADA REGISTRADA</> : scanResult === 'used' ? <><XCircle />JÁ UTILIZADO</> : scanResult === 'cancelled' ? <><XCircle />CANCELADO / PAGAMENTO NÃO CONFIRMADO</> : scanResult === 'forbidden' ? <><ShieldCheck />SEM PERMISSÃO PARA ESTE EVENTO</> : <><XCircle />INVÁLIDO</>}
                 </div>
-              )}
+                {scanFeedback?.holderName && ['valid','used','cancelled'].includes(scanResult) && <div className="checkin-ticket-details">
+                  <strong>{scanFeedback.holderName}</strong>
+                  {scanFeedback.holderCpf && <span>CPF {formatCpf(scanFeedback.holderCpf)}</span>}
+                  <span>{[scanFeedback.ticketName,scanFeedback.batch].filter(Boolean).join(' • ')}</span>
+                  {scanFeedback.orderId && <small>Pedido {scanFeedback.orderId}</small>}
+                </div>}
+              </>}
             </section>
           </>
         )}
 
         {tab === 'team' && canManageTeam && (
           <>
-            <div className="admin-title"><div><span className="section-kicker">ACESSOS E PERMISSÕES</span><h1>Equipe.</h1></div></div>
-
-            {!isLocalDemo && <><OrganizationManager/><LocalDataImport/></>}
-            <div className="team-layout">
-              <form className="admin-panel team-create-card" onSubmit={submitUser}>
-                <div className="team-card-title"><UserPlus /><div><h2>Novo acesso</h2><p>{isLocalDemo ? 'Crie um login separado para cada pessoa.' : 'Vincule uma conta já cadastrada e confirmada. Para convidar alguém, use o Dashboard Supabase Auth.'}</p></div></div>
-
-                <div className="form-grid team-form-grid">
-                  <label>Nome<input required value={userDraft.name} onChange={(e) => setUserDraft({ ...userDraft, name: e.target.value })} /></label>
-                  <label>E-mail<input required type="email" value={userDraft.email} onChange={(e) => setUserDraft({ ...userDraft, email: e.target.value })} /></label>
-                  {isLocalDemo && <label>Senha inicial<input required minLength={6} type="password" value={userDraft.password} onChange={(e) => setUserDraft({ ...userDraft, password: e.target.value })} /></label>}
-                  <label>Perfil
-                    <select value={userDraft.role} onChange={(e) => setUserDraft({ ...userDraft, role: e.target.value, organizerId: e.target.value === 'admin' ? 'org-main' : userDraft.organizerId })}>
-                      <option value="organizador">Organizador</option>
-                      <option value="financeiro">Financeiro</option>
-                      <option value="checkin">Check-in</option>
-                      <option value="admin">Administrador</option><option value="cliente">Cliente</option>
-                    </select>
-                  </label>
-
-                  {userDraft.role === 'organizador' ? (
-                    <label className="full">Empresa / organizador<input required={!userDraft.organizerId} value={userDraft.organizerName} onChange={(e) => setUserDraft({ ...userDraft, organizerName: e.target.value })} placeholder="Ex.: Empresa X Eventos" /></label>
-                  ) : !['admin','cliente'].includes(userDraft.role) ? (
-                    <label className="full">Vincular à organização
-                      <select value={userDraft.organizerId || 'org-main'} onChange={(e) => {
-                        const org = organizerOptions.find((item) => item.id === e.target.value)
-                        setUserDraft({ ...userDraft, organizerId: e.target.value, organizerName: org?.name || '' })
-                      }}>
-                        {organizerOptions.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
-                      </select>
-                    </label>
-                  ) : null}
-                </div>
-
-                {!isLocalDemo && userDraft.role==='organizador' && <label>Organização existente<select value={userDraft.organizerId} onChange={e=>setUserDraft({...userDraft,organizerId:e.target.value})}><option value="">Criar nova organização</option>{organizerOptions.map(o=><option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
-                {teamError && <div className="auth-error">{teamError}</div>}
-                {teamSuccess && <div className="team-success">{teamSuccess}</div>}
-                <button className="primary-small team-submit"><UserPlus />Criar acesso</button>
-              </form>
-
-              <section className="admin-panel team-list-card">
-                <div className="team-card-title"><UserCog /><div><h2>Acessos cadastrados</h2><p>Ative, desative ou redefina a senha.</p></div></div>
-                <div className="team-list">
-                  {users.map((user) => (
-                    <article key={user.id} className={user.active === false ? 'team-user-disabled' : ''}>
-                      <div className="team-avatar">{user.name.slice(0, 1).toUpperCase()}</div>
-                      <div className="team-user-copy">
-                        <strong>{user.name}</strong>
-                        <span>{user.email}</span>
-                        <small>{roleLabels[user.role]}{user.organizerName ? ` • ${user.organizerName}` : ''}</small>
-                      </div>
-                      <div className="team-user-actions">
-                        {user.id !== currentUser.id && <><select aria-label={'Perfil de '+user.name} value={user.role} onChange={async e=>{try{await updateUserProfile(user.id,{role:e.target.value,organizerId:user.organizerId||'org-main',organizerName:user.organizerName||'Organização principal'})}catch(err){setTeamError(err.message)}}}>{Object.entries(roleLabels).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select>{!['admin','cliente'].includes(user.role)&&<select aria-label={'Organização de '+user.name} value={user.organizerId||'org-main'} onChange={async e=>{const org=organizerOptions.find(item=>item.id===e.target.value);try{await updateUserProfile(user.id,{role:user.role,organizerId:org.id,organizerName:org.name})}catch(err){setTeamError(err.message)}}}>{organizerOptions.map(org=><option key={org.id} value={org.id}>{org.name}</option>)}</select>}</>}
-                        <button className="ghost-btn" onClick={() => resetPassword(user)}>Nova senha</button>
-                        {user.id !== currentUser.id && <button className="ghost-btn" onClick={async () => {try{await toggleUserActive(user.id)}catch(err){setTeamError(err.message)}}}>{user.active === false ? 'Ativar' : 'Desativar'}</button>}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            </div>
+            <AdminAccounts />
+            {!isLocalDemo && <details className="admin-panel admin-advanced-tools"><summary>Organizações e ferramentas avançadas</summary><OrganizationManager/><LocalDataImport/></details>}
           </>
         )}
       </main>
