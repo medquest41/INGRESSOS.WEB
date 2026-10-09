@@ -13,3 +13,5 @@ export const pollPayment=id=>request('status',id)
 
 export const getPaymentCapabilities=()=>request('capabilities').catch(()=>({cardEnabled:false}))
 export async function startCardCheckout(id){const data=await request('create_checkout',id);if(data.status==='approved')return data;const url=new URL(data.checkoutUrl);if(url.protocol!=='https:'||!['www.mercadopago.com.br','www.mercadopago.com'].includes(url.hostname))throw new Error('Destino de pagamento inválido.');window.location.assign(url.href);return data}
+
+export const cancelPaymentOrder=id=>request("cancel",id)
