@@ -13,7 +13,7 @@ export function validateParticipants(event,quantity,buyer,participants,mode,conf
  const list=mode==='same'?Array.from({length:quantity},()=>({name:buyer.name,cpf:buyer.cpf,birthDate:buyer.birthDate})):participants
  if(list.length!==quantity)throw Error('Informe um participante por ingresso.')
  const seen=new Set()
- return list.map(p=>{if(!p.name?.trim().includes(' ')||!validCPF(p.cpf))throw Error('Confira nome completo e CPF de cada participante.');validateAge(event,p.birthDate,confirmed);const cpf=p.cpf.replace(/\D/g,'');if(event.allowSameCpf===false&&seen.has(cpf))throw Error('Este evento não permite repetir CPF.');seen.add(cpf);return {name:p.name.trim(),cpf,birthDate:p.birthDate}})
+ return list.map(p=>{if(!p.name?.trim()||p.name.trim().length>120||!validCPF(p.cpf))throw Error('Confira nome e CPF de cada participante.');validateAge(event,p.birthDate,confirmed);const cpf=p.cpf.replace(/\D/g,'');if(event.allowSameCpf===false&&seen.has(cpf))throw Error('Este evento não permite repetir CPF.');seen.add(cpf);return {name:p.name.trim(),cpf,birthDate:p.birthDate}})
 }
 export const canShowQR=(order,ticket)=>order.status==='approved'&&!order.paymentReview&&ticket.status!=='cancelled'&&!ticket.used
 export const eventIsPublic=e=>e.published&&!e.archived&&!e.hidden
