@@ -24,6 +24,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import { normalizeMapsUrl } from '../utils/maps'
 import ExperienceEditor from '../components/ExperienceEditor'
 import VipPanel from '../components/VipPanel'
 import EventAdminContext from '../components/EventAdminContext'
@@ -62,6 +63,7 @@ function blankEvent(user) {
     location: '',
     address: '',
     city: '',
+    mapsUrl: '',
     price: 0,
     badge: 'NOVO',
     salesStatus: 'Vendas abertas',
@@ -252,12 +254,17 @@ export default function Admin() {
       ? { organizerId: currentUser.organizerId, organizerName: currentUser.organizerName }
       : {}
 
+    let mapsUrl
+    try { mapsUrl = normalizeMapsUrl(editing.mapsUrl) }
+    catch (error) { window.alert(error.message); return }
+
     try { await saveEvent({
       ...editing,
       ...enforcedOrganizer,
       slug: editing.slug?.trim() || slugifyEventTitle(editing.title),
       archived: Boolean(editing.archived),
       attractions: prepareAttractions(editing.attractions, isLocalDemo),
+      mapsUrl,
       price: minimumPrice,
     })
     setEditing(null) } catch (err) { window.alert(err.message) }
@@ -482,6 +489,7 @@ export default function Admin() {
                   <label>Data completa<input value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} /></label>
                   <label>Horário<input value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} /></label>
                   <label>Local<input value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} /></label>
+                  <label className="full">Link do Google Maps (opcional)<input type="url" value={editing.mapsUrl || ''} onChange={(e) => setEditing({ ...editing, mapsUrl: e.target.value })} placeholder="Cole aqui o link compartilhado do Google Maps"/><small>Este link será aberto pelo botão “Ver localização” no evento público.</small></label>
                   <label>Endereço<input value={editing.address} onChange={(e) => setEditing({ ...editing, address: e.target.value })} /></label>
                   <label>Cidade/UF<input value={editing.city} onChange={(e) => setEditing({ ...editing, city: e.target.value })} /></label>
                   <label>Badge<input value={editing.badge} onChange={(e) => setEditing({ ...editing, badge: e.target.value })} /></label>
@@ -493,7 +501,7 @@ export default function Admin() {
               </section>
 
               <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
-              <AttractionEditor value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
+              <AttractionEditor key={editing.id} value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
 
               <section>
                 <div className="editor-section-head"><h3>Ingressos e preços</h3><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>

@@ -3,17 +3,33 @@ import { createHash } from 'node:crypto'
 import { defaultEvents } from '../src/data/defaultEvents.js'
 const password = 'Teste-local-123'
 const roles = ['admin','organizador','financeiro','checkin','cliente']
+test('Admin preserves Maps, reopens attractions collapsed and confirms visual save', async ({page}) => {
+  await seed(page)
+  await login(page,'admin')
+  await page.getByRole('button',{name:'Eventos',exact:true}).click()
+  await page.getByRole('button',{name:'Editar',exact:true}).first().click()
+  await expect(page.locator('.attraction-collapse-toggle[aria-expanded="true"]')).toHaveCount(0)
+  await page.getByLabel('Link do Google Maps (opcional)').fill('https://maps.app.goo.gl/ExampleLocation')
+  await page.getByRole('button',{name:'Salvar',exact:true}).click()
+  await page.getByRole('button',{name:'Editar',exact:true}).first().click()
+  await expect(page.getByLabel('Link do Google Maps (opcional)')).toHaveValue('https://maps.app.goo.gl/ExampleLocation')
+  await expect(page.locator('.attraction-collapse-toggle[aria-expanded="true"]')).toHaveCount(0)
+  await page.getByRole('link',{name:'Experiência visual 3D'}).click()
+  await page.locator('.ix-event-picker>div>a').first().click()
+  await page.getByRole('button',{name:'Salvar experiência',exact:true}).click()
+  await expect(page.locator('.ix-editor-notice.success')).toContainText('Experiência salva com sucesso')
+})
 async function seed(page) {
   await page.goto('/')
   await page.evaluate(({roles,hash,events})=>{
-    localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(roles.map(role=>({id:role,name:'Teste '+role,email:role==='admin'?'medquest41@gmail.com':role+'@example.test',passwordHash:hash,role,organizerId:'org-main',organizerName:'Organização principal',active:true}))))
+    localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(roles.map(role=>({id:role,name:'Teste '+role,email:role==='admin'?'ingressosaltatemporada@gmail.com':role+'@example.test',passwordHash:hash,role,organizerId:'org-main',organizerName:'Organização principal',active:true}))))
     localStorage.setItem('ingressos_events_v1',JSON.stringify(events.map((e,i)=>({...e,organizerId:i===1?'org-other':'org-main',published:i!==2,ticketTypes:e.ticketTypes.map(t=>({...t,available:10}))}))))
     localStorage.setItem('ingressos_orders_v1',JSON.stringify([{id:'legacy',eventId:'2',eventTitle:'Sunset Experience',ticketId:'pista',quantity:1,total:99,fee:9,subtotal:90,buyer:{name:'Outro Cliente',email:'outro@example.test'},ticketCodes:[{code:'LEGACY-SECRET',used:false}]}]))
   },{roles,hash:createHash('sha256').update(password).digest('hex'),events:defaultEvents})
 }
 async function login(page,role,destination='/admin') {
   await page.goto(destination)
-  await page.getByLabel('E-mail',{exact:true}).fill(role==='admin'?'medquest41@gmail.com':role+'@example.test')
+  await page.getByLabel('E-mail',{exact:true}).fill(role==='admin'?'ingressosaltatemporada@gmail.com':role+'@example.test')
   await page.getByLabel('Senha',{exact:true}).fill(password)
   await page.getByRole('button',{name:'Entrar',exact:true}).click()
 }
@@ -95,7 +111,7 @@ test('mobile checkout and check-in layouts fit viewport',async({page})=>{
 test('first admin setup and customer signup preserve existing events',async({page})=>{
  await page.goto('/admin')
  await page.getByLabel('Seu nome').fill('Admin Inicial')
- await expect(page.getByLabel('E-mail',{exact:true})).toHaveValue('medquest41@gmail.com')
+ await expect(page.getByLabel('E-mail',{exact:true})).toHaveValue('ingressosaltatemporada@gmail.com')
  await expect(page.getByLabel('E-mail',{exact:true})).toHaveAttribute('readonly', '')
  await page.getByLabel('Senha',{exact:true}).fill(password)
  await page.getByRole('button',{name:'Criar administrador',exact:true}).click()
@@ -156,7 +172,7 @@ test('existing primary account is promoted without duplicates or data loss',asyn
  for(const name of ['Eventos','Pedidos','Equipe','Financeiro','Check-in']) await expect(page.getByRole('button',{name,exact:true})).toBeVisible()
  await page.reload()
  const after=await page.evaluate(()=>({users:JSON.parse(localStorage.getItem('ingressos_auth_users_v1')),events:localStorage.getItem('ingressos_events_v1'),orders:localStorage.getItem('ingressos_orders_v1')}))
- expect(after.users).toEqual(before.users.map((u,i)=>i===0?{...u,email:'medquest41@gmail.com',role:'admin',active:true}:u))
+ expect(after.users).toEqual(before.users.map((u,i)=>i===0?{...u,email:'ingressosaltatemporada@gmail.com',role:'admin',active:true}:u))
  expect(after.events).toBe(before.events)
  expect(after.orders).toBe(before.orders)
  expect(after.users.every(u=>!('password' in u))).toBe(true)
@@ -176,17 +192,20 @@ test('bootstrap keeps an existing administrator and stores only the new password
  await expect(page.getByRole('heading',{name:'Visão geral.'})).toBeVisible()
  const users=await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_auth_users_v1')))
  expect(users.slice(1)).toEqual(oldUsers)
- expect(users[0]).toMatchObject({email:'medquest41@gmail.com',role:'admin',passwordHash:createHash('sha256').update(password).digest('hex')})
+ expect(users[0]).toMatchObject({email:'ingressosaltatemporada@gmail.com',role:'admin',passwordHash:createHash('sha256').update(password).digest('hex')})
  expect(users[0]).not.toHaveProperty('password')
  await page.getByRole('button',{name:'Sair',exact:true}).click()
  await page.getByLabel('E-mail',{exact:true}).fill('legacy-admin@example.test')
  await page.getByLabel('Senha',{exact:true}).fill(password)
  await page.getByRole('button',{name:'Entrar',exact:true}).click()
  await page.getByRole('button',{name:'Equipe',exact:true}).click()
- const primary=page.locator('.team-list article').filter({hasText:'medquest41@gmail.com'})
+ const primary=page.locator('.team-list article').filter({hasText:'ingressosaltatemporada@gmail.com'})
  await primary.getByLabel('Perfil de Administrador principal').selectOption('cliente')
  await expect(page.getByText('O administrador principal deve manter acesso total.')).toBeVisible()
  await primary.getByRole('button',{name:'Desativar',exact:true}).click()
  const stored=await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_auth_users_v1')))
  expect(stored[0]).toEqual(users[0])
 })
+
+
+

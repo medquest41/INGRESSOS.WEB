@@ -11,7 +11,7 @@ function AttractionCard({ item, index, total, organizationId, onChange, onMove, 
     <header>
       <button type="button" className="attraction-collapse-toggle" onClick={onToggle} aria-expanded={expanded}>
         {expanded ? <ChevronDown size={18}/> : <ChevronRight size={18}/>}
-        <div><span className="section-kicker">ATRAÇÃO {index + 1}</span><h4>{item.name || 'Nova atração'}</h4></div>
+        <div><span className="section-kicker">ATRAÇÃO {index + 1}</span><h4>{item.name || 'Nova atração'}</h4>{!expanded && <small>{[item.type, item.stage, item.startTime].filter(Boolean).join(' • ') || 'Programação a definir'}</small>}</div>
       </button>
       <div className="attraction-editor-actions">
         <button type="button" className="ghost-btn" disabled={disabled || index === 0} aria-label={`Mover atração ${index + 1} para cima`} onClick={() => onMove(index, -1)}><ArrowUp size={16}/></button>
@@ -43,7 +43,9 @@ function AttractionCard({ item, index, total, organizationId, onChange, onMove, 
 export default function AttractionEditor({ value, organizationId, onChange, onBusyChange }) {
   const items = normalizeAttractions(value)
   const [busyIds, setBusyIds] = useState(new Set())
-  const [expandedId, setExpandedId] = useState(() => items[0]?.id || null)
+  // Eventos já existentes devem abrir como uma lista compacta. Apenas uma
+  // atração adicionada durante esta edição abre automaticamente.
+  const [expandedId, setExpandedId] = useState(null)
   const onBusy = useCallback((id, busy) => setBusyIds(previous => {
     if (previous.has(id) === busy) return previous
     const next = new Set(previous); if (busy) next.add(id); else next.delete(id); return next
@@ -52,7 +54,7 @@ export default function AttractionEditor({ value, organizationId, onChange, onBu
   useEffect(() => { onBusyChange(uploading) }, [uploading, onBusyChange])
   useEffect(() => () => onBusyChange(false), [onBusyChange])
   useEffect(() => {
-    if (expandedId && !items.some(item => item.id === expandedId)) setExpandedId(items[0]?.id || null)
+    if (expandedId && !items.some(item => item.id === expandedId)) setExpandedId(null)
   }, [items, expandedId])
   function update(index, field, next) { onChange(items.map((item, i) => i === index ? { ...item, [field]: next } : item)) }
   function move(index, direction) { const next = [...items]; [next[index], next[index + direction]] = [next[index + direction], next[index]]; onChange(next) }
@@ -61,7 +63,7 @@ export default function AttractionEditor({ value, organizationId, onChange, onBu
     const removedId = items[index].id
     const next = items.filter((_, i) => i !== index)
     onChange(next)
-    if (expandedId === removedId) setExpandedId(next[0]?.id || null)
+    if (expandedId === removedId) setExpandedId(null)
   }
   function addAttraction() {
     const id = crypto.randomUUID()

@@ -17,6 +17,8 @@ import {
   Users,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import { eventMapsUrl } from '../utils/maps'
+import { EventBackdrop } from '../components/EventCinematic'
 import Activity, {recordActivity} from '../components/Activity'
 import VipPublic from '../components/VipPublic'
 import { shareLink, whatsappUrl } from '../utils/experience'
@@ -115,6 +117,7 @@ export default function Evento() {
         </div>
       </section>
 
+      <EventBackdrop event={event} />
       <main className="event-main">
         <section className="event-information">
           <div className="event-about">
@@ -131,7 +134,7 @@ export default function Evento() {
             <h3>{event.location}</h3>
             <p>{event.address}</p>
             <p>{event.city}</p>
-            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address + ' ' + event.city)}`} target="_blank" rel="noreferrer">Ver localização <ChevronRight size={18} /></a>
+            <a href={eventMapsUrl(event)} target="_blank" rel="noreferrer">Ver localização <ChevronRight size={18} /></a>
           </aside>
         </section>
 
