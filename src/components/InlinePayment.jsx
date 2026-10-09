@@ -39,11 +39,19 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
   },[orderId,onOrder,accept,reload,autoStart,initialMethod,cardEnabled])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer)},[])
   const seconds=order?Math.max(0,Math.ceil((new Date(result?.expiresAt||order.expiresAt).getTime()-now)/1000)):0
-  const waiting=Boolean(result&&['creating','pending','in_process','authorized','confirming'].includes(result.status))
+  const waiting=Boolean(result&&['creating','pending','in_process','authorized','confirming'].includes(result.status)) || Boolean(error && order?.status==='pending' && !result)
   const check=useCallback(async()=>{
     if(fetching.current)return
     fetching.current=true
-    try{accept(await pollPayment(orderId));setError('')}catch(err){setError(err.message)}finally{fetching.current=false}
+    try{accept(await pollPayment(orderId));setError('')}catch(err){
+      // A failed provider lookup must not hide an approval already recorded by the webhook.
+      try {
+        const current=await getPaymentOrder(orderId)
+        setOrder(current)
+        if(['approved','cancelled','refunded'].includes(current.status)){accept({status:current.status});setError('')}
+        else setError(err.message)
+      } catch {setError(err.message)}
+    }finally{fetching.current=false}
   },[orderId,accept])
   useEffect(()=>{
     if(!waiting)return
@@ -75,7 +83,7 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
         {['cancelled','refunded'].includes(result?.status)&&<p role="alert">Pedido cancelado ou estornado. Não pague o código Pix desse pedido.</p>}
         {method==='pix'&&result?.qrCode&&seconds>0&&['pending','in_process'].includes(result.status)&&<div className="inline-pix"><QRCodeSVG value={result.qrCode} size={224} marginSize={4}/><label>Pix copia e cola<textarea readOnly value={result.qrCode} rows={4}/></label><button type="button" className="primary-small" onClick={async()=>{try{await navigator.clipboard.writeText(result.qrCode);setCopied(true)}catch{setError('Selecione o código acima e copie manualmente.')}}}><Copy size={17}/>{copied?'Código copiado':'Copiar código Pix'}</button><p>Abra o aplicativo do seu banco e escaneie o QR Code ou cole o código Pix.</p></div>}
         {method==='pix'&&(!locked||result?.status==='creating')&&seconds>0&&<button type="button" className="checkout-button" disabled={busy} onClick={generatePix}>{busy?'Gerando Pix…':autoStart?'Tentar gerar Pix novamente':result?.status==='creating'?'Retomar geração do Pix':'Gerar QR Code Pix'}</button>}
-                        {waiting&&<><p role="status">{result.status==='confirming'?'Pagamento recebido. Aguardando confirmação do pedido.':'Aguardando pagamento. A confirmação será atualizada automaticamente.'}</p><button type="button" className="ghost-btn" onClick={()=>{void check()}}>Verificar pagamento</button></>}
+                        {(waiting || order.status==='pending')&&<><p role="status">{result?.status==='confirming'?'Pagamento recebido. Aguardando confirmação do pedido.':error?'Não foi possível confirmar o pagamento agora. Se você já pagou, não pague novamente. Continuaremos consultando este pedido.':'Aguardando pagamento. A confirmação será atualizada automaticamente.'}</p><button type="button" className="ghost-btn" onClick={()=>{void check()}}>Verificar pagamento</button></>}
       </>}
       {method==='card'&&cardEnabled&&!locked&&seconds>0&&<button type="button" className="checkout-button" disabled={busy} onClick={async()=>{if(busy)return;setBusy(true);setError('');try{const data=await startCardCheckout(orderId);if(data.status==='approved')accept(data)}catch(err){setError(err.message)}finally{setBusy(false)}}}>{busy?'Abrindo Mercado Pago…':'Continuar com Mercado Pago · '+brl(order.total)}</button>}{!cardEnabled&&<p>Cartão ainda indisponível. Use Pix.</p>}{order.status==='pending'&&!['approved','cancelled','refunded','charged_back','review'].includes(result?.status)&&<div>{cancelPrompt?<><p>Cancelar este pedido? O código de pagamento deixará de ser válido. Pagamentos aprovados não são estornados por este botão.</p><button type="button" className="ghost-btn" disabled={busy} onClick={cancelReservation}>Confirmar cancelamento</button><button type="button" className="ghost-btn" disabled={busy} onClick={()=>setCancelPrompt(false)}>Manter pedido</button></>:<button type="button" className="ghost-btn" disabled={busy} onClick={()=>setCancelPrompt(true)}>Cancelar pedido</button>}</div>}<Link to="/ingressos">Ver meus pedidos e ingressos</Link>
     </>}

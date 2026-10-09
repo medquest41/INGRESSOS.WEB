@@ -4,6 +4,27 @@ import { defaultEvents } from '../src/data/defaultEvents.js'
 const org='20000000-0000-4000-8000-000000000001',eventId='30000000-0000-4000-8000-000000000001',batch='40000000-0000-4000-8000-000000000001'
 const userId='10000000-0000-4000-8000-000000000001'
 const base=defaultEvents[0]
+test('payment lookup error keeps recovery available and accepts only database confirmation',async({page})=>{
+ await mockApi(page)
+ await login(page)
+ let status='pending',polls=0,charges=0
+ await page.route('https://*.supabase.co/rest/v1/orders*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({id:userId,status,total_cents:1393,expires_at:new Date(Date.now()+900000).toISOString()})}))
+ await page.route('https://*.supabase.co/functions/v1/payments',route=>{
+  const action=route.request().postDataJSON().action
+  if(action==='create_pix'||action==='create_checkout')charges++
+  polls++
+  return route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Erro interno no pagamento.'})})
+ })
+ await page.goto('/tests/fixtures/payment17.html')
+ await expect(page.getByText('Se você já pagou, não pague novamente.',{exact:false})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Verificar pagamento',exact:true})).toBeVisible()
+ await expect(page.locator('html')).not.toHaveAttribute('data-confirmed','true')
+ await expect.poll(()=>polls).toBeGreaterThan(1)
+ status='approved'
+ await page.getByRole('button',{name:'Verificar pagamento',exact:true}).click()
+ await expect(page.locator('html')).toHaveAttribute('data-confirmed','true')
+ expect(charges).toBe(0)
+})
 async function mockApi(page,{role='cliente',price=0,error=false}={}){
  const calls=[],orders=[];let logged=false
  const profile={id:userId,email:role==='admin'?'medquest41@gmail.com':'cliente@example.test',name:'Cliente Teste',role,active:true,organization_id:role==='cliente'?null:org,organizations:{name:'Empresa A'}}
