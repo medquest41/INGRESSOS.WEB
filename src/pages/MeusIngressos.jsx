@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import Brand from '../components/Brand'
 import {canShowQR} from '../utils/experience'
 import {shareTicket,printTicket} from '../services/ticketShare'
 import InlinePayment from '../components/InlinePayment'
+import {getPaymentCapabilities,cancelPaymentOrder} from '../services/inlinePayment'
 import { useEventStore } from '../store/EventStore'
 import { useAuth } from '../store/AuthStore'
 import { ownsOrder, approved } from '../utils/commerce'
@@ -20,6 +21,8 @@ export default function MeusIngressos() {
   const [paying,setPaying]=useState(()=>new URLSearchParams(window.location.search).get('payment'))
   const paymentConfirmed=useCallback(()=>{setPaying(null);refresh?.()},[refresh])
   const [paymentError,setPaymentError]=useState('')
+  const [cardEnabled,setCardEnabled]=useState(false),[cancelling,setCancelling]=useState(null)
+  useEffect(()=>{if(isLocalDemo)return;let active=true;getPaymentCapabilities().then(data=>{if(active)setCardEnabled(data.cardEnabled===true)});return()=>{active=false}},[isLocalDemo])
   const mine = orders.filter(order => ownsOrder(currentUser,order))
   const groups = [...new Set(mine.map(order=>order.eventId))].map(id=>({id,title:mine.find(order=>order.eventId===id)?.eventTitle,orders:mine.filter(order=>order.eventId===id)}))
   const selected = groups.filter(group=>!eventId || String(group.id)===eventId)
@@ -36,9 +39,9 @@ export default function MeusIngressos() {
         {!isLocalDemo&&group.orders.map(order=><section className="admin-panel" key={order.id}>
           <p>Pedido {order.id} • {status(order.paymentReview?'review':order.status==='pending'&&new Date(order.expiresAt).getTime()<=Date.now()?'expired':order.status==='pending'?order.paymentStatus||'pending':order.status)}</p>
           <details><summary>Histórico do pedido</summary>{(order.orderHistory||[]).map(item=><p key={item.id}>{new Date(item.created_at).toLocaleString('pt-BR')} • {status(item.to_status)}</p>)}</details>
-          {paying===order.id&&<><InlinePayment orderId={order.id} onConfirmed={paymentConfirmed}/><button className="ghost-btn" onClick={()=>setPaying(null)}>Fechar pagamento</button></>}
+          {paying===order.id&&<><InlinePayment orderId={order.id} cardEnabled={cardEnabled} onConfirmed={paymentConfirmed} onCancelled={paymentConfirmed}/><button className="ghost-btn" onClick={()=>setPaying(null)}>Fechar pagamento</button></>}
           <p>Total: {Number(order.total).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</p>
-          {order.status==='pending'&&<><p>{new Date(order.expiresAt).getTime()>now?'Reserva até '+new Date(order.expiresAt).toLocaleString('pt-BR'):'Reserva expirada. Faça um novo pedido.'}</p>{new Date(order.expiresAt).getTime()>Date.now() && <button className="primary-small" disabled={Boolean(paying)} onClick={()=>{setPaying(order.id);setPaymentError('')}}>{paying===order.id?'Pagamento aberto abaixo':'Pagar com Pix'}</button>}<button className="ghost-btn" onClick={async()=>{try{await cancelOrder(order.id)}catch(err){window.alert(err.message)}}}>Cancelar reserva</button></>}
+          {order.status==='pending'&&<><p>{new Date(order.expiresAt).getTime()>now?'Reserva até '+new Date(order.expiresAt).toLocaleString('pt-BR'):'Reserva expirada. Faça um novo pedido.'}</p>{new Date(order.expiresAt).getTime()>Date.now() && <button className="primary-small" disabled={Boolean(paying)} onClick={()=>{setPaying(order.id);setPaymentError('')}}>{paying===order.id?'Pagamento aberto abaixo':'Pagar pedido'}</button>}{cancelling===order.id?<><p>Confirma o cancelamento deste pedido ainda não pago?</p><button className="ghost-btn" onClick={async()=>{try{if(isLocalDemo)await cancelOrder(order.id);else await cancelPaymentOrder(order.id);setCancelling(null);setPaying(null);await refresh?.()}catch(err){setPaymentError(err.message)}}}>Confirmar cancelamento</button><button className="ghost-btn" onClick={()=>setCancelling(null)}>Manter pedido</button></>:<button className="ghost-btn" onClick={()=>setCancelling(order.id)}>Cancelar pedido</button>}</>}
         </section>)}
         <div className="my-ticket-grid">{group.orders.flatMap(order=>(!approved(order)||order.paymentReview?[]:order.ticketCodes||[]).map((ticket,index)=>{
           const cancelled=!approved(order)||ticket.status==='cancelled'
