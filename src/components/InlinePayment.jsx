@@ -6,11 +6,19 @@ import { getPaymentOrder, payInline, pollPayment } from '../services/inlinePayme
 import './InlinePayment.css'
 const brl=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
 
-export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,onOrder}){
+export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,onOrder,autoStart=false,popup=false}){
   const [order,setOrder]=useState(null),[method,setMethod]=useState(initialMethod),[result,setResult]=useState(null)
   const [error,setError]=useState(''),[busy,setBusy]=useState(false),[copied,setCopied]=useState(false),[now,setNow]=useState(Date.now)
   const [reload,setReload]=useState(0)
-  const fetching=useRef(false),confirmed=useRef(false)
+  const fetching=useRef(false),confirmed=useRef(false),creation=useRef(null),dialog=useRef(null)
+  const [popupOpen,setPopupOpen]=useState(true)
+  useEffect(()=>{
+    if(!popup||!dialog.current)return
+    const element=dialog.current
+    if(popupOpen&&!element.open)element.showModal()
+    if(!popupOpen&&element.open)element.close()
+    return()=>{if(element.open)element.close()}
+  },[popup,popupOpen])
   const accept=useCallback(data=>{setResult(previous=>({...previous,...data}));if(data.status==='approved'&&!confirmed.current){confirmed.current=true;onConfirmed?.()}},[onConfirmed])
   useEffect(()=>{
     let active=true
@@ -18,10 +26,17 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
       if(!active)return
       setOrder(info);
       if(['approved','cancelled','refunded','review','expired','rejected','charged_back'].includes(info.status))accept({status:info.status})
-      else {pollPayment(orderId).then(data=>{if(active)accept(data)}).catch(err=>{if(active)setError(err.message)})}
+      else {
+        const valid=info.expiresAt&&new Date(info.expiresAt).getTime()>Date.now()
+        const create=autoStart&&initialMethod==='pix'&&valid
+        if(create)setBusy(true)
+        if(create&&!creation.current)creation.current=payInline(orderId,'pix')
+        const request=create?creation.current:pollPayment(orderId)
+        request.then(data=>{if(active)accept(data)}).catch(err=>{if(active)setError(err.message)}).finally(()=>{if(active)setBusy(false)})
+      }
     }).catch(err=>{if(active)setError(err.message)})
     return()=>{active=false}
-  },[orderId,onOrder,accept,reload])
+  },[orderId,onOrder,accept,reload,autoStart,initialMethod])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer)},[])
   const seconds=order?Math.max(0,Math.ceil((new Date(result?.expiresAt||order.expiresAt).getTime()-now)/1000)):0
   const waiting=Boolean(result&&['creating','pending','in_process','authorized','confirming'].includes(result.status))
@@ -41,8 +56,8 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
     try{accept(await payInline(orderId,'pix'))}catch(err){setError(err.message)}finally{setBusy(false)}
   }
   const locked=Boolean(waiting&&(result?.qrCode||result?.paymentId||result?.status==='in_process'))||['approved','review','cancelled','refunded','expired','rejected','charged_back'].includes(result?.status)
-  return <section className="inline-payment admin-panel" aria-label="Pagamento do ingresso">
-    <h2>Como você quer pagar?</h2>
+  const content=<section className="inline-payment admin-panel" aria-label="Pagamento do ingresso">
+    <h2 id={popup?'payment-popup-title':undefined}>Pagamento Pix</h2>{popup&&<button type="button" className="ghost-btn payment-popup-close" onClick={()=>setPopupOpen(false)} aria-label="Fechar pagamento">Fechar</button>}{busy&&<p role="status">Gerando seu QR Code Pix…</p>}
     {error&&<p role="alert" className="auth-error">{error}</p>}
     {!order?<div><p role="status">{error?'O pagamento não carregou.':'Carregando pagamento…'}</p>{error&&<button className="ghost-btn" onClick={()=>{setError('');setReload(n=>n+1)}}>Tentar novamente</button>}<Link to="/ingressos">Ver meus pedidos</Link></div>:<>
       <p className="inline-payment-total">Total do pedido: <strong>{brl(order.total)}</strong></p>
@@ -54,10 +69,11 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
         {result?.status==='charged_back'&&<p role="alert">Pagamento contestado. O ingresso não está disponível.</p>}{result?.status==='in_process'&&<p role="status">Pagamento em processamento. Aguarde a confirmação.</p>}{result?.status==='review'&&<p role="alert">Pagamento em revisão. Confira o pedido em Minha conta.</p>}
         {['cancelled','refunded'].includes(result?.status)&&<p role="alert">Pedido cancelado ou estornado. Não pague o código Pix desse pedido.</p>}
         {method==='pix'&&result?.qrCode&&seconds>0&&['pending','in_process'].includes(result.status)&&<div className="inline-pix"><QRCodeSVG value={result.qrCode} size={224} marginSize={4}/><label>Pix copia e cola<textarea readOnly value={result.qrCode} rows={4}/></label><button type="button" className="primary-small" onClick={async()=>{try{await navigator.clipboard.writeText(result.qrCode);setCopied(true)}catch{setError('Selecione o código acima e copie manualmente.')}}}><Copy size={17}/>{copied?'Código copiado':'Copiar código Pix'}</button><p>Abra o aplicativo do seu banco e escaneie o QR Code ou cole o código Pix.</p></div>}
-        {method==='pix'&&(!locked||result?.status==='creating')&&seconds>0&&<button type="button" className="checkout-button" disabled={busy} onClick={generatePix}>{busy?'Gerando Pix…':result?.status==='creating'?'Retomar geração do Pix':'Gerar QR Code Pix'}</button>}
+        {method==='pix'&&(!locked||result?.status==='creating')&&seconds>0&&<button type="button" className="checkout-button" disabled={busy} onClick={generatePix}>{busy?'Gerando Pix…':autoStart?'Tentar gerar Pix novamente':result?.status==='creating'?'Retomar geração do Pix':'Gerar QR Code Pix'}</button>}
                         {waiting&&<><p role="status">{result.status==='confirming'?'Pagamento recebido. Aguardando confirmação do pedido.':'Aguardando pagamento. A confirmação será atualizada automaticamente.'}</p><button type="button" className="ghost-btn" onClick={()=>{void check()}}>Verificar pagamento</button></>}
       </>}
       <p>Cartão ainda indisponível. Use Pix.</p><Link to="/ingressos">Ver meus pedidos e ingressos</Link>
     </>}
   </section>
+  return popup?<>{!popupOpen&&<button type="button" className="checkout-button" onClick={()=>setPopupOpen(true)}>Abrir pagamento Pix</button>}<dialog ref={dialog} className="payment-popup" aria-labelledby="payment-popup-title" onCancel={()=>setPopupOpen(false)}>{content}</dialog></>:content
 }
