@@ -1,25 +1,12 @@
 import { supabase } from '../lib/supabase'
-async function request(action,orderId,extra={}) {
-  const {data,error}=await supabase.functions.invoke('payments',{body:{action,orderId,...extra}})
-  if(error||data?.error){
-    let message=data?.error
-    if(!message&&error?.context){try{message=(await error.context.json()).error}catch{/* Generic error below. */}}
-    throw new Error(message||'Pagamento indisponível. Confira sua conexão e tente novamente.')
-  }
-  return data
+async function request(action,orderId){
+ const {data:{session},error:sessionError}=await supabase.auth.getSession()
+ if(sessionError||!session)throw new Error('Sua sessão expirou. Entre novamente.')
+ const {data,error}=await supabase.functions.invoke('payments',{headers:{Authorization:'Bearer '+session.access_token},body:{action,orderId}})
+ if(error||data?.error){let message=data?.error;if(!message&&error?.context){try{message=(await error.context.json()).error}catch{/* fallback */}}throw new Error(message||'Não foi possível consultar o pagamento. Tente novamente.')}
+ if(!data||typeof data.status!=='string')throw new Error('Resposta de pagamento inválida.')
+ return data
 }
-export const getPaymentOrder=id=>request('order',id)
-export const payInline=(id,method,card)=>request('pay',id,{method,card})
-export const pollPayment=id=>request('poll',id)
-let sdkPromise
-export function loadCardSdk(){
-  if(window.MercadoPago)return Promise.resolve(window.MercadoPago)
-  if(!sdkPromise)sdkPromise=new Promise((resolve,reject)=>{
-    const script=document.createElement('script');script.src='https://sdk.mercadopago.com/js/v2';script.async=true
-    const timeout=setTimeout(()=>{sdkPromise=null;script.remove();reject(new Error('O formulário de cartão demorou a carregar. Tente novamente.'))},20000)
-    script.onload=()=>{clearTimeout(timeout);if(window.MercadoPago)resolve(window.MercadoPago);else{sdkPromise=null;reject(new Error('Formulário de cartão indisponível.'))}}
-    script.onerror=()=>{clearTimeout(timeout);sdkPromise=null;script.remove();reject(new Error('Não foi possível carregar o formulário de cartão.'))}
-    document.head.appendChild(script)
-  })
-  return sdkPromise
-}
+export async function getPaymentOrder(id){const {data,error}=await supabase.from('orders').select('id,total_cents,status,expires_at').eq('id',id).single();if(error)throw new Error('Não foi possível carregar seu pedido.');return {id:data.id,total:data.total_cents/100,status:data.status,expiresAt:data.expires_at}}
+export const payInline=(id,method)=>method==='pix'?request('create_pix',id):Promise.reject(new Error('Cartão ainda indisponível. Use Pix.'))
+export const pollPayment=id=>request('status',id)
