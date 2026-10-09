@@ -48,7 +48,32 @@ export default function Checkout() {
   const [hasReservation, setHasReservation] = useState(false)
   const [reservationId,setReservationId]=useState(null)
   const [reservedTotals,setReservedTotals]=useState(null)
-  const paymentConfirmed=useCallback(()=>{refresh?.();navigate('/ingressos',{replace:true,state:{approved:true}})},[navigate,refresh])
+  const paymentConfirmed=useCallback(()=>{try{if(currentUser?.id&&event?.id&&ticket?.id)localStorage.removeItem('ingressos_checkout_draft_v1:'+currentUser.id+':'+event.id+':'+ticket.id)}catch{/* optional storage */}refresh?.();navigate('/ingressos',{replace:true,state:{approved:true}})},[navigate,refresh,currentUser?.id,event?.id,ticket?.id])
+  const draftKey=currentUser?.id&&event?.id&&ticket?.id?'ingressos_checkout_draft_v1:'+currentUser.id+':'+event.id+':'+ticket.id:null
+  const [loadedDraftKey,setLoadedDraftKey]=useState(null)
+  useEffect(()=>{
+    if(!draftKey)return
+    let draft=null
+    try{const saved=JSON.parse(localStorage.getItem(draftKey)||'null');if(saved&&saved.version===1&&Date.now()-saved.savedAt<86400000&&saved.savedAt<=Date.now())draft=saved;else localStorage.removeItem(draftKey)}catch{/* Storage can be unavailable. */}
+    const text=(value,max=120)=>typeof value==='string'?value.slice(0,max):''
+    setBuyer({name:text(draft?.buyer?.name)||(currentUser.guest?'':currentUser.name||''),email:currentUser.guest?text(draft?.buyer?.email,254):currentUser.email||'',cpf:text(draft?.buyer?.cpf,20),phone:text(draft?.buyer?.phone,25),birthDate:text(draft?.buyer?.birthDate,10)})
+    setQuantity(Number.isInteger(draft?.quantity)&&draft.quantity>=1&&draft.quantity<=10?draft.quantity:Number(params.get('q')||1))
+    setCoupon(text(draft?.coupon,120));setParticipants(Array.isArray(draft?.participants)?draft.participants.slice(0,10).map(p=>({name:text(p?.name),cpf:text(p?.cpf,20),birthDate:text(p?.birthDate,10)})):[])
+    setParticipantMode(event.allowSameCpf===false?'individual':draft?.participantMode==='individual'?'individual':'same')
+    setParticipantsSaved(false);setAgeConfirmed(false);setMethod(draft?.method==='card'?'card':'pix');setLoadedDraftKey(draftKey)
+    // Resume the existing order instead of creating another reservation.
+    if(typeof draft?.orderId==='string'&&/^[0-9a-f-]{36}$/i.test(draft.orderId)){try{localStorage.setItem(draftKey,JSON.stringify({...draft,orderId:null}))}catch{/* optional storage */}navigate('/ingressos?payment='+encodeURIComponent(draft.orderId),{replace:true})}
+  // Restore only when the account/event/ticket changes, never while typing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[draftKey])
+  useEffect(()=>{
+    if(!draftKey||loadedDraftKey!==draftKey)return
+    try{localStorage.setItem(draftKey,JSON.stringify({version:1,savedAt:Date.now(),buyer,quantity,coupon,participants,participantMode,method,orderId:reservationId}))}catch{/* Checkout remains usable without storage. */}
+  },[draftKey,loadedDraftKey,buyer,quantity,coupon,participants,participantMode,method,reservationId])
+  function clearDraft(){
+    try{if(draftKey)localStorage.removeItem(draftKey)}catch{/* optional storage */}
+    setBuyer({name:currentUser.guest?'':currentUser.name||'',email:currentUser.guest?'':currentUser.email||'',cpf:'',phone:'',birthDate:''});setCoupon('');setParticipants([]);setParticipantsSaved(false);setAgeConfirmed(false);setQuantity(1);setMethod('pix')
+  }
   const [today] = useState(()=>new Date().toISOString().slice(0,10))
   const pending = useRef(false)
   const idempotencyKey = useRef(crypto.randomUUID())
@@ -71,12 +96,13 @@ export default function Checkout() {
       const holders=validateParticipants(event,quantity,buyer,participants,quantity===1?'same':participantMode,ageConfirmed);
       const order = reservedOrder.current || await placeOrder({ eventId: event.id, ticketId: ticket.id, quantity, buyer: {...buyer,participants:holders,participantMode:quantity===1?'same':participantMode,ageConfirmed,vipListId:params.get('vip')||null}, method, outcome, coupon, campaign: params.get('campaign') || '', source: params.get('ref') || params.get('utm_source') || 'direto', idempotencyKey: idempotencyKey.current })
       if (!isLocalDemo && totals.total > 0) { setReservedTotals(totals); reservedOrder.current = order; setHasReservation(true); setReservationId(order); return }
+      try{if(draftKey)localStorage.removeItem(draftKey)}catch{/* optional storage */}
       navigate('/ingressos', { replace: true, state: { approved: true } })
     } catch (err) { setError(err.message) } finally { pending.current = false; setBusy(false) }
   }
   if(!currentUser)return <main className="auth-wrap"><section className="auth-card"><h1>Como você quer comprar?</h1><p>Continue sem senha ou use sua conta da Ingressos Experiences.</p>{error&&<p role="alert">{error}</p>}<button className="checkout-button" disabled={busy} onClick={async()=>{setBusy(true);try{await startGuest()}catch(err){setError(err.message)}finally{setBusy(false)}}}>Compra rápida sem conta</button><Link to={'/login?returnTo='+encodeURIComponent(window.location.pathname+window.location.search)}>Entrar / Criar conta</Link></section></main>
   if (!event?.published || event.archived || !ticket) return <div className="empty-page"><h1>Ingresso indisponível.</h1><Link to="/eventos">Ver eventos</Link></div>
-  return <div className="checkout-page"><header className="simple-header"><Link to={getEventPublicPath(event)} className="event-back"><ArrowLeft size={18}/>Voltar</Link><Brand/><Link to={currentUser.guest?'/login?returnTo='+encodeURIComponent(window.location.pathname+window.location.search):'/eventos'}>{currentUser.guest?'Entrar / Criar conta':'Minha conta'}</Link></header><main className="checkout-wrap"><section><span className="section-kicker">CHECKOUT</span><h1>Finalize sua experiência.</h1><form ref={buyerForm} className="buyer-form" onSubmit={finish}><h3>Dados do comprador</h3><div className="form-grid">
+  return <div className="checkout-page"><header className="simple-header"><Link to={getEventPublicPath(event)} className="event-back"><ArrowLeft size={18}/>Voltar</Link><Brand/><Link to={currentUser.guest?'/login?returnTo='+encodeURIComponent(window.location.pathname+window.location.search):'/eventos'}>{currentUser.guest?'Entrar / Criar conta':'Minha conta'}</Link></header><main className="checkout-wrap"><section><span className="section-kicker">CHECKOUT</span><h1>Finalize sua experiência.</h1><form ref={buyerForm} className="buyer-form" onSubmit={finish}><h3>Dados do comprador</h3><p>Se sair, seus dados ficam salvos neste navegador por até 24 horas.</p>{!hasReservation&&<button type="button" className="ghost-btn" disabled={busy} onClick={clearDraft}>Limpar dados preenchidos</button>}<div className="form-grid">
     {Object.entries({ name: 'Nome (sobrenome opcional)', cpf: 'CPF', email: 'E-mail para receber os ingressos', phone: 'Telefone com DDD', birthDate: 'Data de nascimento' }).map(([field,label]) => <label key={field}>{label}<input required type={field === 'birthDate' ? 'date' : field === 'email' ? 'email' : field === 'phone' ? 'tel' : 'text'} max={field === 'birthDate' ? today : undefined} disabled={busy||hasReservation} readOnly={field === 'email' && !currentUser.guest} value={buyer[field]} onChange={e => {setBuyer({ ...buyer, [field]: e.target.value });setParticipantsSaved(false)}}/></label>)}
     <label>Quantidade<input type="number" disabled={busy||hasReservation} required min="1" max={Math.min(10, getRemaining(event,ticket))} value={quantity} onChange={e=>{setQuantity(Number(e.target.value));setParticipantsSaved(false)}}/></label><label>Cupom de desconto<input disabled={busy||hasReservation} value={coupon} onChange={e=>setCoupon(e.target.value.toUpperCase())}/></label></div>
     {quantity===1&&needsAgeConfirmation(event)&&<label className="check16"><input type="checkbox" required disabled={busy||hasReservation} checked={ageConfirmed} onChange={e=>setAgeConfirmed(e.target.checked)}/>Confirmo que tenho 18 anos ou mais.</label>}{quantity>1&&<button type="button" className="ghost-btn" disabled={busy||hasReservation} onClick={()=>setParticipantsOpen(true)}>{participantsSaved?'Revisar participantes':'Completar participantes'}</button>}{ticket.type === 'table' && <p>Uma unidade corresponde a uma mesa/camarote. O grupo entra junto usando um único QR Code.</p>}
