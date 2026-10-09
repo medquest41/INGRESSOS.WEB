@@ -13,7 +13,7 @@ export function validCPF(value) {
   })
 }
 export function validateBuyer(buyer) {
-  if (!buyer.name?.trim().includes(' ')) throw new Error('Informe nome e sobrenome.')
+  if (!buyer.name?.trim() || buyer.name.trim().length > 120) throw new Error('Informe seu nome.')
   if (!validCPF(buyer.cpf)) throw new Error('Informe um CPF válido.')
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(buyer.email || '')) throw new Error('Informe um e-mail válido.')
   if (!/^\d{10,13}$/.test(String(buyer.phone).replace(/\D/g, ''))) throw new Error('Informe telefone com DDD.')
