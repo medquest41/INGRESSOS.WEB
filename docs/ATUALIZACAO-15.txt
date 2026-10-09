@@ -1,0 +1,52 @@
+ATUALIZACAO 15 - RETORNO APOS LOGIN DO CLIENTE
+
+Base: projeto atual de D:\SITE-INGRESSOS\ingressos-local, com Atualizacoes 13/14.
+Este ZIP e incremental: aplique sobre o projeto existente. Nao e um projeto completo.
+
+COMO INSTALAR
+1. Pare o site local e faca uma copia de seguranca da pasta do projeto.
+2. Extraia o CONTEUDO do ZIP diretamente em:
+   D:\SITE-INGRESSOS\ingressos-local
+3. Aceite substituir os arquivos existentes. As pastas src, docs e tests
+   devem ficar dentro de ingressos-local, sem criar outra pasta intermediaria.
+4. Inicie o site novamente pelo iniciador que voce ja usa.
+Nenhum SQL, migration ou mudanca de pagamento e necessario.
+
+O QUE MUDA
+- Entrar geral: abre /eventos com todos os eventos publicados e nao arquivados.
+- Entrar ou comprar sem sessao em um evento: login/cadastro retorna ao evento.
+- O link de confirmacao do cadastro leva returnTo na URL, inclusive em outro navegador.
+- Meus ingressos continua acessivel pelo clique explicito nessa opcao.
+- Destinos externos, desconhecidos e malformados sao recusados.
+- Eventos ocultos (nao publicados) e arquivados continuam fora do catalogo.
+- A compra e a exibicao de ingressos apos concluir uma compra permanecem como antes.
+
+CONFIRMACAO DE EMAIL
+O Supabase deve permitir a URL do seu site /login e seus parametros em
+Authentication > URL Configuration > Redirect URLs (exemplo: https://SEU-SITE/login**).
+Se a lista atual restringir os parametros, permita esse retorno para a confirmacao.
+Nao altere Site URL, chaves ou configuracao de pagamentos por causa deste pacote.
+
+VALIDACAO
+7 testes automatizados de navegacao passaram: login geral, evento, cadastro,
+Meus ingressos, retorno invalido, validacao de destinos e confirmacao em sessao nova.
+A confirmacao foi testada com API Supabase simulada; nao foi enviado email real.
+13 testes existentes de pagamentos, taxas, runtime e Atualizacoes 13/14 passaram.
+Build de producao passou com configuracao publica sintetica de teste.
+Verificacao de codigo passou para os cinco arquivos de aplicacao alterados.
+Servicos de pagamento, servidor, migrations e componentes administrativos intactos.
+
+TESTE MANUAL APOS EXTRAIR
+1. Sem login, clique em Entrar na home: ao entrar, veja a lista de eventos.
+2. Abra um evento publico e clique em Entrar: ao entrar, retorne ao mesmo evento.
+3. Repita criando conta e confirmando o email: retorne ao mesmo evento.
+4. Clique em Meus ingressos: veja seus ingressos (ou lista vazia).
+5. Confira que eventos nao publicados e arquivados nao aparecem no catalogo.
+
+Para repetir os testes automatizados com as dependencias ja instaladas:
+   npx playwright test --config playwright.update15.config.js
+Requer Google Chrome instalado. Os testes usam dados ficticios e portas 5198/5199.
+
+Nao inclui .env.local, segredos, node_modules, dist ou .git.
+A base para futuras atualizacoes e o projeto completo existente MAIS este ZIP.
+Guarde este pacote junto das atualizacoes anteriores.

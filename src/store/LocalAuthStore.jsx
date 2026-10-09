@@ -69,6 +69,9 @@ export function LocalAuthProvider({ children }) {
     [users, sessionId],
   )
 
+  const [storedOrganizations,setStoredOrganizations]=useState(()=>readJson('ingressos_organizations_v16',[]))
+  const organizations=[...new Map([...users.filter(u=>u.organizerId).map(u=>({id:u.organizerId,name:u.organizerName||u.name,active:true})),...storedOrganizations].map(o=>[o.id,o])).values()]
+  async function saveOrganization(input){if(currentUser?.role!=='admin')throw Error('Sem permissão.');if(!input.name?.trim())throw Error('Informe o nome da organização.');const item={...input,id:input.id||crypto.randomUUID(),name:input.name.trim(),active:input.active!==false};const rows=[item,...organizations.filter(o=>o.id!==item.id)];localStorage.setItem('ingressos_organizations_v16',JSON.stringify(rows));setStoredOrganizations(rows);return item.id}
   const needsSetup = !users.some(user => normalizeEmail(user.email) === PRIMARY_ADMIN_EMAIL)
   useEffect(() => {
     const sync = event => { if (event.key === USERS_KEY) setUsers(readUsers()); if (event.key === SESSION_KEY) setSessionId(localStorage.getItem(SESSION_KEY) || '') }
@@ -136,14 +139,15 @@ export function LocalAuthProvider({ children }) {
     setSessionId('')
   }
 
-  async function registerCustomer({ name, email, password }) {
+  async function startGuest(){const user={id:crypto.randomUUID(),name:'Visitante',email:'',role:'cliente',active:true,guest:true};commitUsers([...readUsers(),user]);localStorage.setItem(SESSION_KEY,user.id);setSessionId(user.id);return user}
+  async function registerCustomer({ name, email, password,cpf,phone,birthDate }) {
     const normalizedEmail = normalizeEmail(email)
     const latest = readUsers()
     if (normalizedEmail === PRIMARY_ADMIN_EMAIL) throw new Error('Configure o administrador principal pelo acesso /admin ou entre com sua senha.')
     if (!name?.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) throw new Error('Informe nome e e-mail válidos.')
     if (latest.some(user => user.email === normalizedEmail)) throw new Error('Este e-mail já possui conta. Entre com sua senha.')
     if (String(password || '').length < 6) throw new Error('Use pelo menos 6 caracteres na senha.')
-    const user = { id: crypto.randomUUID(), name: name.trim(), email: normalizedEmail, passwordHash: await hashPassword(password), role: 'cliente', active: true, createdAt: new Date().toISOString() }
+    const user = { id: crypto.randomUUID(), name: name.trim(), cpf,phone,birthDate,email: normalizedEmail, passwordHash: await hashPassword(password), role: 'cliente', active: true, createdAt: new Date().toISOString() }
     commitUsers([...latest, user])
     localStorage.setItem(SESSION_KEY, user.id)
     setSessionId(user.id)
@@ -245,12 +249,14 @@ export function LocalAuthProvider({ children }) {
       needsSetup,
       setupAdmin,
       login,
+      startGuest,
       registerCustomer,
       logout,
       createUser,
       inviteUser,
       deleteUserSafely,
       becomeOrganizer,
+      organizations,saveOrganization,
       invitations: [],
       toggleUserActive,
       changeUserPassword,

@@ -1,0 +1,8 @@
+ATUALIZACAO 15.4 - TEXTO DO BOTAO ENTRAR
+Aplicar apos as atualizacoes 15.2 e 15.3.
+O botao do cabecalho da Home/Eventos agora mostra sempre Entrar.
+Sem sessao: abre login com retorno para /eventos.
+Com sessao: abre /eventos, preservando a correcao 15.2.
+Somente src/pages/Home.jsx foi alterado.
+Extraia em D:\SITE-INGRESSOS\ingressos-local, substitua o arquivo
+ e reinicie o site. Nao precisa de SQL.

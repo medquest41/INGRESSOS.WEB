@@ -21,8 +21,8 @@ function CardForm({order,onResult}){
         callbacks:{onReady:()=>{if(active)setReady(true)},onError:()=>{if(active)setError('Confira os dados ou recarregue o formulário de cartão.')},onSubmit:async form=>{
           if(pending.current)throw new Error('Pagamento em processamento.')
           pending.current=true;setError('')
-          try{const result=await payInline(order.id,'card',{token:form.token,payment_method_id:form.payment_method_id,issuer_id:form.issuer_id,installments:form.installments});if(active)onResult(result)}
-          catch(err){if(active)setError(err.message);throw err}
+          try{const result=await payInline(order.id,'card',{token:form.token,payment_method_id:form.payment_method_id,issuer_id:form.issuer_id,installments:form.installments,payer:form.payer});if(active)onResult(result)}
+          catch(err){if(active){setError(err.message);onResult({status:'creating',method:'card'})}throw err}
           finally{pending.current=false}
         }}
       })
@@ -59,8 +59,8 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
     getPaymentOrder(orderId).then(info=>{
       if(!active)return
       setOrder(info);onOrder?.(info)
-      if(['approved','cancelled','refunded','review','expired','rejected'].includes(info.status))accept({status:info.status})
-      else if(info.activeMethod){setMethod(info.activeMethod);setResult({status:'pending',method:info.activeMethod})}
+      if(['approved','cancelled','refunded','charged_back','review','expired','rejected'].includes(info.status))accept({status:info.status})
+      else if(info.activeMethod){setMethod(info.activeMethod);setResult({status:'creating',method:info.activeMethod})}
     }).catch(err=>{if(active)setError(err.message)})
     return()=>{active=false}
   },[orderId,onOrder,accept,reload])
@@ -82,7 +82,7 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
     setBusy(true);setError('')
     try{accept(await payInline(orderId,'pix'))}catch(err){setError(err.message)}finally{setBusy(false)}
   }
-  const locked=Boolean(waiting)||['approved','review','cancelled','refunded','expired'].includes(result?.status)
+  const locked=Boolean(waiting)||['approved','review','cancelled','refunded','charged_back','expired'].includes(result?.status)
   return <section className="inline-payment admin-panel" aria-label="Pagamento do ingresso">
     <h2>Como você quer pagar?</h2>
     {error&&<p role="alert" className="auth-error">{error}</p>}
@@ -94,11 +94,12 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
         {result?.status==='rejected'&&<p role="alert">Pagamento recusado. Nenhum ingresso foi emitido. Tente novamente ou escolha Pix.</p>}
         {result?.status==='expired'&&<p role="status">Pagamento expirado. O ingresso não foi liberado. Confira seus pedidos antes de iniciar outra compra.</p>}
         {result?.status==='review'&&<p role="alert">Pagamento em revisão. Confira o pedido em Minha conta.</p>}
-        {['cancelled','refunded'].includes(result?.status)&&<p role="alert">Pedido cancelado ou estornado. Não pague o código Pix desse pedido.</p>}
+        {['cancelled','refunded','charged_back'].includes(result?.status)&&<p role="alert">Pedido cancelado ou estornado. Não pague o código Pix desse pedido.</p>}
         {method==='pix'&&result?.qrCode&&seconds>0&&result.status==='pending'&&<div className="inline-pix"><QRCodeSVG value={result.qrCode} size={224} marginSize={4}/><label>Pix copia e cola<textarea readOnly value={result.qrCode} rows={4}/></label><button type="button" className="primary-small" onClick={async()=>{try{await navigator.clipboard.writeText(result.qrCode);setCopied(true)}catch{setError('Selecione o código acima e copie manualmente.')}}}><Copy size={17}/>{copied?'Código copiado':'Copiar código Pix'}</button><p>Abra o aplicativo do seu banco e escaneie o QR Code ou cole o código Pix.</p></div>}
         {method==='pix'&&(!locked||result?.status==='creating')&&seconds>0&&<button type="button" className="checkout-button" disabled={busy} onClick={generatePix}>{busy?'Gerando Pix…':result?.status==='creating'?'Retomar geração do Pix':'Gerar QR Code Pix'}</button>}
         {method==='card'&&!locked&&seconds>0&&order.publicKey&&<CardForm order={order} onResult={accept}/>}
         {method==='card'&&result?.challenge&&order.publicKey&&<CardChallenge publicKey={order.publicKey} paymentId={result.paymentId} externalResourceURL={result.challenge.externalResourceURL} creq={result.challenge.creq}/>}
+        {result?.status==='creating'&&method==='card'&&<p role="status">Estamos verificando se o cartão foi processado. Aguarde para evitar uma cobrança duplicada. Não inicie outra compra deste pedido.</p>}
         {waiting&&<><p role="status">{result.status==='confirming'?'Pagamento recebido. Aguardando confirmação do pedido.':'Aguardando pagamento. A confirmação será atualizada automaticamente.'}</p><button type="button" className="ghost-btn" onClick={()=>{void check()}}>Verificar pagamento</button></>}
       </>}
       <Link to="/ingressos">Ver meus pedidos e ingressos</Link>

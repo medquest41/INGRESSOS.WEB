@@ -1,0 +1,22 @@
+ATUALIZAÇÃO 15.1 — CORREÇÃO DO DESTINO APÓS LOGIN
+
+O que foi corrigido
+- O botão geral Entrar agora leva explicitamente para /login?returnTo=/eventos.
+- Após login geral, o cliente vai para a página pública de Eventos.
+- Login iniciado dentro de um evento continua retornando ao mesmo evento.
+- Minha conta, quando o usuário já está autenticado, abre Meus ingressos diretamente.
+- Nenhuma alteração em Mercado Pago, Pix/cartão, taxas, banco ou permissões administrativas.
+
+Como instalar
+1. Feche o site local.
+2. Extraia este ZIP em D:\SITE-INGRESSOS\ingressos-local.
+3. Quando o Windows perguntar, substitua os arquivos existentes.
+4. Abra novamente INICIAR SITE INGRESSOS.
+
+Teste
+- Saia da conta.
+- Na Home, clique em Entrar e faça login: deve abrir /eventos.
+- Saia novamente, entre pela página de um evento e faça login: deve voltar ao mesmo evento.
+- Clique em Meus ingressos: deve abrir /ingressos.
+
+Não exige SQL nem alteração no Supabase.

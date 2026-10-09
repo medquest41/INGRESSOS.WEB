@@ -17,6 +17,10 @@ import {
   Users,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import Activity, {recordActivity} from '../components/Activity'
+import VipPublic from '../components/VipPublic'
+import { shareLink, whatsappUrl } from '../utils/experience'
+import { loginPath } from '../utils/authReturn'
 import { calculateFees } from '../utils/fees'
 import AttractionList from '../components/AttractionList'
 import { useEventStore } from '../store/EventStore'
@@ -32,7 +36,7 @@ export default function Evento() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { events, getRemaining, isLocalDemo } = useEventStore()
-  const { currentUser } = useAuth()
+  const { currentUser, organizations=[] } = useAuth()
 
   const event = useMemo(
     () => events.find((item) => matchesEventRoute(item, eventKey)),
@@ -68,7 +72,8 @@ export default function Evento() {
     const source = searchParams.get('ref') || searchParams.get('utm_source')
     if (source) params.set('ref', source)
     if (searchParams.get('campaign')) params.set('campaign',searchParams.get('campaign'))
-    navigate(`/checkout?${params}`)
+    
+    recordActivity(event.id,'checkout');navigate(`/checkout?${params}`)
   }
 
   async function shareEvent() {
@@ -87,7 +92,8 @@ export default function Evento() {
       <header className="event-page-header">
         <Link to="/eventos" className="event-back"><ArrowLeft size={18} />Eventos</Link>
         <Brand />
-        <button className="event-share" onClick={shareEvent}><Share2 size={17} />{copied ? 'Link copiado' : 'Compartilhar'}</button>
+        {(!currentUser || currentUser.guest) && <Link className="login-button" to={loginPath(getEventPublicPath(event) + (searchParams.size ? '?' + searchParams.toString() : ''))}>Entrar</Link>}
+        <button className="event-share" onClick={shareEvent}><Share2 size={17} />{copied ? 'Link copiado' : 'Copiar link'}</button>
       </header>
 
       {preview && <div className="preview-banner">MODO DE VISUALIZAÇÃO DO ADMIN • ESTE EVENTO PODE NÃO ESTAR PUBLICADO</div>}
@@ -129,6 +135,8 @@ export default function Evento() {
           </aside>
         </section>
 
+        <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{(event.whatsapp||event.organizerWhatsapp||organizations.find(o=>o.id===event.organizerId)?.whatsapp)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',event.whatsapp||event.organizerWhatsapp||organizations.find(o=>o.id===event.organizerId)?.whatsapp)} target="_blank" rel="noreferrer">Falar no WhatsApp</a>}</section>
+        <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
 
         <section className="ticket-section" id="ingressos">

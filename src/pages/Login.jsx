@@ -2,25 +2,26 @@ import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import Brand from '../components/Brand'
+import { validateBuyer } from '../utils/commerce'
+import { authDestination } from '../utils/authReturn'
 import { PRIMARY_ADMIN_EMAIL, useAuth } from '../store/AuthStore'
 
 export default function Login() {
   const { currentUser, needsSetup, setupAdmin, login, registerCustomer, resetPassword, loading, isLocalDemo } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [form, setForm] = useState({ name: '', email: '', password: '' })
+  const [form, setForm] = useState({ name: '', email: '', password: '',cpf:'',phone:'',birthDate:'',emailConfirmation:'' })
   const [error, setError] = useState(()=>new URLSearchParams(location.hash.slice(1)).get('error_description')||'')
   const [notice,setNotice]=useState('')
   const [busy, setBusy] = useState(false)
-  const [register, setRegister] = useState(false)
+  const [register, setRegister] = useState(new URLSearchParams(location.search).get('cadastro')==='1')
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
-  const from = location.state?.from
-  const destination = typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') && !from.startsWith('/login') && !/[\\\r\n]/.test(from) ? from : '/ingressos'
+  const destination = authDestination(location.search, location.state?.from)
 
   if (loading) return <div className="empty-page" role="status">Verificando sessão...</div>
 
-  if (currentUser) return <Navigate to={currentUser.role === 'cliente' && destination === '/admin' ? '/ingressos' : destination} replace />
+  if (currentUser && !currentUser.guest) return <Navigate to={destination} replace />
 
   async function submit(event) {
     event.preventDefault()
@@ -31,7 +32,8 @@ export default function Login() {
       if (setup) {
         await setupAdmin({ ...form, email: PRIMARY_ADMIN_EMAIL })
       } else if (register) {
-        const response = await registerCustomer(form)
+        validateBuyer(form);if(form.email.trim().toLowerCase()!==form.emailConfirmation.trim().toLowerCase())throw Error('Os e-mails não coincidem.');
+        const response = await registerCustomer({ ...form, returnTo: destination })
         if (response?.confirmationRequired) { setNotice('Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
@@ -58,11 +60,11 @@ export default function Login() {
       <main className="auth-wrap">
         <section className="auth-copy">
           <span className="section-kicker"><Sparkles size={14} />ÁREA RESTRITA</span>
-          <h1>{setup ? 'Crie o administrador principal.' : 'Controle sua operação.'}</h1>
+          <h1>{setup ? 'Crie o administrador principal.' : 'Seu próximo rolê começa aqui.'}</h1>
           <p>
             {setup
               ? 'Este primeiro cadastro cria o acesso principal do sistema. Depois você poderá adicionar organizadores, financeiro e equipe de check-in pelo próprio painel.'
-              : 'Entre com seu e-mail e senha para acessar eventos, vendas, links de divulgação e check-in.'}
+              : 'Entre para acompanhar seus ingressos e descobrir novas experiências.'}
           </p>
 
           <div className="auth-feature-list">
@@ -79,7 +81,7 @@ export default function Login() {
           {(setup || register) && (
             <label>
               Seu nome
-              <div className="auth-input"><UserRound /><input required autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Nome do administrador" /></div>
+              <div className="auth-input"><UserRound /><input required autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder={setup ? "Nome do administrador" : "Nome de usuário"} /></div>
             </label>
           )}
 
@@ -93,6 +95,7 @@ export default function Login() {
             <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type="password" autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo de 6 caracteres" /></div>
           </label>
 
+          {register&&[['cpf','CPF','text'],['birthDate','Data de nascimento','date'],['phone','Celular com DDD','tel'],['emailConfirmation','Confirmar e-mail','email']].map(([key,label,type])=><label key={key}>{label}<input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}
           {error && <div className="auth-error" role="alert">{error}</div>}
           {notice && <p className="team-success" role="status">{notice}</p>}
           {!isLocalDemo && <button type="button" className="ghost-btn" disabled={busy} onClick={async()=>{setBusy(true);try{if(!form.email)throw new Error('Informe seu e-mail acima.');await resetPassword(form.email);setError('');setNotice('Se houver uma conta, você receberá o link de recuperação.')}catch(err){setError(err.message)}finally{setBusy(false)}}}>Esqueci minha senha</button>}

@@ -1,0 +1,19 @@
+ATUALIZAÇÃO 16.2 — EVENTOS PERTO DE VOCÊ
+
+O que mudou:
+- Seção de localização reorganizada e mais espaçada.
+- Desktop: cidade + localização lado a lado; mobile: controles empilhados.
+- Botão "Usar minha localização" ganhou visual premium 3D, glow e energia/chamas suaves.
+- Select de cidade ganhou acabamento premium e foco mais claro.
+- Estado de carregamento: "Buscando sua localização...".
+- Mensagens de sucesso e erro mais bonitas.
+- A funcionalidade existente de geolocalização e ordenação por proximidade foi preservada.
+
+Instalação:
+1. Feche o site local.
+2. Extraia este ZIP sobre D:\SITE-INGRESSOS\ingressos-local.
+3. Confirme a substituição dos arquivos.
+4. Abra novamente o INICIAR SITE INGRESSOS.
+
+Não exige SQL.
+Não altera pagamentos, taxas, autenticação ou banco.

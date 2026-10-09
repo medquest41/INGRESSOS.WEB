@@ -1,3 +1,4 @@
+/* oxlint-disable react/set-state-in-effect -- Clear the upload status when the selected organization changes. */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import EventImageField from './EventImageField'

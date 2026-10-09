@@ -1,5 +1,6 @@
 /* oxlint-disable react/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import { loginPath } from '../utils/authReturn'
 import { paged } from '../lib/pagination'
 import { supabase, result, isLocalDemo, runtime } from '../lib/supabase'
 import { LocalAuthProvider, useLocalAuth } from './LocalAuthStore'
@@ -43,7 +44,7 @@ function RemoteAuthProvider({ children }) {
           try { inviteRows = await result(paged(()=>supabase.from('admin_invitations').select('*',{count:'exact'}).order('created_at',{ascending:false}))) }
           catch { inviteRows = [] }
         }
-        if (!cancelled && id === generation.current) {setCurrentUser(profile(p,session.user.email)); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs);setInvitations(inviteRows)}
+        if (!cancelled && id === generation.current) {setCurrentUser({...profile(p,session.user.email),guest:session.user.is_anonymous===true}); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs);setInvitations(inviteRows)}
       } catch (err) { if (!cancelled && id === generation.current) {setError(err.message);setCurrentUser(null);setUsers([]);setOrganizations([]);setInvitations([])} }
       finally { if (!cancelled && id === generation.current) setLoading(false) }
     }
@@ -51,10 +52,11 @@ function RemoteAuthProvider({ children }) {
     return () => {cancelled = true}
   }, [session, revision])
   const refresh = () => setRevision(v=>v+1)
+  async function startGuest(){return result(supabase.auth.signInAnonymously({options:{data:{name:'Visitante'}}}))}
   async function login(email,password) { return result(supabase.auth.signInWithPassword({ email: email.trim(), password })) }
   async function logout() { try {await result(supabase.auth.signOut());setCurrentUser(null);setUsers([])} catch(err){setError(err.message)} }
-  async function registerCustomer({name,email,password}) {
-    const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim()},emailRedirectTo:location.origin+'/login'}}))
+  async function registerCustomer({name,email,password,returnTo,cpf,phone,birthDate}) {
+    const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim(),cpf,phone,birthDate},emailRedirectTo:location.origin+loginPath(returnTo)}}))
     return { confirmationRequired: !data.session }
   }
   async function resetPassword(email) { return result(supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/redefinir-senha'})) }
@@ -65,7 +67,7 @@ function RemoteAuthProvider({ children }) {
   }
   async function toggleUserActive(id) { const u=users.find(x=>x.id===id);await result(supabase.rpc('set_member',{member_id:id,member_role:u.role,organization:u.organizerId,enabled:!u.active}));refresh() }
   async function updateUserProfile(id,changes) {await result(supabase.rpc('set_member',{member_id:id,member_role:changes.role,organization:changes.organizerId==='org-main'?null:changes.organizerId,enabled:users.find(x=>x.id===id).active}));refresh()}
-  async function saveOrganization(org) {const id=await result(supabase.rpc('save_organization',{organization:org.id||null,label:org.name,enabled:org.active!==false}));refresh();return id}
+  async function saveOrganization(org) {const id=await result(supabase.rpc('save_organization',{organization:org.id||null,label:org.name,enabled:org.active!==false}));if(org.whatsapp!==undefined)await result(supabase.rpc('set_organization_contact',{organization:id,phone:org.whatsapp}));refresh();return id}
 
   async function inviteUser(input) {
     const outcome = await result(supabase.rpc('prepare_account_invite',{
@@ -86,7 +88,7 @@ function RemoteAuthProvider({ children }) {
   }
   async function deleteUserSafely(id) { const status=await result(supabase.rpc('safe_delete_member',{member_id:id}));refresh();return status }
   async function becomeOrganizer(name) { const id=await result(supabase.rpc('become_organizer',{organization_name:name.trim()}));refresh();return id }
-  const value={currentUser,users,organizations,invitations,loading,error,needsSetup:false,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,inviteUser,deleteUserSafely,becomeOrganizer,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
+  const value={currentUser,users,organizations,invitations,loading,error,needsSetup:false,startGuest,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,inviteUser,deleteUserSafely,becomeOrganizer,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
   return <Context.Provider value={value}>{error && <div role="alert" className="auth-error">{error} <button onClick={refresh}>Tentar novamente</button>{session && <button onClick={logout}>Sair</button>}</div>}{children}</Context.Provider>
 }
 export function AuthProvider({ children }) {

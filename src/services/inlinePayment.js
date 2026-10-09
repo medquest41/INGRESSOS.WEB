@@ -16,8 +16,9 @@ export function loadCardSdk(){
   if(window.MercadoPago)return Promise.resolve(window.MercadoPago)
   if(!sdkPromise)sdkPromise=new Promise((resolve,reject)=>{
     const script=document.createElement('script');script.src='https://sdk.mercadopago.com/js/v2';script.async=true
-    script.onload=()=>window.MercadoPago?resolve(window.MercadoPago):reject(new Error('Formulário de cartão indisponível.'))
-    script.onerror=()=>{sdkPromise=null;script.remove();reject(new Error('Não foi possível carregar o formulário de cartão.'))}
+    const timeout=setTimeout(()=>{sdkPromise=null;script.remove();reject(new Error('O formulário de cartão demorou a carregar. Tente novamente.'))},20000)
+    script.onload=()=>{clearTimeout(timeout);if(window.MercadoPago)resolve(window.MercadoPago);else{sdkPromise=null;reject(new Error('Formulário de cartão indisponível.'))}}
+    script.onerror=()=>{clearTimeout(timeout);sdkPromise=null;script.remove();reject(new Error('Não foi possível carregar o formulário de cartão.'))}
     document.head.appendChild(script)
   })
   return sdkPromise

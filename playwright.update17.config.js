@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'./tests',testMatch:'update17.spec.js',workers:1,use:{headless:true,channel:'chrome',baseURL:'http://127.0.0.1:5217'},webServer:process.env.INGRESSOS_E2E_EXTERNAL==='1'?undefined:{command:'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5217 --strictPort',url:'http://127.0.0.1:5217',env:{VITE_LOCAL_DEMO:'false',VITE_SUPABASE_URL:'https://payment17test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_synthetic_test_only'},reuseExistingServer:false},reporter:'list'})

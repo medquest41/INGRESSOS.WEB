@@ -32,7 +32,7 @@ function RemoteEventProvider({children}){
  useEffect(()=>{const onFocus=()=>refresh();window.addEventListener('focus',onFocus);return()=>window.removeEventListener('focus',onFocus)},[])
  async function mutate(name,args){const response=await rpc(name,args);refresh();return response}
  async function saveEvent(input){return mutate('save_event',{payload:eventPayload(input,organizations)})}
- async function placeOrder(input){validateBuyer({...input.buyer,email:currentUser.email});return mutate('create_order',{batch_id:input.ticketId,units:input.quantity,buyer_data:input.buyer,coupon_code:input.coupon||'',request_id:input.idempotencyKey,referral:input.source||null,campaign_name:input.campaign||null})}
+ async function placeOrder(input){validateBuyer({...input.buyer,email:currentUser.guest?input.buyer.email:currentUser.email});return mutate('create_order',{batch_id:input.ticketId,units:input.quantity,buyer_data:input.buyer,coupon_code:input.coupon||'',request_id:input.idempotencyKey,referral:input.source||null,campaign_name:input.campaign||null})}
  async function markTicketUsed(code,eventId){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code.trim()))return {found:false}
   const status=await mutate(eventId?'check_in_event':'check_in',eventId?{ticket_code:code.trim(),expected_event:eventId}:{ticket_code:code.trim()});return {found:['valid','used','cancelled'].includes(status),alreadyUsed:status==='used',cancelled:status==='cancelled',forbidden:status==='forbidden',wrongEvent:status==='wrong_event'}

@@ -4,6 +4,7 @@ import { defaultEvents } from '../data/defaultEvents'
 import { getEventSlug } from '../utils/eventSlug'
 import { PRIMARY_ADMIN_EMAIL, useAuth } from './AuthStore'
 import { canManage, ownsEvent, ownsOrder, quote, validateBuyer, checkTicket, approved, remaining } from '../utils/commerce'
+import { validateParticipants } from '../utils/experience'
 import { mockPayment } from '../services/payment'
 import { calculateFees, payoutAmount } from '../utils/fees'
 const EventContext = createContext(null)
@@ -46,6 +47,8 @@ export function LocalEventProvider({ children }) {
       const old = fresh.events.find(e => e.id === input.id)
       if (!canManage(currentUser, old || input)) throw new Error('Sem permissão para editar este evento.')
       const event = normalize(input)
+      if(currentUser.role!=='admin'||currentUser.email!==PRIMARY_ADMIN_EMAIL){for(const key of ['activityMode','activityMin','activityMax'])event[key]=old?.[key]}
+      if(!['Livre','12+','14+','16+','18+'].includes(event.ageRating||'Livre'))throw Error('Classificação inválida.')
       const primaryAdmin = currentUser.role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL
       if (!primaryAdmin) {
         if (currentUser.role !== 'admin') { event.organizerId = currentUser.organizerId; event.organizerName = currentUser.organizerName }
@@ -84,11 +87,17 @@ export function LocalEventProvider({ children }) {
       if (duplicate) return duplicate
       const event = fresh.events.find(e => e.id === input.eventId)
       const ticket = event?.ticketTypes.find(t => t.id === input.ticketId)
-      const buyer = { ...input.buyer, email: currentUser.email }
+      const buyer = { ...input.buyer, email: currentUser.guest ? input.buyer.email : currentUser.email }
+      const holders=validateParticipants(event,input.quantity,buyer,buyer.participants||[],buyer.participantMode||'same',buyer.ageConfirmed)
       validateBuyer(buyer)
       const totals = quote(event, ticket, input.quantity, input.coupon, fresh.coupons, fresh.orders)
+      const vip=buyer.vipListId?(event.vipLists||[]).find(l=>l.id===buyer.vipListId):null
+      const vipRows=read('ingressos_vip_v16',[])
+      if(buyer.vipListId){if(!vip||input.quantity!==1||vip.active===false||vip.visible===false||(vip.deadline&&new Date(vip.deadline)<=new Date())||vip.ticketTypeId!==ticket.id||Number(vip.price)!==ticket.price)throw Error('Lista VIP indisponível.');if(vipRows.filter(r=>r.eventId===event.id&&r.listId===vip.id&&r.status!=='cancelled').length>=vip.limit)throw Error('Lista VIP esgotada.');if(vipRows.some(r=>r.eventId===event.id&&r.listId===vip.id&&r.cpf===buyer.cpf.replace(/\D/g,'')))throw Error('CPF já inscrito.')}
+
       const payment = await mockPayment(input.method, input.outcome)
-      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, unitLabel: ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), platformFeeRate: Number(event.feeRate ?? 0.1), ...totals,providerFee:0,payoutStatus:'pending', ...payment, ticketCodes: Array.from({ length: input.quantity }, () => ({ code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
+      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, unitLabel: ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), platformFeeRate: Number(event.feeRate ?? 0.1), ...totals,providerFee:0,payoutStatus:'pending', ...payment, ticketCodes: Array.from({ length: input.quantity }, (_,i) => ({ holder:holders[i], number:i+1, code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
+      if(vip){vipRows.push({...buyer,id:crypto.randomUUID(),cpf:buyer.cpf.replace(/\D/g,''),eventId:event.id,listId:vip.id,userId:currentUser.id,orderId:order.id,status:'confirmed',createdAt:order.createdAt});localStorage.setItem('ingressos_vip_v16',JSON.stringify(vipRows))}
       fresh.orders.unshift(order)
       return order
     })
@@ -102,6 +111,7 @@ export function LocalEventProvider({ children }) {
         result.ticket.used = true
         result.ticket.usedAt = new Date().toISOString()
         result.ticket.usedBy = currentUser.id
+        const vipRows=read('ingressos_vip_v16',[]);vipRows.filter(r=>r.orderId===result.order.id).forEach(r=>{r.status='used';r.usedAt=result.ticket.usedAt});localStorage.setItem('ingressos_vip_v16',JSON.stringify(vipRows))
         fresh.history.unshift({ id: crypto.randomUUID(), at: result.ticket.usedAt, eventId: result.order.eventId, action: 'Check-in confirmado', actor: currentUser.name })
         localStorage.setItem(KEY, JSON.stringify(fresh))
         setData(fresh)
@@ -115,6 +125,7 @@ export function LocalEventProvider({ children }) {
       if (!order || !['admin', 'organizador', 'financeiro'].includes(currentUser?.role) || !ownsEvent(currentUser, fresh.events.find(e => e.id === order.eventId))) throw new Error('Sem permissão para cancelar.')
       if (order.ticketCodes.some(t => t.used)) throw new Error('Pedido com entrada utilizada não pode ser cancelado.')
       order.status = 'cancelled'
+      const vipRows=read('ingressos_vip_v16',[]);vipRows.filter(r=>r.orderId===order.id).forEach(r=>{r.status='cancelled'});localStorage.setItem('ingressos_vip_v16',JSON.stringify(vipRows))
       order.cancelledAt = new Date().toISOString()
     })
   }

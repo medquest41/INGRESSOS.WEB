@@ -1,0 +1,4 @@
+import {supabase,result} from '../lib/supabase'
+import {canShowQR,shareLink,ticketShareUrl} from '../utils/experience'
+export async function shareTicket(order,ticket){if(!canShowQR(order,ticket))throw Error('Ingresso indisponível para compartilhar.');let url=ticketShareUrl(order);if(supabase){const token=await result(supabase.rpc('create_ticket_share',{ticket_code:ticket.code}));url=new URL('/ingresso-compartilhado#'+token,location.origin).href}await shareLink(order.eventTitle,url)}
+export function printTicket(code){const cards=[...document.querySelectorAll('.my-ticket')];document.body.classList.add('print-selected16');cards.find(c=>c.dataset.code===code)?.classList.add('selected-print16');const cleanup=()=>{document.body.classList.remove('print-selected16');cards.forEach(c=>c.classList.remove('selected-print16'));window.removeEventListener('afterprint',cleanup)};window.addEventListener('afterprint',cleanup);window.print()}

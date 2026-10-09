@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'./tests',testMatch:['update16.2.spec.js','update16.spec.js'],workers:1,use:{headless:true,channel:'chrome',baseURL:'http://127.0.0.1:5216'},webServer:process.env.INGRESSOS_E2E_EXTERNAL==='1'?undefined:{command:'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5216 --strictPort',url:'http://127.0.0.1:5216',env:{VITE_LOCAL_DEMO:'true'},reuseExistingServer:true},reporter:'list'})

@@ -1,0 +1,4 @@
+# Gateway JWT verification is disabled ONLY for payments so Mercado Pago can deliver signed webhooks.
+# Browser actions still authenticate using auth.getUser and enforce ownership in index.ts.
+[functions.payments]
+verify_jwt = false

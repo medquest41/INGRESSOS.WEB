@@ -1,0 +1,64 @@
+INGRESSOS - ATUALIZACAO 15.2
+
+Base: projeto atual lido em D:\SITE-INGRESSOS\ingressos-local.
+Pacote incremental: somente 6 arquivos de aplicacao alterados, testes,
+configuracao de testes e este documento. Nenhum arquivo de pagamento,
+SQL, permissao, segredo, .env, node_modules, dist ou .git incluido.
+Checkout.jsx: alterado somente o destino do link Minha conta.
+
+CORRECOES
+- Login geral, cadastro geral e /login com sessao existente -> /eventos.
+- Minha conta na Home/catalogo e no checkout -> /eventos.
+- Login/cadastro por /evento/<slug> preserva evento e parametros.
+- Guards preservam destino explicito via returnTo, inclusive apos recarregar.
+- Cliente sem perfil de painel -> /eventos, sem mudar os perfis permitidos.
+- Estado antigo de login com from=/ingressos ou /meus-ingressos nao serve
+  como fallback generico. Acesso explicito utiliza returnTo na URL.
+- /ingressos continua funcionando; /meus-ingressos e um alias protegido.
+- Cliques Meus ingressos e retornos pos-compra continuam funcionando.
+- Login utiliza um unico destino no submit e na sessao restaurada;
+  a autorizacao administrativa continua exclusivamente nos guards.
+
+AUDITORIA
+AuthStore/LocalAuthStore: atualizam sessao sem navegar; preservados.
+AuthStore envia confirmacao de cadastro para origem atual + loginPath,
+que conserva o evento ou usa /eventos; preservado.
+Evento.jsx conserva slug/referral no login/cadastro; preservado.
+ResetPassword/CriarEvento: sem fallback para ingressos; preservados.
+App.jsx: rotas publicas e curinga nao redirecionavam para ingressos.
+ProtectedRoute: fallback de perfil negado apontava para /ingressos.
+Home.jsx: Minha conta apontava para /ingressos quando havia sessao.
+AuthReturn: aceitava /ingressos no estado legado de navegacao.
+Fluxos de pagamento e links explicitos para pedidos foram preservados.
+
+VALIDACAO
+37 testes Node passaram (inclui regressao 13/14 e 2 testes novos 15.2).
+13 testes de navegador Chrome passaram em modo local e adaptador Supabase
+com respostas simuladas: login geral, sessao restaurada, cadastro por evento,
+confirmacao de email, referral, acesso explicito a ingressos e guard admin.
+Build de producao passou com URL/chave publica sinteticas de teste.
+Nao houve deploy nem teste com credenciais reais no Render.
+Nenhum pagamento real foi executado.
+
+INSTALACAO LOCAL
+1. Feche o iniciador do site.
+2. Extraia o conteudo deste ZIP em D:\SITE-INGRESSOS\ingressos-local,
+   substituindo os arquivos. A pasta correta contem package.json, src,
+   scripts e INICIAR SITE INGRESSOS.bat. Nao extraia dentro da subpasta
+   D:\SITE-INGRESSOS\ingressos-local\ingressos-local (copia antiga).
+3. Abra INICIAR SITE INGRESSOS novamente. Nao precisa rodar SQL.
+4. Teste em aba anonima: Entrar -> /eventos; entrar por evento -> mesmo
+   evento; Meus ingressos -> ingressos somente apos clicar.
+   A Minha conta de uma sessao existente agora abre /eventos.
+
+VALIDACAO REPRODUZIVEL (na pasta correta)
+npm.cmd test
+npx.cmd playwright test --config playwright.update15.2.config.js
+npm.cmd run build
+O build usa a configuracao Supabase publica existente do seu projeto.
+
+RENDER
+Aplique os mesmos arquivos ao repositorio e publique pelo fluxo habitual.
+Preserve as variaveis de ambiente e configuracao atual de rotas SPA.
+Teste apos o deploy em aba anonima. Nao e necessario alterar pagamentos,
+banco ou permissoes. Nenhuma configuracao de segredo acompanha este ZIP.

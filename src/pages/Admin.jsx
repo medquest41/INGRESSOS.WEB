@@ -24,6 +24,8 @@ import {
   XCircle,
 } from 'lucide-react'
 import Brand from '../components/Brand'
+import ExperienceEditor from '../components/ExperienceEditor'
+import VipPanel from '../components/VipPanel'
 import EventAdminContext from '../components/EventAdminContext'
 import EventOrderList from '../components/EventOrderList'
 import { matchesBuyerSearch } from '../utils/buyerSearch'
@@ -405,7 +407,7 @@ export default function Admin() {
               <p>{selectedEvent.description}</p>
               <p>{selectedEvent.date} • {selectedEvent.time} • {selectedEvent.location}</p>
               <p>{selectedEvent.address} • {selectedEvent.city}</p>
-              <h3>Atrações deste evento</h3>
+              {(canManageEvents||canCheckin)&&<VipPanel key={selectedEvent.id} event={selectedEvent}/>}<h3>Atrações deste evento</h3>
               {normalizeAttractions(selectedEvent.attractions).length ? <ul>{normalizeAttractions(selectedEvent.attractions).map(item => <li key={item.id}>{item.name} • {item.startTime || 'Horário a definir'}{!item.visible && ' • Oculta no site'}</li>)}</ul> : <p className="muted">Nenhuma atração cadastrada. Use Editar este evento para adicionar.</p>}
               <h3>Ingressos e lotes deste evento</h3>
               {(selectedEvent.ticketTypes || []).map(ticket=><div className="order-row" key={ticket.id}><div><strong>{ticket.name} • {ticket.batch}</strong><span>{ticket.sector || ticket.name} • {ticket.active===false?'Inativo':'Ativo'}</span></div><div><strong>{brl(ticket.price)}</strong><span>{getRemaining(selectedEvent,ticket)} disponível(is) de {ticket.available}</span></div></div>)}
@@ -490,6 +492,7 @@ export default function Admin() {
                 </div>
               </section>
 
+              <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
               <AttractionEditor value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
 
               <section>

@@ -1,7 +1,7 @@
 import { verifyWebhook, getVerifiedPayment, createCheckoutPreference } from './mercadopago.mjs'
 // HTTP/Edge host injects authenticated RLS reads and server-only settlement.
 // No route is enabled by importing this module. Credentials stay on the server.
-export function paymentHandlers({enabled=false,accessToken,webhookSecret,collectorId,returnUrl,webhookUrl,getUser,getOrder,settlePayment,recordReversal,reconcilePayment,fetchPayment=getVerifiedPayment,createPreference=createCheckoutPreference}) {
+export function paymentHandlers({enabled=false,liveMode=true,accessToken,webhookSecret,collectorId,returnUrl,webhookUrl,getUser,getOrder,settlePayment,recordReversal,reconcilePayment,fetchPayment=getVerifiedPayment,createPreference=createCheckoutPreference}) {
  function configured(){if(!enabled||!accessToken||!webhookSecret||!collectorId)throw new Error('Pagamento online não habilitado.')}
  return {
   async checkout({authorization,orderId}){
@@ -17,7 +17,7 @@ export function paymentHandlers({enabled=false,accessToken,webhookSecret,collect
    configured()
    if(!verifyWebhook({signature,requestId,dataId,secret:webhookSecret}))throw new Error('Assinatura inválida.')
    const payment=await fetchPayment(dataId,accessToken)
-   if(String(payment.id)!==String(dataId)||String(payment.collector_id)!==String(collectorId)||payment.currency_id!=='BRL'||payment.live_mode!==true)throw new Error('Pagamento incompatível com o vendedor/ambiente.')
+   if(String(payment.id)!==String(dataId)||String(payment.collector_id)!==String(collectorId)||payment.currency_id!=='BRL'||payment.live_mode!==liveMode)throw new Error('Pagamento incompatível com o vendedor/ambiente.')
    if(reconcilePayment){await reconcilePayment(payment);return {received:true}}
    if(['refunded','charged_back'].includes(payment.status)||Number(payment.transaction_amount_refunded||0)>0){
     if(!recordReversal)throw new Error('Reconciliação de estorno indisponível.')

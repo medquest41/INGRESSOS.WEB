@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import { Buffer } from 'node:buffer'
 // Server-only adapter. Never import this file from src/.
 export function verifyWebhook({ signature, requestId, dataId, secret, now = Date.now() }) {
   if (!signature || !requestId || !dataId || !secret) return false
