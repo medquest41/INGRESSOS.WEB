@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
+import { X } from 'lucide-react'
+import {canHideUnpaidOrder,hiddenOrdersKey,readHiddenOrders} from '../utils/hiddenOrders'
 import Brand from '../components/Brand'
 import {canShowQR} from '../utils/experience'
 import {shareTicket,printTicket} from '../services/ticketShare'
@@ -22,8 +24,32 @@ export default function MeusIngressos() {
   const paymentConfirmed=useCallback(()=>{setPaying(null);refresh?.()},[refresh])
   const [paymentError,setPaymentError]=useState('')
   const [cardEnabled,setCardEnabled]=useState(false),[cancelling,setCancelling]=useState(null)
+  const [hiddenOrders,setHiddenOrders]=useState(()=>({userId:currentUser.id,ids:readHiddenOrders(currentUser.id)}))
+  const [removing,setRemoving]=useState(null)
+  const hiddenIds=hiddenOrders.userId===currentUser.id?hiddenOrders.ids:readHiddenOrders(currentUser.id)
+  const allMine=orders.filter(order=>ownsOrder(currentUser,order))
+  const hiddenCount=allMine.filter(order=>hiddenIds.includes(order.id)&&canHideUnpaidOrder(order)).length
+  function storeHidden(ids){
+    localStorage.setItem(hiddenOrdersKey(currentUser.id),JSON.stringify(ids))
+    setHiddenOrders({userId:currentUser.id,ids})
+  }
+  async function removeUnpaid(order){
+    if(removing||!canHideUnpaidOrder(order))return
+    if(!window.confirm(order.status==='pending'?'Cancelar este pedido não pago e removê-lo da sua lista? Se você já pagou, mantenha o pedido e verifique o pagamento.':'Remover este pedido não pago da sua lista? Você poderá mostrá-lo novamente neste navegador.'))return
+    setRemoving(order.id);setPaymentError('')
+    try{
+      if(order.status==='pending'){
+        if(isLocalDemo)await cancelOrder(order.id)
+        else {const response=await cancelPaymentOrder(order.id);if(response.status!=='cancelled')throw new Error('O pedido não foi cancelado. Verifique o pagamento antes de remover.')}
+      }
+      storeHidden([...new Set([...hiddenIds,order.id])])
+      if(paying===order.id)setPaying(null)
+      await refresh?.()
+    }catch(error){setPaymentError(error.message||'Não foi possível remover o pedido.')}
+    finally{setRemoving(null)}
+  }
   useEffect(()=>{if(isLocalDemo)return;let active=true;getPaymentCapabilities().then(data=>{if(active)setCardEnabled(data.cardEnabled===true)});return()=>{active=false}},[isLocalDemo])
-  const mine = orders.filter(order => ownsOrder(currentUser,order))
+  const mine = allMine.filter(order=>!hiddenIds.includes(order.id)||!canHideUnpaidOrder(order))
   const groups = [...new Set(mine.map(order=>order.eventId))].map(id=>({id,title:mine.find(order=>order.eventId===id)?.eventTitle,orders:mine.filter(order=>order.eventId===id)}))
   const selected = groups.filter(group=>!eventId || String(group.id)===eventId)
   return <div className="tickets-page">
@@ -34,10 +60,11 @@ export default function MeusIngressos() {
       {isLocalDemo ? <p className="demo-warning">Demonstração local. Mantenha este navegador para acessar os ingressos.</p> : <button className="ghost-btn" onClick={refresh}>Atualizar pedidos</button>}
       {groups.length>0&&<div className="form-grid my-event-filter"><label>Filtrar meus ingressos por evento<select value={eventId} onChange={e=>setEventId(e.target.value)}><option value="">Todos os meus eventos</option>{groups.map(group=><option key={group.id} value={group.id}>{group.title}</option>)}</select></label></div>}
       <button className="ghost-btn" onClick={()=>window.print()}>Imprimir / salvar PDF</button>
+      {hiddenCount>0&&<button className="ghost-btn" onClick={()=>{try{storeHidden([]);setEventId('')}catch{setPaymentError('Não foi possível mostrar os pedidos.')}}}>Mostrar pedidos removidos ({hiddenCount})</button>}
       {!mine.length ? <div className="tickets-empty"><h2>Você ainda não possui ingressos.</h2><Link to="/eventos" className="primary-cta">Explorar eventos</Link></div> : selected.map(group=><section className="customer-event-tickets" key={group.id} aria-label={'Meus ingressos de '+group.title}>
         <h2>{group.title}</h2>
         {!isLocalDemo&&group.orders.map(order=><section className="admin-panel" key={order.id}>
-          <p>Pedido {order.id} • {status(order.paymentReview?'review':order.status==='pending'&&new Date(order.expiresAt).getTime()<=Date.now()?'expired':order.status==='pending'?order.paymentStatus||'pending':order.status)}</p>
+          <div className="customer-order-heading"><p>Pedido {order.id} • {status(order.paymentReview?'review':order.status==='pending'&&new Date(order.expiresAt).getTime()<=Date.now()?'expired':order.status==='pending'?order.paymentStatus||'pending':order.status)}</p>{canHideUnpaidOrder(order)&&<button type="button" className="customer-order-remove" aria-label={'Remover pedido não pago '+order.id} title="Remover pedido não pago da lista" disabled={Boolean(removing)} onClick={()=>removeUnpaid(order)}><X size={20}/></button>}</div>
           <details><summary>Histórico do pedido</summary>{(order.orderHistory||[]).map(item=><p key={item.id}>{new Date(item.created_at).toLocaleString('pt-BR')} • {status(item.to_status)}</p>)}</details>
           {paying===order.id&&<><InlinePayment orderId={order.id} cardEnabled={cardEnabled} onConfirmed={paymentConfirmed} onCancelled={paymentConfirmed}/><button className="ghost-btn" onClick={()=>setPaying(null)}>Fechar pagamento</button></>}
           <p>Total: {Number(order.total).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</p>

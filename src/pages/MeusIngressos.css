@@ -4,3 +4,4 @@
 .customer-event-tickets .admin-panel { margin-bottom: 18px; }
 .customer-event-tickets .my-ticket-grid { margin-top: 20px; }
 @media print { .my-event-filter { display: none; } .customer-event-tickets { break-before: auto; } }
+.customer-order-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}.customer-order-heading p{min-width:0;overflow-wrap:anywhere}.customer-order-remove{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid #ffffff24;border-radius:50%;background:#ffffff08;color:#bdcbbf;cursor:pointer}.customer-order-remove:hover{background:#ff6b6b18;color:#ff9d9d;border-color:#ff9d9d66}.customer-order-remove:focus-visible{outline:2px solid #e8c875;outline-offset:3px}.customer-order-remove:disabled{opacity:.45;cursor:wait}
