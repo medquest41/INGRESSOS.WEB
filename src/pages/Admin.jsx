@@ -127,7 +127,7 @@ export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams()
   const eventId = eventKey || searchParams.get('event') || ''
   const requestedTab = eventKey ? section : searchParams.get('tab')
-  const tab = ['dashboard','events','orders','checkin','team','event_team','customers','finance','reports','history','coupons','fees'].includes(requestedTab) ? requestedTab : defaultTab
+  const tab = role === 'checkin' ? 'checkin' : ['dashboard','events','orders','checkin','team','event_team','customers','finance','reports','history','coupons','fees'].includes(requestedTab) ? requestedTab : defaultTab
   function setTab(next) {
     if (eventKey && next !== 'team') navigate('/admin/evento/' + encodeURIComponent(eventKey) + '/' + next)
     else setSearchParams(previous => { const params = new URLSearchParams(previous);params.set('tab',next);return params })

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CalendarDays, ChevronRight, Clock3, MapPin, Menu, Search, ShieldCheck, Sparkles, Star, Ticket, UserRound, X } from 'lucide-react'
 import Brand from '../components/Brand'
+import SupportWhatsApp from '../components/SupportWhatsApp'
 import Activity from '../components/Activity'
 import { Preferences, publicText } from '../components/PublicChrome'
 import { distanceKm, eventIsPublic } from '../utils/experience'
@@ -83,6 +84,7 @@ export default function Home({ catalog = false }) {
               <p className="hero-description">Descubra festas, shows e experiências únicas. Escolha seu ingresso, garanta seu lugar e viva cada momento.</p>
               <button className="party-toggle" aria-pressed={partyPaused} onClick={()=>setPartyPaused(!partyPaused)}>{partyPaused ? 'Ativar efeitos de festa' : 'Pausar efeitos de festa'}</button>
               <div className="hero-actions"><a href="#eventos" className="primary-cta">Explorar eventos <ArrowRight size={20}/></a><Link to="/ingressos" className="secondary-cta"><Ticket size={19}/>Meus ingressos</Link></div>
+              <SupportWhatsApp/>
               <div className="hero-trust"><div className="trust-item"><ShieldCheck size={21}/><div><strong>Compra segura</strong><span>Ingresso digital protegido</span></div></div><div className="trust-divider"/><div className="trust-item"><Ticket size={21}/><div><strong>QR Code exclusivo</strong><span>Validação rápida na entrada</span></div></div></div>
             </div>
 

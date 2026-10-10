@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import './EventAdminContext.css'
+import SupportWhatsApp from './SupportWhatsApp'
 import { VisualAdminShortcut } from './EventVisualEditor'
 
 export default function EventAdminContext({ event, eventId, events, eventPage, tab, role, canManageFees = false, onSelect, onEdit }) {
@@ -14,7 +15,7 @@ export default function EventAdminContext({ event, eventId, events, eventPage, t
     ...((canManageFees || (role === 'organizador' && event?.feeEditableByOrganizer)) ? [['fees','Taxas']] : []),
   ]
   return <section className="event-admin-context" aria-label="Contexto do evento">
-    <div className="event-visual-shortcut-slot"><VisualAdminShortcut /></div>
+    <div className="event-visual-shortcut-slot"><SupportWhatsApp/><VisualAdminShortcut /></div>
     {eventPage ? <>
       <Link to="/admin?tab=events">← Voltar à lista de eventos</Link>
       <span className="section-kicker">GESTÃO DESTE EVENTO</span>

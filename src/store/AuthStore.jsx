@@ -35,6 +35,7 @@ function RemoteAuthProvider({ children }) {
       try {
         setError('')
         if (!session) return
+        await result(supabase.rpc('claim_event_checkin_invites'))
         const p = await result(supabase.from('profiles').select('*,organizations(name)').eq('id',session.user.id).single())
         if (!p.active) throw new Error('Acesso desativado. Fale com o administrador.')
         const rows = p.role === 'admin' ? await result(paged(()=>supabase.from('profiles').select('*,organizations(name)',{count:'exact'}).order('id'))) : [p]

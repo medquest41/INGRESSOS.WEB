@@ -9,7 +9,7 @@ export default function ProtectedRoute({ children, roles }) {
 
   if (loading) return <LoadingScreen text="Verificando sessão..."/>
 
-  if (!currentUser) {
+  if (!currentUser || (currentUser.guest && roles?.length)) {
     return <Navigate to={loginPath(location.pathname + location.search)} replace state={{ from: location.pathname + location.search }} />
   }
 

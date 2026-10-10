@@ -18,6 +18,7 @@ export default function Login() {
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
   const destination = authDestination(location.search, location.state?.from)
+  const portaria = /^\/admin\/evento\/[^/]+\/checkin$/.test(destination)
 
   if (loading) return <div className="empty-page" role="status">Verificando sessão...</div>
 
@@ -34,7 +35,7 @@ export default function Login() {
       } else if (register) {
         validateBuyer(form);if(form.email.trim().toLowerCase()!==form.emailConfirmation.trim().toLowerCase())throw Error('Os e-mails não coincidem.');
         const response = await registerCustomer({ ...form, returnTo: destination })
-        if (response?.confirmationRequired) { setNotice('Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
+        if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
@@ -60,11 +61,11 @@ export default function Login() {
       <main className="auth-wrap">
         <section className="auth-copy">
           <span className="section-kicker"><Sparkles size={14} />ÁREA RESTRITA</span>
-          <h1>{setup ? 'Crie o administrador principal.' : 'Seu próximo rolê começa aqui.'}</h1>
+          <h1>{setup ? 'Crie o administrador principal.' : portaria ? 'Acesso à portaria do evento.' : 'Seu próximo rolê começa aqui.'}</h1>
           <p>
             {setup
               ? 'Este primeiro cadastro cria o acesso principal do sistema. Depois você poderá adicionar organizadores, financeiro e equipe de check-in pelo próprio painel.'
-              : 'Entre para acompanhar seus ingressos e descobrir novas experiências.'}
+              : portaria ? 'Já tem conta? Entre abaixo. Se ainda não tem, escolha Criar conta e use o e-mail autorizado pelo organizador. Depois da confirmação, você poderá validar os ingressos deste evento.' : 'Entre para acompanhar seus ingressos e descobrir novas experiências.'}
           </p>
 
           <div className="auth-feature-list">
@@ -75,7 +76,7 @@ export default function Login() {
 
         <form className="auth-card" onSubmit={submit}>
           <div className="auth-card-icon"><ShieldCheck /></div>
-          <span>{setup ? 'CONFIGURAÇÃO INICIAL' : 'ACESSO AO PAINEL'}</span>
+          <span>{setup ? 'CONFIGURAÇÃO INICIAL' : portaria ? 'PORTARIA • SOMENTE VALIDAÇÃO' : 'ACESSO AO PAINEL'}</span>
           <h2>{setup ? 'Administrador principal' : register ? 'Criar conta' : 'Entrar'}</h2>
 
           {(setup || register) && (

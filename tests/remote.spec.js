@@ -49,7 +49,7 @@ async function mockApi(page,{role='cliente',price=0,error=false}={}){
  const user={id:userId,email:profile.email,aud:'authenticated',role:'authenticated',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email'},user_metadata:{name:profile.name}}
  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({sub:userId,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.synthetic-signature'
  await page.route('https://*.supabase.co/**',async route=>{
-  const request=route.request(),url=new URL(request.url()),p=url.pathname,body=request.postDataJSON();calls.push({path:p,body})
+  const request=route.request(),url=new URL(request.url()),p=url.pathname,body=request.postDataJSON();calls.push({path:p,body,url:request.url()})
   const send=(data,status=200)=>route.fulfill({status,contentType:'application/json',body:JSON.stringify(data)})
   if(p==='/auth/v1/token'){logged=true;return send({access_token:token,refresh_token:'synthetic-refresh',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user})}
   if(p==='/auth/v1/user'){if(request.method()==='PUT')return send({user});return send(user)}
@@ -149,6 +149,10 @@ test('authenticated recovery page saves a new password and signs out',async({pag
   })
   await login(page,'organizador','/admin/evento/'+eventId+'/event_team')
   await expect(page.getByRole('link',{name:'Gerenciar equipe',exact:true})).toBeVisible()
+  await page.context().grantPermissions(['clipboard-read','clipboard-write'])
+  await page.getByRole('button',{name:'Copiar link',exact:true}).click()
+  await expect(page.getByText('Link da portaria copiado.',{exact:true})).toBeVisible()
+  expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('/admin/evento/'+eventId+'/checkin')
   await page.getByLabel('E-mail da pessoa').fill('portaria@example.test')
   await page.getByRole('button',{name:'Autorizar portaria'}).click()
   await expect(page.getByText('Acesso à portaria autorizado.',{exact:true})).toBeVisible()
@@ -169,4 +173,36 @@ test('ticket print contains QR and hides order history and page controls',async(
  await expect(page.getByRole('heading',{name:'Meus ingressos.'})).not.toBeVisible()
  await expect(page.locator('.customer-order-heading')).not.toBeVisible()
  await page.screenshot({path:'test-results-print-proof.png',fullPage:true})
+})
+
+test('portaria has only validation even when opening financial links directly',async({page})=>{
+ await mockApi(page,{role:'checkin'})
+ await page.route('https://*.supabase.co/rest/v1/rpc/checkin_summary',route=>route.fulfill({contentType:'application/json',body:JSON.stringify([{event_id:eventId,issued:2,checked_in:0}])}))
+ await login(page,'checkin','/admin/evento/'+eventId+'/finance')
+ await expect(page.getByRole('button',{name:'Validar',exact:true})).toBeVisible()
+ const tabs=page.getByRole('navigation',{name:'Abas do evento'})
+ await expect(tabs.getByRole('link')).toHaveCount(1)
+ await expect(tabs.getByRole('link',{name:'Check-in',exact:true})).toBeVisible()
+ await expect(page.getByText('Financeiro',{exact:true})).toHaveCount(0)
+ await expect(page.getByText('Vendas confirmadas',{exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Autorizar portaria'})).toHaveCount(0)
+})
+
+test('portaria link offers account creation and keeps event on confirmation redirect',async({page})=>{
+ const state=await mockApi(page,{role:'checkin'})
+ await page.goto('/admin/evento/'+eventId+'/checkin')
+ await expect(page.getByRole('heading',{name:'Acesso à portaria do evento.'})).toBeVisible()
+ await page.getByRole('button',{name:'Criar conta',exact:true}).click()
+ await page.getByLabel('Seu nome',{exact:true}).fill('Equipe Portaria')
+ await page.getByLabel('E-mail',{exact:true}).fill('portaria@example.test')
+ await page.getByLabel('Senha',{exact:true}).fill('Synthetic-Test-123')
+ await page.getByLabel('CPF',{exact:true}).fill('52998224725')
+ await page.getByLabel('Celular com DDD',{exact:true}).fill('41999999999')
+ await page.getByLabel('Data de nascimento',{exact:true}).fill('2000-01-01')
+ await page.getByLabel('Confirmar e-mail',{exact:true}).fill('portaria@example.test')
+ await page.getByRole('button',{name:'Criar conta',exact:true}).last().click()
+ await expect(page.getByRole('status')).toContainText('voltar à validação deste evento')
+ const signup=state.calls.find(c=>c.path==='/auth/v1/signup')
+ const redirect=new URL(new URL(signup.url).searchParams.get('redirect_to'))
+ expect(redirect.searchParams.get('returnTo')).toBe('/admin/evento/'+eventId+'/checkin')
 })

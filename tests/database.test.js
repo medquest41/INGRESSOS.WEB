@@ -41,6 +41,23 @@ test('PostgreSQL migrations, real RLS, stock, coupons, issuance and atomic check
   await as('other');assert.equal(await scalar("select public.can_access_event($1,array['checkin'])",[event]),false)
   await root();await db.query("update public.profiles set role='cliente' where id=$1",[ids.other])
  })
+ await root();await db.exec(await readFile(new URL('../supabase/migrations/016_pending_checkin_team.sql',import.meta.url),'utf8'))
+ await t.test('portaria invitation works before signup, requires confirmed email, and can be revoked',async()=>{
+  const newcomer='10000000-0000-4000-8000-000000000099'
+  await as('organizer');await db.query('select public.set_event_checkin_member($1,$2,true)',[event,'newstaff@example.test'])
+  assert.equal((await scalar('select public.event_checkin_team($1)',[event]))[0].pending,true)
+  await as('client');await db.query('select public.claim_event_checkin_invites()');assert.equal(await scalar("select role from public.profiles where id=$1",[ids.client]),'cliente')
+  await root();await db.query('insert into auth.users(id,email) values($1,$2)',[newcomer,'newstaff@example.test'])
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[newcomer]);await db.exec('set role authenticated')
+  await db.query('select public.claim_event_checkin_invites()');assert.equal(await scalar("select role from public.profiles where id=$1",[newcomer]),'cliente')
+  await root();await db.query('update auth.users set email_confirmed_at=now() where id=$1',[newcomer])
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[newcomer]);await db.exec('set role authenticated')
+  await db.query('select public.claim_event_checkin_invites()');assert.equal(await scalar("select public.can_access_event($1,array['checkin'])",[event]),true)
+  assert.deepEqual(await scalar('select public.finance_orders()'),[])
+  await as('organizer');await db.query('select public.set_event_checkin_member($1,$2,false)',[event,'newstaff@example.test'])
+  await db.query('select public.set_event_checkin_member($1,$2,true)',[event,'revoked@example.test']);await db.query('select public.set_event_checkin_member($1,$2,false)',[event,'revoked@example.test'])
+  assert.deepEqual(await scalar('select public.event_checkin_team($1)',[event]),[])
+ })
  await t.test('anonymous published catalog and denied private tables',async()=>{
   await as('anon');assert.equal(await scalar('select count(*)::integer from public.events'),1)
   await assert.rejects(db.query('select * from public.orders'),/permission denied/)
@@ -81,6 +98,8 @@ test('PostgreSQL migrations, real RLS, stock, coupons, issuance and atomic check
   await as('admin');await db.query('select public.assign_checkin($1,$2,true)',[ids.checkin,event])
   await as('checkin');assert.equal(await scalar('select public.check_in($1)',[code]),'valid');assert.equal(await scalar('select public.check_in($1)',[code]),'used')
   assert.equal(await scalar('select count(*)::integer from public.checkins'),1)
+  assert.deepEqual(await scalar('select public.finance_orders()'),[])
+  assert.equal(await scalar('select count(*)::integer from public.orders'),0)
   await as('admin');await assert.rejects(db.query('select public.cancel_order($1)',[order]),/utilizado/)
  })
  const paidBatch='40000000-0000-4000-8000-000000000002'
