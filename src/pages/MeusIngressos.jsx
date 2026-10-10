@@ -59,7 +59,7 @@ export default function MeusIngressos() {
       {location.state?.approved && <p role="status" className="team-success">{isLocalDemo?'Compra simulada aprovada. Seus ingressos estão abaixo.':'Pedido registrado. Confira o status abaixo.'}</p>}
       {isLocalDemo ? <p className="demo-warning">Demonstração local. Mantenha este navegador para acessar os ingressos.</p> : <button className="ghost-btn" onClick={refresh}>Atualizar pedidos</button>}
       {groups.length>0&&<div className="form-grid my-event-filter"><label>Filtrar meus ingressos por evento<select value={eventId} onChange={e=>setEventId(e.target.value)}><option value="">Todos os meus eventos</option>{groups.map(group=><option key={group.id} value={group.id}>{group.title}</option>)}</select></label></div>}
-      <button className="ghost-btn" onClick={()=>window.print()}>Imprimir / salvar PDF</button>
+      <button className="ghost-btn" disabled={!selected.some(group=>group.orders.some(order=>approved(order)&&!order.paymentReview&&(order.ticketCodes||[]).some(ticket=>canShowQR(order,ticket))))} onClick={()=>window.print()}>Imprimir / salvar PDF</button>
       {hiddenCount>0&&<button className="ghost-btn" onClick={()=>{try{storeHidden([]);setEventId('')}catch{setPaymentError('Não foi possível mostrar os pedidos.')}}}>Mostrar pedidos removidos ({hiddenCount})</button>}
       {!mine.length ? <div className="tickets-empty"><h2>Você ainda não possui ingressos.</h2><Link to="/eventos" className="primary-cta">Explorar eventos</Link></div> : selected.map(group=><section className="customer-event-tickets" key={group.id} aria-label={'Meus ingressos de '+group.title}>
         <h2>{group.title}</h2>

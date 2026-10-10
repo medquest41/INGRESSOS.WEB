@@ -137,3 +137,36 @@ test('authenticated recovery page saves a new password and signs out',async({pag
  await expect(page.getByText('Senha atualizada. Entre novamente.')).toBeVisible();expect(state.calls.some(c=>c.path==='/auth/v1/user'&&c.body?.password)).toBe(true)
  await page.getByRole('link',{name:'Voltar para entrar'}).click();await expect(page.getByRole('button',{name:'Entrar',exact:true})).toBeVisible()
 })
+
+ test('owner manages check-in staff by email inside the selected event',async({page})=>{
+  await mockApi(page,{role:'organizador'})
+  let members=[]
+  await page.route('https://*.supabase.co/rest/v1/rpc/event_checkin_team',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(members)}))
+  await page.route('https://*.supabase.co/rest/v1/rpc/set_event_checkin_member',route=>{
+   const body=route.request().postDataJSON();expect(body.target_event).toBe(eventId);expect(body.member_email).toBe('portaria@example.test')
+   members=body.enabled?[{id:'staff',name:'Portaria',email:body.member_email,active:true}]:[]
+   return route.fulfill({contentType:'application/json',body:'null'})
+  })
+  await login(page,'organizador','/admin/evento/'+eventId+'/event_team')
+  await expect(page.getByRole('link',{name:'Gerenciar equipe',exact:true})).toBeVisible()
+  await page.getByLabel('E-mail da pessoa').fill('portaria@example.test')
+  await page.getByRole('button',{name:'Autorizar portaria'}).click()
+  await expect(page.getByText('Acesso à portaria autorizado.',{exact:true})).toBeVisible()
+  await expect(page.getByText('portaria@example.test • Acesso ativo')).toBeVisible()
+  await page.getByRole('button',{name:'Remover acesso'}).click()
+  await expect(page.getByText('Pessoas autorizadas (0)',{exact:true})).toBeVisible()
+ })
+
+test('ticket print contains QR and hides order history and page controls',async({page})=>{
+ const state=await mockApi(page)
+ await page.route('https://*.supabase.co/functions/v1/payments',route=>route.fulfill({contentType:'application/json',body:'{"pixEnabled":true,"cardEnabled":false}'}))
+ state.orders.push({id:randomUUID(),user_id:userId,event_id:eventId,ticket_type_id:batch,quantity:1,status:'approved',total_cents:1000,buyer:{name:'Cliente Teste',cpf:'52998224725'},created_at:new Date().toISOString(),snapshot:{eventTitle:base.title,eventImage:base.image,eventDate:base.date,eventTime:base.time,ticketName:'Pista',batch:'1º lote'},tickets:[{id:randomUUID(),code:randomUUID(),used_at:null,cancelled:false}]})
+ await login(page)
+ await expect(page.locator('.my-ticket svg')).toHaveCount(1)
+ await expect(page.getByRole('button',{name:'Imprimir / salvar PDF',exact:true})).toBeEnabled()
+ await page.emulateMedia({media:'print'})
+ await expect(page.locator('.my-ticket svg')).toBeVisible()
+ await expect(page.getByRole('heading',{name:'Meus ingressos.'})).not.toBeVisible()
+ await expect(page.locator('.customer-order-heading')).not.toBeVisible()
+ await page.screenshot({path:'test-results-print-proof.png',fullPage:true})
+})
