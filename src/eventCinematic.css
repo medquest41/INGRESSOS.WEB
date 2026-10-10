@@ -26,7 +26,7 @@
 .ix-medallion--logo img{object-fit:contain;padding:11%;background:radial-gradient(circle at 30% 30%,color-mix(in srgb,var(--ix-accent) 45%,#07140d),#030d0a)}
 @keyframes ix-medallion-fall{0%{opacity:0;transform:translate3d(0,-130px,-170px) rotateY(-35deg) rotateZ(-14deg)}11%{opacity:.8}48%{transform:translate3d(var(--ix-drift),42vh,60px) rotateY(150deg) rotateZ(12deg);opacity:.76}88%{opacity:.55}100%{opacity:0;transform:translate3d(calc(var(--ix-drift) * -1),115vh,-150px) rotateY(360deg) rotateZ(30deg)}}
 /* Atalho de personalização sem alterar o editor original nem o banco */
-.ix-admin-visual-shortcut{position:fixed;bottom:24px;right:24px;z-index:500;display:flex;align-items:center;gap:10px;padding:14px 19px;text-decoration:none;border-radius:99px;color:#00150d!important;background:linear-gradient(125deg,#afffce,#38d486 54%,#c0e7a2);border:1px solid #ecfff4;box-shadow:0 15px 35px #0007,0 0 28px #2ce6a040;font-weight:800;font-size:13px;letter-spacing:.015em;transition:transform .2s}
+.ix-admin-visual-shortcut{position:static;display:inline-flex;align-items:center;gap:10px;padding:14px 19px;text-decoration:none;border-radius:99px;color:#00150d!important;background:linear-gradient(125deg,#afffce,#38d486 54%,#c0e7a2);border:1px solid #ecfff4;box-shadow:0 15px 35px #0007,0 0 28px #2ce6a040;font-weight:800;font-size:13px;letter-spacing:.015em;transition:transform .2s}
 .ix-admin-visual-shortcut:hover{transform:translateY(-4px)}
 .ix-customizer-page{min-height:100vh;color:#e9fff3;background:radial-gradient(circle at 85% 10%,#173a2a,#06120e 34%,#040807 80%);padding:clamp(18px,3vw,44px) clamp(15px,4vw,56px) 80px}
 .ix-customizer-top{display:flex;align-items:center;justify-content:space-between;gap:15px;padding-bottom:28px;border-bottom:1px solid #caffd21b}
@@ -44,7 +44,7 @@
 .ix-demo-content{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:25px;pointer-events:none}.ix-demo-content>img{width:min(45%,200px);height:135px;object-fit:contain;filter:drop-shadow(0 0 22px var(--ix-accent))}.ix-demo-fallback{width:120px;height:120px;display:grid;place-items:center;border-radius:30px;font-size:48px;font-weight:900;background:linear-gradient(125deg,#fff2,var(--ix-accent));box-shadow:0 0 50px color-mix(in srgb,var(--ix-accent) 40%,transparent)}.ix-demo-content h2{font-size:clamp(24px,3vw,40px);max-width:500px;text-shadow:0 4px 22px #000;margin:0}.ix-demo-content>span{letter-spacing:.25em;font-size:10px}.ix-demo-content button{pointer-events:auto;cursor:pointer;border:1px solid var(--ix-accent);border-radius:99px;background:#091b14c9;color:white;padding:13px 22px;font-size:12px;font-weight:800;backdrop-filter:blur(12px)}.ix-visual-demo>p{color:#9db3a6;font-size:12px;line-height:1.6;margin-top:16px}
 /* Componentes de upload já existentes, ajustados só dentro do novo editor */
 .ix-control-card .event-image-field{max-width:100%}.ix-control-card .event-image-field input{max-width:100%}.ix-control-card .event-image-preview{max-width:220px;max-height:150px;object-fit:contain}.ix-control-card .ghost-btn{color:#edfff4}
-@media(max-width:900px){.ix-visual-editor-layout{grid-template-columns:1fr}.ix-visual-demo{position:static}.ix-demo-stage{height:420px;min-height:400px}.ix-admin-visual-shortcut{right:14px;bottom:14px;padding:12px 15px}.ix-cinematic-center{width:85vw}.ix-cinematic-ray{width:65vw}}
+@media(max-width:900px){.ix-visual-editor-layout{grid-template-columns:1fr}.ix-visual-demo{position:static}.ix-demo-stage{height:420px;min-height:400px}.ix-admin-visual-shortcut{padding:12px 15px}.ix-cinematic-center{width:85vw}.ix-cinematic-ray{width:65vw}}
 @media(max-width:520px){.ix-customizer-top>strong{font-size:10px;letter-spacing:.05em}.ix-customizer-top>strong span{display:none}.ix-demo-stage{height:360px;min-height:360px}.ix-admin-visual-shortcut span{font-size:11px}.ix-medallion{transform:scale(.75)}.ix-cinematic-center small{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.ix-medallion,.ix-demo-rays,.ix-cinematic-ray,.ix-cinematic-intro{animation:none!important}.ix-medallion-sky{display:none!important}.ix-cinematic-intro{display:none!important}}
 
@@ -69,3 +69,5 @@
 @media(max-width:600px){.ix-ambient-medallion{width:42px;height:42px;padding:2px}.ix-ambient-medallion:nth-child(n+9){display:none}}
 @media(prefers-reduced-motion:reduce){.ix-ambient-field{display:none}}
 .ix-ambient-field{mask-mode:luminance}
+
+.event-visual-shortcut-slot{display:flex;justify-content:flex-end;margin-bottom:16px}.event-visual-shortcut-slot:empty{display:none}@media print{.event-visual-shortcut-slot{display:none!important}}
