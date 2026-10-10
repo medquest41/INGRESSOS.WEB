@@ -4,6 +4,24 @@ import { defaultEvents } from '../src/data/defaultEvents.js'
 const org='20000000-0000-4000-8000-000000000001',eventId='30000000-0000-4000-8000-000000000001',batch='40000000-0000-4000-8000-000000000001'
 const userId='10000000-0000-4000-8000-000000000001'
 const base=defaultEvents[0]
+test('check-in shows green success, red used/invalid and a separate connection error',async({page})=>{
+ await mockApi(page,{role:'admin'})
+ let outcome='valid',calls=0
+ await page.route('https://*.supabase.co/rest/v1/rpc/check_in_event',route=>{
+  calls++
+  expect(route.request().postDataJSON().expected_event).toBe(eventId)
+  return route.fulfill({status:outcome==='error'?503:200,contentType:'application/json',body:JSON.stringify(outcome==='error'?{message:'Synthetic unavailable'}:outcome)})
+ })
+ await login(page,'admin','/admin/evento/'+eventId+'/checkin')
+ const code=page.getByPlaceholder('ING-...'),button=page.getByRole('button',{name:'Validar',exact:true})
+ await code.fill('60000000-0000-4000-8000-000000000001')
+ await button.click();await expect(page.locator('.scan-result.valid')).toContainText('Entrada autorizada e registrada')
+ outcome='used';await button.click();await expect(page.locator('.scan-result.used')).toContainText('INGRESSO JÁ USADO')
+ outcome='invalid';await button.click();await expect(page.locator('.scan-result.invalid')).toContainText('INGRESSO INVÁLIDO')
+ outcome='wrong_event';await button.click();await expect(page.locator('.scan-result.wrong_event')).toContainText('INGRESSO DE OUTRO EVENTO')
+ outcome='error';await button.click();await expect(page.locator('.scan-result.error')).toContainText('VALIDAÇÃO NÃO CONFIRMADA')
+ expect(calls).toBe(5)
+})
 test('payment lookup error keeps recovery available and accepts only database confirmation',async({page})=>{
  await mockApi(page)
  await login(page)

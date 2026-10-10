@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Archive,
@@ -143,6 +143,8 @@ export default function Admin() {
   const [scan, setScan] = useState('')
   const [scanFeedback, setScanFeedback] = useState(null)
   const scanResult = scanFeedback?.eventId === eventId ? scanFeedback.status : null
+  const scanLock=useRef(false)
+  const [scanBusy,setScanBusy]=useState(false)
   function setScanResult(status) { setScanFeedback(status ? { eventId, status } : null) }
   const [copiedId, setCopiedId] = useState(null)
 
@@ -325,13 +327,15 @@ export default function Admin() {
   }
 
   async function doScan(code = scan) {
-    if (!canCheckin) return
+    if (!canCheckin || scanLock.current) return
+    if (!selectedEvent) {setScanFeedback({eventId,status:'error',message:'Selecione o evento antes de validar.'});return}
+    scanLock.current=true;setScanBusy(true);setScanFeedback(null)
     try {
-      if (!selectedEvent) { window.alert('Selecione o evento antes de validar ingressos.');return }
       const result = await markTicketUsed(String(code).trim(), selectedEvent.id)
       const status = result.wrongEvent ? 'wrong_event' : result.forbidden ? 'forbidden' : !result.found ? 'invalid' : result.cancelled ? 'cancelled' : result.alreadyUsed ? 'used' : 'valid'
       setScanFeedback({ eventId, status, ...result })
-    } catch (err) { window.alert(err.message) }
+    } catch {setScanFeedback({eventId,status:'error',message:'Não foi possível consultar o ingresso. Nenhuma entrada foi confirmada nesta tela. Verifique a conexão e tente novamente.'})}
+    finally {scanLock.current=false;setScanBusy(false)}
   }
 
   function eventStatus(event) {
@@ -536,10 +540,10 @@ export default function Admin() {
               {!isLocalDemo && <><div>{scopedSummary.map(s=><p key={s.event_id}>{events.find(e=>e.id===s.event_id)?.title}: {s.checked_in} / {s.issued} entradas</p>)}</div><details><summary>Histórico recente</summary>{scopedCheckins.map(c=><p key={c.id}>{new Date(c.created_at).toLocaleString('pt-BR')} • operador {c.operator_id}</p>)}</details></>}
               <ScanLine /><h2>Digite ou escaneie o código</h2>
               <p className="muted">Este acesso valida apenas ingressos dos eventos permitidos para este perfil.</p>
-              {selectedEvent ? <CameraScanner onScan={code=>{setScan(code); doScan(code)}}/> : <p>Selecione um evento no filtro acima para abrir a portaria.</p>}<div className="checkin-form"><input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="ING-..." /><button className="primary-small" disabled={!selectedEvent} onClick={() => doScan()}>Validar</button></div>
+              {selectedEvent ? <CameraScanner onScan={code=>{setScan(code); doScan(code)}}/> : <p>Selecione um evento no filtro acima para abrir a portaria.</p>}<div className="checkin-form"><input value={scan} onChange={(e) => setScan(e.target.value)} placeholder="ING-..." /><button className="primary-small" disabled={!selectedEvent || scanBusy} onClick={() => doScan()}>{scanBusy ? 'Validando...' : 'Validar'}</button></div>
               {scanResult && <>
-                <div className={`scan-result ${scanResult}`}>
-                  {scanResult === 'wrong_event' ? <><XCircle />INGRESSO DE OUTRO EVENTO — ENTRADA NÃO REGISTRADA</> : scanResult === 'valid' ? <><CheckCircle2 />INGRESSO VÁLIDO — ENTRADA REGISTRADA</> : scanResult === 'used' ? <><XCircle />JÁ UTILIZADO</> : scanResult === 'cancelled' ? <><XCircle />CANCELADO / PAGAMENTO NÃO CONFIRMADO</> : scanResult === 'forbidden' ? <><ShieldCheck />SEM PERMISSÃO PARA ESTE EVENTO</> : <><XCircle />INVÁLIDO</>}
+                <div className={`scan-result ${scanResult}`} role="status" aria-live="assertive" aria-atomic="true">
+                  {scanResult === 'error' ? <><ShieldCheck /><span>VALIDAÇÃO NÃO CONFIRMADA<small>{scanFeedback.message}</small></span></> : scanResult === 'wrong_event' ? <><XCircle /><span>INGRESSO DE OUTRO EVENTO<small>Entrada não registrada.</small></span></> : scanResult === 'valid' ? <><CheckCircle2 /><span>INGRESSO VÁLIDO<small>Entrada autorizada e registrada.</small></span></> : scanResult === 'used' ? <><XCircle /><span>INGRESSO JÁ USADO<small>JÁ UTILIZADO — não autorize outra entrada.</small></span></> : scanResult === 'cancelled' ? <><XCircle /><span>ENTRADA NÃO AUTORIZADA<small>Ingresso cancelado ou pagamento não confirmado.</small></span></> : scanResult === 'forbidden' ? <><ShieldCheck /><span>SEM PERMISSÃO<small>Seu perfil não pode validar neste evento.</small></span></> : <><XCircle /><span>INGRESSO INVÁLIDO<small>Código não encontrado. Entrada não autorizada.</small></span></>}
                 </div>
                 {scanFeedback?.holderName && ['valid','used','cancelled'].includes(scanResult) && <div className="checkin-ticket-details">
                   <strong>{scanFeedback.holderName}</strong>
@@ -562,3 +566,4 @@ export default function Admin() {
     </div>
   )
 }
+
