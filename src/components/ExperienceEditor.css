@@ -1,0 +1,8 @@
+.event-rules-field { display: grid; gap: 10px; min-width: 0; margin: 28px 0; }
+.event-rules-field > label { color: #edf8f1; font-size: 16px; font-weight: 700; }
+.event-rules-field > p { margin: 0; color: #a5b9ae; font-size: 14px; line-height: 1.6; }
+.event-rules-field > textarea { display: block; width: 100%; box-sizing: border-box; min-height: 170px; resize: vertical; padding: 18px; border: 1px solid #375447; border-radius: 16px; background: #081a12; color: #f2fff7; font: inherit; font-size: 16px; line-height: 1.65; transition: border-color .2s, box-shadow .2s; }
+.event-rules-field > textarea::placeholder { color: #819b8d; opacity: 1; }
+.event-rules-field > textarea:focus-visible { outline: 2px solid #52e99b; outline-offset: 3px; border-color: #52e99b; box-shadow: 0 0 0 4px #52e99b12; }
+.event-rules-field > small { justify-self: end; color: #91aa9c; font-size: 12px; }
+@media(max-width:600px) { .event-rules-field > textarea { padding: 14px; } }
