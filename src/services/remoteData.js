@@ -18,7 +18,7 @@ export async function loadRemote(user){
  const [events,stock,orders=[],coupons=[],history=[],summary=[],checkins=[]]=await Promise.all(requests.map(result))
  let orderRows=orders
  if(user?.role==='financeiro'){const sales=await result(supabase.rpc('finance_orders'));orderRows=[...new Map([...sales,...orders].map(o=>[o.id,o])).values()]}
- return {events:events.map(e=>mapEvent(e,stock)),orders:orderRows.map(mapOrder),coupons:coupons.map(c=>({id:c.id,eventId:c.event_id,code:c.code,type:c.kind,value:Number(c.amount),limit:c.max_uses,perUserLimit:c.max_per_user,startsAt:c.starts_at||'',expiresAt:c.expires_at?new Date(new Date(c.expires_at).getTime()-86400000).toISOString().slice(0,10):'',active:c.active,ticketId:c.ticket_type_id})),history:history.map(h=>({id:h.id,eventId:h.event_id,action:h.action,actor:h.actor||'Servidor',at:h.created_at})),summary,checkins}
+ return {events:events.map(e=>mapEvent(e,stock)),orders:orderRows.filter(o=>!o.test_archived_at).map(mapOrder),coupons:coupons.map(c=>({id:c.id,eventId:c.event_id,code:c.code,type:c.kind,value:Number(c.amount),limit:c.max_uses,perUserLimit:c.max_per_user,startsAt:c.starts_at||'',expiresAt:c.expires_at?new Date(new Date(c.expires_at).getTime()-86400000).toISOString().slice(0,10):'',active:c.active,ticketId:c.ticket_type_id})),history:history.map(h=>({id:h.id,eventId:h.event_id,action:h.action,actor:h.actor||'Servidor',at:h.created_at})),summary,checkins}
 }
 export const rpc=(name,args)=>result(supabase.rpc(name,args))
 

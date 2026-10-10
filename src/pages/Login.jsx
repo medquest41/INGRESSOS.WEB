@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { legalCatalog, acceptanceClaims } from '../services/legal'
+import './LegalDocument.css'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import Brand from '../components/Brand'
@@ -12,6 +14,10 @@ export default function Login() {
   const location = useLocation()
   const [form, setForm] = useState({ name: '', email: '', password: '',cpf:'',phone:'',birthDate:'',emailConfirmation:'' })
   const [error, setError] = useState(()=>new URLSearchParams(location.hash.slice(1)).get('error_description')||'')
+  const [legal,setLegal]=useState(null)
+  const [termsAccepted,setTermsAccepted]=useState(false)
+  const [marketing,setMarketing]=useState(false)
+  useEffect(()=>{let active=true;legalCatalog().then(c=>{if(active)setLegal(c)}).catch(()=>{});return()=>{active=false}},[])
   const [notice,setNotice]=useState('')
   const [busy, setBusy] = useState(false)
   const [register, setRegister] = useState(new URLSearchParams(location.search).get('cadastro')==='1')
@@ -33,8 +39,10 @@ export default function Login() {
       if (setup) {
         await setupAdmin({ ...form, email: PRIMARY_ADMIN_EMAIL })
       } else if (register) {
+        if(!termsAccepted)throw Error('Aceite os Termos de Uso para criar a conta.');
+        const legalAcceptances=acceptanceClaims(legal,['termos','privacidade']);
         validateBuyer(form);if(form.email.trim().toLowerCase()!==form.emailConfirmation.trim().toLowerCase())throw Error('Os e-mails não coincidem.');
-        const response = await registerCustomer({ ...form, returnTo: destination })
+        const response = await registerCustomer({ ...form, legalAcceptances, marketing, returnTo: destination })
         if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
@@ -97,12 +105,13 @@ export default function Login() {
           </label>
 
           {register&&[['cpf','CPF','text'],['birthDate','Data de nascimento','date'],['phone','Celular com DDD','tel'],['emailConfirmation','Confirmar e-mail','email']].map(([key,label,type])=><label key={key}>{label}<input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}
+          {register&&<div className="legal-controls"><label className="legal-choice"><input type="checkbox" required checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)}/><span>Li e concordo com os <Link to="/institucional/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</Link> e estou ciente da <Link to="/institucional/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</Link>.</span></label><label className="legal-choice"><input type="checkbox" checked={marketing} onChange={e=>setMarketing(e.target.checked)}/><span>Desejo receber novidades, ofertas e informações sobre eventos.</span></label>{!legal?.ready&&<p role="status">Documentos em revisão. O cadastro com aceite será liberado após a aprovação das versões oficiais.</p>}</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           {notice && <p className="team-success" role="status">{notice}</p>}
           {!isLocalDemo && <button type="button" className="ghost-btn" disabled={busy} onClick={async()=>{setBusy(true);try{if(!form.email)throw new Error('Informe seu e-mail acima.');await resetPassword(form.email);setError('');setNotice('Se houver uma conta, você receberá o link de recuperação.')}catch(err){setError(err.message)}finally{setBusy(false)}}}>Esqueci minha senha</button>}
           {!setup && <button type="button" className="ghost-btn" onClick={() => setRegister(!register)}>{register ? 'Já tenho conta — entrar' : 'Criar conta'}</button>}
 
-          <button className="checkout-button" disabled={busy}>
+          <button className="checkout-button" disabled={busy||(register&&(!termsAccepted||!legal?.ready))}>
             {busy ? 'Aguarde...' : setup ? 'Criar administrador' : register ? 'Criar conta' : 'Entrar'}
             {!busy && <ArrowRight size={18} />}
           </button>

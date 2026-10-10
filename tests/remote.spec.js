@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { readFile } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { defaultEvents } from '../src/data/defaultEvents.js'
 const org='20000000-0000-4000-8000-000000000001',eventId='30000000-0000-4000-8000-000000000001',batch='40000000-0000-4000-8000-000000000001'
@@ -43,9 +44,9 @@ test('payment lookup error keeps recovery available and accepts only database co
  await expect(page.locator('html')).toHaveAttribute('data-confirmed','true')
  expect(charges).toBe(0)
 })
-async function mockApi(page,{role='cliente',price=0,error=false}={}){
+async function mockApi(page,{role='cliente',price=0,error=false,owner=false}={}){
  const calls=[],orders=[];let logged=false
- const profile={id:userId,email:role==='admin'?'medquest41@gmail.com':'cliente@example.test',name:'Cliente Teste',role,active:true,organization_id:role==='cliente'?null:org,organizations:{name:'Empresa A'}}
+ const profile={id:userId,email:owner?'ingressosaltatemporada@gmail.com':role==='admin'?'medquest41@gmail.com':'cliente@example.test',name:'Cliente Teste',role,active:true,organization_id:role==='cliente'?null:org,organizations:{name:'Empresa A'}}
  const user={id:userId,email:profile.email,aud:'authenticated',role:'authenticated',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email'},user_metadata:{name:profile.name}}
  const token='eyJhbGciOiJIUzI1NiJ9.'+Buffer.from(JSON.stringify({sub:userId,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.synthetic-signature'
  await page.route('https://*.supabase.co/**',async route=>{
@@ -189,7 +190,7 @@ test('portaria has only validation even when opening financial links directly',a
 })
 
 test('portaria link offers account creation and keeps event on confirmation redirect',async({page})=>{
- const state=await mockApi(page,{role:'checkin'})
+ const state=await mockApi(page,{role:'checkin'});await reviewedLegal(page)
  await page.goto('/admin/evento/'+eventId+'/checkin')
  await expect(page.getByRole('heading',{name:'Acesso à portaria do evento.'})).toBeVisible()
  await page.getByRole('button',{name:'Criar conta',exact:true}).click()
@@ -200,9 +201,52 @@ test('portaria link offers account creation and keeps event on confirmation redi
  await page.getByLabel('Celular com DDD',{exact:true}).fill('41999999999')
  await page.getByLabel('Data de nascimento',{exact:true}).fill('2000-01-01')
  await page.getByLabel('Confirmar e-mail',{exact:true}).fill('portaria@example.test')
+ await page.getByRole('checkbox',{name:/Li e concordo/}).check()
  await page.getByRole('button',{name:'Criar conta',exact:true}).last().click()
  await expect(page.getByRole('status')).toContainText('voltar à validação deste evento')
  const signup=state.calls.find(c=>c.path==='/auth/v1/signup')
  const redirect=new URL(new URL(signup.url).searchParams.get('redirect_to'))
  expect(redirect.searchParams.get('returnTo')).toBe('/admin/evento/'+eventId+'/checkin')
+})
+
+async function reviewedLegal(page,ready=true){
+ const drafts=JSON.parse(await readFile(new URL('../src/legal/documents.json',import.meta.url),'utf8'))
+ const documents=Object.entries(drafts).map(([slug,d])=>({slug,version:d.content.version,content:d.canonical,content_hash:d.hash,published:ready}))
+ await page.route('https://*.supabase.co/rest/v1/legal_config*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({company:{legalName:'Empresa de teste',address:'Endereço fictício de teste',tradeName:'Ingressos Experiences',cnpj:'65.586.495/0001-28',supportEmail:'support@example.test',privacyEmail:'privacy@example.test',legalEmail:'legal@example.test',reviewed:ready},active_versions:Object.fromEntries(documents.map(d=>[d.slug,d.version])),enforce_signup:ready,program_enabled:false})}))
+ await page.route('https://*.supabase.co/rest/v1/legal_documents*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(ready?documents:[])}))
+ return documents
+}
+test('legal signup requires unchecked mandatory acceptance and marketing remains optional',async({page})=>{
+ const state=await mockApi(page);const documents=await reviewedLegal(page)
+ await page.goto('/login?cadastro=1')
+ await page.getByLabel('Seu nome').fill('Cliente Teste');await page.getByLabel('E-mail',{exact:true}).fill('cliente@example.test');await page.getByLabel('Senha',{exact:true}).fill('Synthetic-Test-123');await page.getByLabel('CPF',{exact:true}).fill('52998224725');await page.getByLabel('Data de nascimento').fill('2000-01-01');await page.getByLabel('Celular com DDD').fill('41999999999');await page.getByLabel('Confirmar e-mail').fill('cliente@example.test')
+ const accept=page.getByRole('checkbox',{name:/Li e concordo/}),marketing=page.getByRole('checkbox',{name:/Desejo receber/}),submit=page.getByRole('button',{name:'Criar conta',exact:true})
+ await expect(accept).not.toBeChecked();await expect(marketing).not.toBeChecked();await expect(submit).toBeDisabled()
+ await expect(page.getByRole('link',{name:'Termos de Uso',exact:true}).first()).toHaveAttribute('href','/institucional/termos')
+ await accept.check();await expect(submit).toBeEnabled();await submit.click();await expect(page.getByText(/Cadastro recebido/)).toBeVisible()
+ const signup=state.calls.find(c=>c.path==='/auth/v1/signup');expect(signup.body.data.marketing).toBe(false);expect(signup.body.data.legalAcceptances).toEqual(['termos','privacidade'].map(slug=>({slug,version:documents.find(d=>d.slug===slug).version,hash:documents.find(d=>d.slug===slug).content_hash,accepted:true})))
+})
+test('draft documents cannot be accepted and legal pages fit mobile',async({page})=>{
+ const state=await mockApi(page);await reviewedLegal(page,false);await page.setViewportSize({width:390,height:844})
+ await page.goto('/login?cadastro=1');await page.getByRole('checkbox',{name:/Li e concordo/}).check();await expect(page.getByRole('button',{name:'Criar conta',exact:true})).toBeDisabled();expect(state.calls.some(c=>c.path==='/auth/v1/signup')).toBe(false)
+ await page.goto('/institucional/termos');await expect(page.getByRole('heading',{name:'Termos Gerais de Uso da Plataforma'})).toBeVisible();await expect(page.getByText(/MINUTA PARA REVISÃO/)).toBeVisible();expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.locator('.legal-layout nav a').first().click();await expect(page).toHaveURL(/#s1$/)
+ await page.screenshot({path:'juridico-mobile.jpg',fullPage:false})
+})
+test('promoter application requires specific acceptance and never activates a link',async({page})=>{
+ const state=await mockApi(page);await reviewedLegal(page);await login(page,'cliente','/login?returnTo=%2Fpromotores')
+ const checkbox=page.getByRole('checkbox',{name:/Li e aceito os Termos do Programa/}),button=page.getByRole('button',{name:'Solicitar participação'})
+ await expect(checkbox).not.toBeChecked();await expect(button).toBeDisabled();await checkbox.check();await expect(button).toBeEnabled();await button.click();await expect(page.getByText(/Nenhum link foi ativado/)).toBeVisible();expect(state.calls.some(c=>c.path==='/rest/v1/rpc/accept_legal_documents'&&c.body.purpose==='promoter.application')).toBe(true)
+})
+test('sales cleanup is owner only and requires selection password and confirmation',async({page})=>{
+ await mockApi(page,{role:'admin',owner:true});await reviewedLegal(page)
+ const orderId='50000000-0000-4000-8000-000000000001'
+ await page.route('https://*.supabase.co/rest/v1/orders*',route=>route.fulfill({contentType:'application/json',body:JSON.stringify([{id:orderId,event_id:eventId,user_id:userId,quantity:1,status:'pending',total_cents:1000,fee_cents:100,subtotal_cents:900,discount_cents:0,buyer:{name:'Teste'},snapshot:{eventTitle:base.title},tickets:[]}])}))
+ let payload
+ await page.route('https://*.supabase.co/functions/v1/sales-maintenance',route=>{payload=route.request().postDataJSON();return route.fulfill({contentType:'application/json',body:JSON.stringify({count:1})})})
+ await login(page,'admin','/admin/evento/'+eventId+'/orders');await page.getByRole('button',{name:'Somente essenciais'}).click();await page.getByRole('button',{name:'Revisar vendas de teste'}).click()
+ const confirm=page.getByRole('button',{name:'Confirmar limpeza das vendas selecionadas'});await expect(confirm).toBeDisabled();await page.locator('.sales-cleanup-orders input').check();await page.getByLabel('Sua senha de Admin Geral').fill('Synthetic-Test-123');await page.getByLabel('Digite LIMPAR VENDAS DE TESTE').fill('LIMPAR VENDAS DE TESTE');await expect(confirm).toBeEnabled();await page.locator('.sales-cleanup').screenshot({path:'limpeza-vendas-previa.jpg'});await confirm.click();await expect(page.getByText(/1 pedido\(s\) de teste arquivado/)).toBeVisible();expect(payload.eventId).toBe(eventId);expect(payload.orderIds).toEqual([orderId]);expect(payload.confirmation).toBe('LIMPAR VENDAS DE TESTE')
+})
+test('other admins and organizers never see sales cleanup controls',async({page})=>{
+ await mockApi(page,{role:'admin'});await login(page,'admin','/admin/evento/'+eventId+'/orders');await expect(page.getByRole('button',{name:'Revisar vendas de teste'})).toHaveCount(0)
 })

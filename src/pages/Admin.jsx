@@ -1,3 +1,4 @@
+import SalesCleanup from '../components/SalesCleanup'
 import EventCheckinTeam from '../components/EventCheckinTeam'
 import { useMemo, useRef, useState } from 'react'
 import { Link, useParams, useNavigate, useSearchParams } from 'react-router-dom'
@@ -357,7 +358,7 @@ export default function Admin() {
           <span><strong>{currentUser.name}</strong><small>{roleLabels[role]}</small></span>
         </div>
 
-        <nav>
+        <nav>{isPrimaryAdmin&&<Link to="/preferencias-legais">Termos e aceites</Link>}
           {role !== 'checkin' && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => goTab('dashboard')}><LayoutDashboard />Dashboard</button>}
           {canManageEvents && <button className={tab === 'events' ? 'active' : ''} onClick={() => goTab('events')}><CalendarDays />Eventos</button>}
           {canSeeOrders && <button className={tab === 'orders' ? 'active' : ''} onClick={() => goTab('orders')}><Ticket />Pedidos</button>}
@@ -527,7 +528,7 @@ export default function Admin() {
         {tab === 'orders' && canSeeOrders && (
           <>
             <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>{selectedEvent ? 'Pedidos deste evento.' : 'Pedidos.'}</h1></div></div>
-            <section className="admin-panel">
+            <SalesCleanup event={selectedEvent} orders={visibleOrders}/><section className="admin-panel">
               <div className="form-grid"><label>Buscar pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Pedido, evento, nome, e-mail ou CPF"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
               <EventOrderList key={eventId + ':' + orderStatus + ':' + orderSearch} eventId={eventId} events={visibleEvents} orders={visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&matchesBuyerSearch(o,orderSearch))} cancelOrder={cancelOrder} canViewCpf={['admin','organizador'].includes(role)}/>
             </section>

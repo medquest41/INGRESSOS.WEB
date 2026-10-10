@@ -1,3 +1,5 @@
+import LegalPreferences from './pages/LegalPreferences'
+import PromoterApplication from './pages/PromoterApplication'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import SharedTicket from './pages/SharedTicket'
 import Home from './pages/Home'
@@ -20,7 +22,7 @@ import './eventCinematic.css'
 
 export default function App() {
   return (
-    <><Routes>
+    <><Routes><Route path="/preferencias-legais" element={<LegalPreferences/>}/><Route path="/promotores" element={<PromoterApplication/>}/>
       <Route path="/ingresso-compartilhado" element={<SharedTicket/>}/>
       <Route path="/institucional/:slug" element={<Institutional/>}/>
       <Route path="/organizador/:organizerId" element={<OrganizerEvents/>}/>

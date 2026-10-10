@@ -56,8 +56,8 @@ function RemoteAuthProvider({ children }) {
   async function startGuest(){return result(supabase.auth.signInAnonymously({options:{data:{name:'Visitante'}}}))}
   async function login(email,password) { return result(supabase.auth.signInWithPassword({ email: email.trim(), password })) }
   async function logout() { try {await result(supabase.auth.signOut());setCurrentUser(null);setUsers([])} catch(err){setError(err.message)} }
-  async function registerCustomer({name,email,password,returnTo,cpf,phone,birthDate}) {
-    const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim(),cpf,phone,birthDate},emailRedirectTo:location.origin+loginPath(returnTo)}}))
+  async function registerCustomer({name,email,password,returnTo,cpf,phone,birthDate,legalAcceptances,marketing}) {
+    const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim(),cpf,phone,birthDate,legalAcceptances,marketing:marketing===true},emailRedirectTo:location.origin+loginPath(returnTo)}}))
     return { confirmationRequired: !data.session }
   }
   async function resetPassword(email) { return result(supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/redefinir-senha'})) }
