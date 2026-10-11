@@ -64,14 +64,14 @@ export default function Home({ catalog = false }) {
       <PartyAtmosphere/>
       <header className="topbar">
         <Brand />
-        <nav className="desktop-nav"><Link to="/eventos">{publicText('events')}</Link><a href="#experiencia">Experiência</a><Link to="/ingressos">{publicText('tickets')}</Link></nav>
+        <nav className="desktop-nav"><Link className="promoter-nav-highlight" to="/promotores">✦ Promotores</Link><Link to="/eventos">{publicText('events')}</Link><a href="#experiencia">Experiência</a><Link to="/ingressos">{publicText('tickets')}</Link></nav>
         <div className="topbar-actions">
           <Link className="login-button" to={currentUser && !currentUser.guest ? '/eventos' : loginPath('/eventos')}><UserRound size={18}/>Entrar</Link>
           <Link className="primary-small" to={creatorPath}>{creatorLabel} <ArrowRight size={17}/></Link>
           <button className="mobile-menu-button" aria-label={menuOpen?'Fechar menu':'Abrir menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button>
         </div>
         <div className="public-tools16"><Preferences/></div>
-        {menuOpen && <div className="mobile-menu"><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link><Link to={creatorPath}>{creatorLabel}</Link></div>}
+        {menuOpen && <div className="mobile-menu"><Link className="promoter-nav-highlight" to="/promotores">✦ Quero ser promotor</Link><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link><Link to={creatorPath}>{creatorLabel}</Link></div>}
       </header>
 
       <section className="ticker16" aria-label="Benefícios da Ingressos Experiences"><div className="ticker-track16">{[0,1].map(copy=><div className="ticker-group16" key={copy} aria-hidden={copy===1?true:undefined}>{['🎟️ QR digital','⚡ Compra rápida','📍 Eventos perto de você','💬 Suporte via WhatsApp quando disponível','🎉 Chama a turma'].map(message=><span key={message}>{message}</span>)}</div>)}</div></section>

@@ -358,7 +358,7 @@ export default function Admin() {
           <span><strong>{currentUser.name}</strong><small>{roleLabels[role]}</small></span>
         </div>
 
-        <nav>{isPrimaryAdmin&&<Link to="/preferencias-legais">Termos e aceites</Link>}
+        <nav>{isPrimaryAdmin&&<><Link to="/preferencias-legais">Termos e aceites</Link><Link className="promoter-nav-highlight" to="/admin/promotores"><span>✦ Promotores</span><small>Aprovações e comissões</small></Link></>}
           {role !== 'checkin' && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => goTab('dashboard')}><LayoutDashboard />Dashboard</button>}
           {canManageEvents && <button className={tab === 'events' ? 'active' : ''} onClick={() => goTab('events')}><CalendarDays />Eventos</button>}
           {canSeeOrders && <button className={tab === 'orders' ? 'active' : ''} onClick={() => goTab('orders')}><Ticket />Pedidos</button>}

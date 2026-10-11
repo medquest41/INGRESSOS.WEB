@@ -1,12 +1,10 @@
 # Termos do Programa de Promotores
 
-MINUTA — PENDENTE DE REVISÃO E PUBLICAÇÃO
-
-Versão: 2026-10-10.2 | Atualização: 2026-10-10
+Versão: 2026-10-11.4 | Atualização: 2026-10-11
 
 ## Situação e adesão
 
-Esta minuta descreve programa proposto e não afirma disponibilidade atual. A ativação depende de atribuição, apuração financeira, pagamentos, revisão jurídica e aprovação administrativa. O candidato deve ter conta própria e aceitar os termos antes de receber link ativo. Cadastro e aceite não garantem remuneração ou aprovação.
+Este documento disciplina o Programa de Promotores da Ingressos Experiences. A disponibilidade de novas adesões depende da ativação administrativa. O candidato deve criar ou acessar sua própria conta, confirmar seu e-mail, informar telefone, chave Pix e titularidade e aceitar este documento. A aprovação é exclusiva do Administrador Geral. Cadastro e aceite não garantem aprovação nem ganhos. O link exclusivo é liberado após a aprovação.
 
 ## Natureza da participação
 
@@ -14,7 +12,7 @@ A indicação é contratual e independente, sem previsão de subordinação, exc
 
 ## Link e atribuição
 
-Cada participante aprovado receberá link individual. A atribuição depende de prova entre link, cadastro do organizador e indicação válida, com momento e regra registrados. Não se promete atribuição por conversa sem evidência. Prioridade entre indicações concorrentes e janela de atribuição devem ser definidas e apresentadas antes da ativação.
+A indicação é registrada quando um novo organizador cria uma conta pelo link válido de um promotor aprovado, com o programa disponível para novas indicações. O vínculo é consolidado ao criar sua organização e permanece registrado. Contas ou organizações preexistentes não recebem atribuição retroativa. O link utilizado no cadastro válido determina a atribuição; visitas isoladas, cookies, conversas e links utilizados posteriormente não substituem o vínculo. São aplicadas verificações contra duplicidade e autoindicação.
 
 ## Elegibilidade
 
@@ -22,15 +20,15 @@ Organizadores devem ser novos, reais e não previamente atribuídos, conforme cr
 
 ## Contestação
 
-Divergências devem ser enviadas ao contato oficial com organizador e provas proporcionais. A administração deve preservar evidências, ouvir envolvidos quando necessário e fundamentar a decisão. É vedada alteração arbitrária de atribuição para evitar comissão. Procedimento e prazo operacional precisam de aprovação antes do lançamento.
+Divergências sobre indicação, evento ou comissão devem ser comunicadas ao contato ingressosaltatemporada@gmail.com ou WhatsApp +55 45 99958-0277, preferencialmente em até 30 dias da identificação do problema, com descrição, identificação do organizador ou evento e provas proporcionais. A administração dará resposta inicial em até 10 dias úteis do recebimento, informando a análise, as providências ou os esclarecimentos necessários; esse prazo não representa garantia de solução integral. O decurso dos 30 dias não extingue automaticamente direitos ou comissões devidas. Evidências serão preservadas, os envolvidos poderão ser ouvidos e a decisão será fundamentada, sem alteração arbitrária de atribuição para evitar comissão.
 
 ## Faixas de comissão
 
-A regra proposta é 5% nos primeiros 15 eventos elegíveis de cada organizador indicado e 4% do 16º em diante de forma recorrente, enquanto subsistirem condições contratuais válidas. A contagem é por organizador, não por ingresso. Eventos cancelados ou sem receita elegível não geram comissão e não avançam artificialmente a faixa.
+A condição padrão é 5% sobre a taxa líquida da plataforma nos primeiros 15 eventos elegíveis de cada organizador indicado e 4% a partir do 16º, de forma permanente para aquele vínculo. A contagem é por organizador e pela ordem dos fechamentos financeiros válidos, não por ingresso vendido. Eventos sem receita elegível ou cancelados não geram comissão. Uma vez atingida a faixa recorrente, estornos posteriores não retornam o organizador à faixa inicial. Condições individuais expressamente aceitas e versionadas permanecem preservadas.
 
 ## Base de cálculo
 
-A comissão incide apenas na taxa líquida da plataforma efetivamente recebida, nunca no valor bruto de ingressos ou receita do organizador. A apuração deve discriminar taxa e deduções legítimas previamente definidas, sem custo genérico ou dupla dedução. Uma base líquida de R$ 100,00 corresponde a R$ 5,00 na faixa de 5% ou R$ 4,00 na faixa de 4%.
+A comissão incide na taxa da plataforma efetivamente recebida e financeiramente conciliada, ajustada pelos estornos, reembolsos e cancelamentos comprovados, nunca no valor bruto dos ingressos ou na receita do organizador. A tarifa do provedor já descontada do repasse ao organizador não é descontada novamente dessa base. Não se incluem deduções operacionais genéricas. Uma base líquida de R$ 100,00 gera R$ 5,00 na faixa de 5% ou R$ 4,00 na faixa de 4%.
 
 ## Liberação
 
@@ -42,7 +40,7 @@ Estornos, chargebacks e reembolsos podem ajustar base e comissão na extensão c
 
 ## Pix e conferência
 
-O pagamento proposto é manual por Pix, depois de conferência e liberação administrativa. Informe chave válida e titularidade correta em ambiente restrito, mantendo os dados atualizados. A operação confirma destinatário e registra referência, data e valor. Chave Pix não deve aparecer em link público de indicação. Divergência deve ser esclarecida antes de nova transferência.
+O pagamento é manual por Pix, após realização do evento, apuração e conferência administrativa. O promotor deve informar chave válida e titularidade correta em ambiente restrito. A alteração da chave exige nova aprovação antes de outro pagamento. O painel registra referência, data, valor e destinatário de pagamentos realizados; o registro não efetua transferência bancária. A chave Pix não integra o link público. Divergências devem ser esclarecidas antes de nova transferência.
 
 ## Tributos
 
@@ -58,7 +56,7 @@ Fraude verificável, spam, publicidade enganosa e descumprimento relevante podem
 
 ## Encerramento e recorrência
 
-O encerramento deve regular valores constituídos e pendências. O destino da recorrência futura de organizadores atribuídos exige regra expressa antes da ativação, juridicamente validada. Esta minuta não permite extingui-la silenciosamente. Rescisão voluntária, fraude, inatividade e término pela plataforma precisam ser disciplinados sem atingir direitos adquiridos.
+A suspensão de novas adesões, a desativação do programa ou a suspensão do promotor para novas indicações não apagam vínculos válidos, histórico, comissões constituídas ou a obrigação de apurar futuras comissões dos organizadores já atribuídos. O encerramento ou a inatividade não extinguem silenciosamente a recorrência permanente desses vínculos. Eventual fraude exige apuração fundamentada, comunicação e possibilidade de contestação, sem cancelamento arbitrário de comissões legítimas ou eliminação dos registros. Valores e pendências existentes continuam sujeitos à realização dos eventos, conciliação, ajustes comprovados e pagamento.
 
 ## Publicidade e marca
 
@@ -66,10 +64,4 @@ Identifique publicidade quando cabível. Não envie spam, prometa ganhos garanti
 
 ## Dados e conflitos
 
-Identificação, atribuição, comissão e Pix seguem finalidades contratuais, obrigações legais e a Política de Privacidade com acesso restrito. Divergências podem ser encaminhadas ao contato oficial e instâncias competentes. Aplica-se legislação brasileira. Regras pendentes devem ser aprovadas antes de produzir adesões ou links ativos.
-
-## Referências
-
-- [Código Civil](https://www.planalto.gov.br/ccivil_03/leis/2002/l10406compilada.htm)
-- [LGPD](https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709compilado.htm)
-- [CDC](https://www.planalto.gov.br/ccivil_03/leis/l8078compilado.htm)
+Identificação, atribuição, comissão e Pix seguem finalidades contratuais, obrigações legais e a Política de Privacidade, com acesso restrito. Divergências podem ser encaminhadas ao contato oficial e às instâncias competentes. Aplica-se a legislação brasileira. Esta versão incorpora regras operacionais aprovadas pela responsável; não declara revisão por advogado. Versões e aceites anteriores são preservados.
