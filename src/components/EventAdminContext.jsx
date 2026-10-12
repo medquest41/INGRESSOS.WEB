@@ -11,7 +11,7 @@ export default function EventAdminContext({ event, eventId, events, eventPage, t
     ...(role !== 'checkin' ? [['dashboard','Sobre o evento']] : []),
     ...(sales ? [['orders','Pedidos'],...(role !== 'financeiro' ? [['customers','Clientes']] : []),['finance','Financeiro'],['reports','Relatórios'],['history','Histórico']] : []),
     ...(checkin ? [['checkin','Check-in']] : []),
-    ...(manage ? [['event_team','Gerenciar equipe'],['coupons','Cupons']] : []),
+    ...(manage ? [['event_team','Gerenciar equipe'],['event_promoters','Promotores do evento'],['coupons','Cupons']] : []),
     ...((canManageFees || (role === 'organizador' && event?.feeEditableByOrganizer)) ? [['fees','Taxas']] : []),
   ]
   return <section className="event-admin-context" aria-label="Contexto do evento">

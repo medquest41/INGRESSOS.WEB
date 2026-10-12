@@ -55,7 +55,7 @@ export default function MeusIngressos() {
   return <div className="tickets-page">
     <header className="simple-header"><Link to="/eventos">Eventos</Link><Brand/><button className="ghost-btn" onClick={logout}>Sair</button></header>
     <main className="tickets-wrap">
-      <span className="section-kicker">MINHA CONTA • {currentUser.name}</span><h1>Meus ingressos.</h1>{paymentError&&<p role="alert" className="auth-error">{paymentError}</p>}
+      <span className="section-kicker">MINHA CONTA • {currentUser.name}</span><h1>Meus ingressos.</h1><Link className="ghost-btn" to="/minhas-divulgacoes">Minhas divulgações de eventos</Link>{paymentError&&<p role="alert" className="auth-error">{paymentError}</p>}
       {location.state?.approved && <p role="status" className="team-success">{isLocalDemo?'Compra simulada aprovada. Seus ingressos estão abaixo.':'Pedido registrado. Confira o status abaixo.'}</p>}
       {isLocalDemo ? <p className="demo-warning">Demonstração local. Mantenha este navegador para acessar os ingressos.</p> : <button className="ghost-btn" onClick={refresh}>Atualizar pedidos</button>}
       {groups.length>0&&<div className="form-grid my-event-filter"><label>Filtrar meus ingressos por evento<select value={eventId} onChange={e=>setEventId(e.target.value)}><option value="">Todos os meus eventos</option>{groups.map(group=><option key={group.id} value={group.id}>{group.title}</option>)}</select></label></div>}

@@ -75,6 +75,7 @@ export default function Evento() {
     const params = new URLSearchParams({ event: event.id, ticket: selectedTicket.id, q: String(quantity) })
     const source = searchParams.get('ref') || searchParams.get('utm_source')
     if (source) params.set('ref', source)
+    if (/^[a-fA-F0-9-]{36}$/.test(searchParams.get('ep')||'')) params.set('ep',searchParams.get('ep'))
     if (searchParams.get('campaign')) params.set('campaign',searchParams.get('campaign'))
     
     recordActivity(event.id,'checkout');navigate(`/checkout?${params}`)

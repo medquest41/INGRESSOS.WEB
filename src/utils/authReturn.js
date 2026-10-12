@@ -8,7 +8,8 @@ export function safeReturnTo(value) {
   const url = new URL(value, 'https://return.invalid')
   if (url.origin !== 'https://return.invalid' || url.hash) return null
   const path = url.pathname
-  if (!['/', '/eventos', '/ingressos', '/meus-ingressos', '/checkout', '/criar-evento', '/promotores', '/preferencias-legais', '/admin'].includes(path) &&
+  if (!['/', '/eventos', '/ingressos', '/meus-ingressos', '/checkout', '/criar-evento', '/promotores', '/minhas-divulgacoes', '/preferencias-legais', '/admin'].includes(path) &&
+      !/^\/convite-divulgador\/[a-fA-F0-9-]{36}$/.test(path) &&
       !/^\/evento\/[a-zA-Z0-9_-]+$/.test(path) &&
       !/^\/admin\/evento\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?$/.test(path)) return null
   return path + url.search

@@ -1,3 +1,4 @@
+import EventSalesPortal from './pages/EventSalesPortal'
 import './promoterNavigation.css'
 import PromoterAdmin from './pages/PromoterAdmin'
 import PromoterReferral from './pages/PromoterReferral'
@@ -25,7 +26,7 @@ import './eventCinematic.css'
 
 export default function App() {
   return (
-    <><Routes><Route path="/indicacao/:token" element={<PromoterReferral/>}/><Route path="/admin/promotores" element={<ProtectedRoute roles={['admin']}><PromoterAdmin/></ProtectedRoute>}/><Route path="/preferencias-legais" element={<LegalPreferences/>}/><Route path="/promotores" element={<PromoterApplication/>}/>
+    <><Routes><Route path="/convite-divulgador/:secret" element={<EventSalesPortal/>}/><Route path="/minhas-divulgacoes" element={<EventSalesPortal/>}/><Route path="/indicacao/:token" element={<PromoterReferral/>}/><Route path="/admin/promotores" element={<ProtectedRoute roles={['admin']}><PromoterAdmin/></ProtectedRoute>}/><Route path="/preferencias-legais" element={<LegalPreferences/>}/><Route path="/promotores" element={<PromoterApplication/>}/>
       <Route path="/ingresso-compartilhado" element={<SharedTicket/>}/>
       <Route path="/institucional/:slug" element={<Institutional/>}/>
       <Route path="/organizador/:organizerId" element={<OrganizerEvents/>}/>

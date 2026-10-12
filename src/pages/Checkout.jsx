@@ -96,7 +96,7 @@ export default function Checkout() {
     try {
       if(quantity>1&&!participantsSaved){resumePayment.current=true;setParticipantsOpen(true);return}
       const holders=validateParticipants(event,quantity,buyer,participants,quantity===1?'same':participantMode,ageConfirmed);
-      const order = reservedOrder.current || await placeOrder({ eventId: event.id, ticketId: ticket.id, quantity, buyer: {...buyer,participants:holders,participantMode:quantity===1?'same':participantMode,ageConfirmed,vipListId:params.get('vip')||null}, method, outcome, coupon, campaign: params.get('campaign') || '', source: params.get('ref') || params.get('utm_source') || 'direto', idempotencyKey: idempotencyKey.current })
+      const order = reservedOrder.current || await placeOrder({ eventId: event.id, ticketId: ticket.id, quantity, buyer: {...buyer,participants:holders,participantMode:quantity===1?'same':participantMode,ageConfirmed,vipListId:params.get('vip')||null}, method, outcome, coupon, campaign: params.get('campaign') || '', source: /^[a-fA-F0-9-]{36}$/.test(params.get('ep')||'')?'event-promoter:'+params.get('ep'):params.get('ref') || params.get('utm_source') || 'direto', idempotencyKey: idempotencyKey.current })
       if (!isLocalDemo && totals.total > 0) { setReservedTotals(totals); reservedOrder.current = order; setHasReservation(true); setReservationId(order); return }
       try{if(draftKey)localStorage.removeItem(draftKey)}catch{/* optional storage */}
       navigate('/ingressos', { replace: true, state: { approved: true } })
