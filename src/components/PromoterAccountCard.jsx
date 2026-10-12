@@ -1,0 +1,11 @@
+import {useEffect,useState} from 'react'
+import {Link} from 'react-router-dom'
+import {Copy,Share2} from 'lucide-react'
+import {promoterRpc,promoterLink,copyPromoterLink,sharePromoterLink} from '../services/promoters'
+import '../pages/Promoters.css'
+export default function PromoterAccountCard({userId}){
+ const [profile,setProfile]=useState(null),[loaded,setLoaded]=useState(false),[failed,setFailed]=useState(false),[message,setMessage]=useState('');
+ useEffect(()=>{let active=true;promoterRpc('dashboard',{page:0}).then(data=>{if(active){setProfile(data?.profile?.user_id===userId?data.profile:null);setLoaded(true)}}).catch(()=>{if(active){setFailed(true);setLoaded(true)}});return()=>{active=false}},[userId]);
+ async function share(copy){try{await(copy?copyPromoterLink(profile.link_token):sharePromoterLink(profile.link_token));setMessage(copy?'Link copiado!':'Link pronto para compartilhar.')}catch{setMessage('Não foi possível compartilhar. Copie o endereço do campo acima.')}}
+ return <section className="promoter-card" aria-label="Minha conta de promotor"><span className="promoter-kicker">PROGRAMA DE PROMOTORES</span><h2>Meu link e minhas comissões</h2>{!loaded?<p role="status">Conferindo seu cadastro de promotor...</p>:failed?<p>Abra seu painel para consultar o cadastro.</p>:profile?.status==='approved'&&profile.link_token?<div className="promoter-link"><label>Meu link de promotor<input readOnly value={promoterLink(profile.link_token)}/></label><div className="promoter-row"><button type="button" onClick={()=>share(true)}><Copy/>Copiar meu link de promotor</button><button type="button" onClick={()=>share(false)}><Share2/>Compartilhar link</button></div></div>:profile?<p>{profile.status==='pending'?'Seu cadastro foi recebido e aguarda a aprovação do Administrador Geral. Seu link será liberado após a aprovação.':profile.status==='suspended'?'Sua participação está suspensa. Consulte o status no seu painel.':'Consulte a análise do seu cadastro no painel de promotor.'}</p>:<p>Use esta mesma conta para se cadastrar como promotor e acompanhar suas indicações.</p>}{message&&<p role="status">{message}</p>}<Link className="promoter-button" to={profile||failed?'/promotores':'/promotores?participar=1'}>{profile||failed?'Abrir meu painel de promotor':'Cadastrar esta conta como promotor'} →</Link></section>
+}
