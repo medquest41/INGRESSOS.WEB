@@ -1,3 +1,4 @@
+import './LoginFields.css'
 import { legalCatalog, acceptanceClaims } from '../services/legal'
 import './LegalDocument.css'
 import { useEffect, useState } from 'react'
@@ -12,7 +13,7 @@ export default function Login() {
   const { currentUser, needsSetup, setupAdmin, login, registerCustomer, resetPassword, loading, isLocalDemo } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [form, setForm] = useState({ name: '', email: '', password: '',cpf:'',phone:'',birthDate:'',emailConfirmation:'' })
+  const [form, setForm] = useState({ name: '', email: '', password: '',cpf:'',phone:'',birthDate:'' })
   const [error, setError] = useState(()=>new URLSearchParams(location.hash.slice(1)).get('error_description')||'')
   const [legal,setLegal]=useState(null)
   const [termsAccepted,setTermsAccepted]=useState(false)
@@ -24,6 +25,8 @@ export default function Login() {
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
   const destination = authDestination(location.search, location.state?.from)
+  const promoterAccess=destination.startsWith('/promotores');
+  useEffect(()=>{if(promoterAccess)window.scrollTo(0,0)},[promoterAccess]);
   const portaria = /^\/admin\/evento\/[^/]+\/checkin$/.test(destination)
 
   if (loading) return <div className="empty-page" role="status">Verificando sessão...</div>
@@ -41,9 +44,9 @@ export default function Login() {
       } else if (register) {
         if(!termsAccepted)throw Error('Aceite os Termos de Uso para criar a conta.');
         const legalAcceptances=acceptanceClaims(legal,['termos','privacidade']);
-        validateBuyer(form);if(form.email.trim().toLowerCase()!==form.emailConfirmation.trim().toLowerCase())throw Error('Os e-mails não coincidem.');
+        validateBuyer(form);
         const response = await registerCustomer({ ...form, legalAcceptances, marketing, returnTo: destination })
-        if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
+        if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':promoterAccess?'Conta criada. Confirme seu e-mail e entre para completar seu cadastro de promotor e informar seu Pix.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
@@ -56,7 +59,7 @@ export default function Login() {
   }
 
   return (
-    <div className="auth-page">
+    <div className={`auth-page${promoterAccess?' promoter-auth':''}`}>
       <div className="auth-orb auth-orb-one" />
       <div className="auth-orb auth-orb-two" />
 
@@ -69,7 +72,7 @@ export default function Login() {
       <main className="auth-wrap">
         <section className="auth-copy">
           <span className="section-kicker"><Sparkles size={14} />ÁREA RESTRITA</span>
-          <h1>{setup ? 'Crie o administrador principal.' : portaria ? 'Acesso à portaria do evento.' : 'Seu próximo rolê começa aqui.'}</h1>
+          <h1>{setup ? 'Crie o administrador principal.' : promoterAccess ? 'Faça parte dos Promotores.' : portaria ? 'Acesso à portaria do evento.' : 'Seu próximo rolê começa aqui.'}</h1>
           <p>
             {setup
               ? 'Este primeiro cadastro cria o acesso principal do sistema. Depois você poderá adicionar organizadores, financeiro e equipe de check-in pelo próprio painel.'
@@ -84,8 +87,8 @@ export default function Login() {
 
         <form className="auth-card" onSubmit={submit}>
           <div className="auth-card-icon"><ShieldCheck /></div>
-          <span>{setup ? 'CONFIGURAÇÃO INICIAL' : portaria ? 'PORTARIA • SOMENTE VALIDAÇÃO' : 'ACESSO AO PAINEL'}</span>
-          <h2>{setup ? 'Administrador principal' : register ? 'Criar conta' : 'Entrar'}</h2>
+          <span>{setup ? 'CONFIGURAÇÃO INICIAL' : promoterAccess ? 'PROGRAMA DE PROMOTORES' : portaria ? 'PORTARIA • SOMENTE VALIDAÇÃO' : 'ACESSO AO PAINEL'}</span>
+          <h2>{setup ? 'Administrador principal' : register ? (promoterAccess?'Criar minha conta de promotor':'Criar conta') : (promoterAccess?'Entrar como promotor':'Entrar')}</h2>
 
           {(setup || register) && (
             <label>
@@ -101,10 +104,10 @@ export default function Login() {
 
           <label>
             Senha
-            <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type="password" autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Mínimo de 6 caracteres" /></div>
+            <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type="password" autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={register&&!isLocalDemo?"Mínimo de 8 caracteres":"Sua senha"} /></div>
           </label>
 
-          {register&&[['cpf','CPF','text'],['birthDate','Data de nascimento','date'],['phone','Celular com DDD','tel'],['emailConfirmation','Confirmar e-mail','email']].map(([key,label,type])=><label key={key}>{label}<input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></label>)}
+          {register&&[['cpf','CPF','text'],['birthDate','Data de nascimento','date'],['phone','Celular com DDD','tel']].map(([key,label,type])=><label key={key}>{label}<div className="auth-input"><input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></div></label>)}
           {register&&<div className="legal-controls"><label className="legal-choice"><input type="checkbox" required checked={termsAccepted} onChange={e=>setTermsAccepted(e.target.checked)}/><span>Li e concordo com os <Link to="/institucional/termos" target="_blank" rel="noopener noreferrer">Termos de Uso</Link> e estou ciente da <Link to="/institucional/privacidade" target="_blank" rel="noopener noreferrer">Política de Privacidade</Link>.</span></label><label className="legal-choice"><input type="checkbox" checked={marketing} onChange={e=>setMarketing(e.target.checked)}/><span>Desejo receber novidades, ofertas e informações sobre eventos.</span></label>{!legal?.ready&&<p role="status">Documentos em revisão. O cadastro com aceite será liberado após a aprovação das versões oficiais.</p>}</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           {notice && <p className="team-success" role="status">{notice}</p>}
