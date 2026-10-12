@@ -1,3 +1,5 @@
+import VenueMapEditor from '../components/VenueMapEditor'
+import { venueMapUrl } from '../utils/venueMap'
 import { normalizeEventWhatsapp } from '../utils/eventContact'
 import './EventValidation.css'
 import PromoterAccountCard from '../components/PromoterAccountCard'
@@ -151,7 +153,8 @@ export default function Admin() {
   }
   const [uploadingHero, setUploadingImage] = useState(false)
   const [uploadingAttractions, setUploadingAttractions] = useState(false)
-  const uploadingImage = uploadingHero || uploadingAttractions
+  const [uploadingVenueMap,setUploadingVenueMap]=useState(false)
+  const uploadingImage = uploadingHero || uploadingAttractions || uploadingVenueMap
   const [scan, setScan] = useState('')
   const [scanFeedback, setScanFeedback] = useState(null)
   const scanResult = scanFeedback?.eventId === eventId ? scanFeedback.status : null
@@ -276,6 +279,8 @@ export default function Admin() {
       ? { organizerId: currentUser.organizerId, organizerName: currentUser.organizerName }
       : {}
 
+    let venueMapImage
+    try{venueMapImage=venueMapUrl(editing.venueMapImage,{local:isLocalDemo})}catch(error){showSaveError(error.message);return}
     let mapsUrl
     try { mapsUrl = normalizeMapsUrl(editing.mapsUrl) }
     catch (error) { showSaveError(error.message,'#event-maps'); return }
@@ -287,6 +292,7 @@ export default function Admin() {
       archived: Boolean(editing.archived),
       attractions: prepareAttractions(editing.attractions, isLocalDemo),
       mapsUrl,
+      venueMapImage,
       whatsapp,
       price: minimumPrice,
     })
@@ -527,6 +533,7 @@ export default function Admin() {
                 </div>
               </section>
 
+              <VenueMapEditor event={editing} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={setEditing} onBusyChange={setUploadingVenueMap}/>
               <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
               <AttractionEditor key={editing.id} value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
 

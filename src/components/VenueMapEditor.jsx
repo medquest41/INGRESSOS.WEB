@@ -1,0 +1,5 @@
+import EventImageField from './EventImageField'
+import './VenueMap.css'
+export default function VenueMapEditor({event,organizationId,onChange,onBusyChange}){
+ return <details className="venue-map-editor"><summary>Mapa do evento e setores</summary><p>Envie a planta com palco, pista, VIP, camarotes, entradas, banheiros e áreas acessíveis. O cliente poderá ampliar a imagem antes da compra.</p><EventImageField label="Mapa do evento" value={event.venueMapImage||''} organizationId={organizationId} onChange={venueMapImage=>onChange(current=>({...current,venueMapImage}))} onBusyChange={onBusyChange}/><label htmlFor="venue-map-description">Descrição do mapa</label><textarea id="venue-map-description" maxLength={1500} rows={3} value={event.venueMapDescription||''} onChange={e=>onChange(current=>({...current,venueMapDescription:e.target.value}))} placeholder="Ex.: VIP à esquerda do palco. Entrada acessível pela portaria principal."/><small>O mapa orienta a localização dos setores. Ele não reserva mesas ou cadeiras numeradas.</small></details>
+}

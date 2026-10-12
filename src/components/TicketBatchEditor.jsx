@@ -8,8 +8,9 @@ export default function TicketBatchEditor({ ticket, index, isLocalDemo, onChange
       <button type="button" className="danger" onClick={onRemove}>Excluir este ingresso</button>
     </header>
     <div className="ticket-batch-fields">
-      <label>Nome do ingresso<input value={ticket.name} onChange={e => onChange('name', e.target.value)} placeholder="Ex.: Pista ou VIP" /></label>
-      <label>Setor<input value={ticket.sector || ''} onChange={e => onChange('sector', e.target.value)} placeholder="Ex.: Pista, VIP ou Open Bar" /></label>
+      <label>Nome do ingresso<input value={ticket.name} onChange={e => onChange('name', e.target.value)} placeholder="Ex.: Pista, VIP, Camarote 01" /></label>
+      <label>Setor<input value={ticket.sector || ''} onChange={e => onChange('sector', e.target.value)} placeholder="Ex.: Pista Premium, VIP ou Camarotes" /></label>
+      <label>O que este ingresso inclui<textarea aria-label="O que este ingresso inclui" rows={3} maxLength={1500} value={ticket.description||''} onChange={e=>onChange('description',e.target.value)} placeholder="Ex.: acesso à área VIP. Informe os benefícios, restrições e se inclui bebidas ou alimentação."/></label>
       <label>Nome do lote<input value={ticket.batch || ''} onChange={e => onChange('batch', e.target.value)} placeholder="Ex.: 1º lote" /></label>
       <label className="ticket-price-field">Preço do ingresso (R$)<input aria-label="Preço do ingresso (R$)" type="number" inputMode="decimal" min="0" step="0.01" value={Number(ticket.price) === 0 ? '' : ticket.price} placeholder="" onChange={e => onChange('price', e.target.value)} /><small>Valor de uma unidade. Ex.: 85,00. Zero significa gratuito.</small></label>
       <label>Quantidade de ingressos<input aria-label="Quantidade de ingressos" type="number" inputMode="numeric" min="0" step="1" value={ticket.available} onChange={e => onChange('available', e.target.value)} /><small>Estoque total deste lote, incluindo unidades já vendidas.</small></label>
