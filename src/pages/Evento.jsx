@@ -1,3 +1,4 @@
+import { eventContactPhone } from '../utils/eventContact'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
@@ -138,7 +139,7 @@ export default function Evento() {
           </aside>
         </section>
 
-        <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{(event.whatsapp||event.organizerWhatsapp||organizations.find(o=>o.id===event.organizerId)?.whatsapp)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',event.whatsapp||event.organizerWhatsapp||organizations.find(o=>o.id===event.organizerId)?.whatsapp)} target="_blank" rel="noreferrer">Falar no WhatsApp</a>}</section>
+        <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{eventContactPhone(event,organizations)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',eventContactPhone(event,organizations))} target="_blank" rel="noreferrer">Falar com o organizador no WhatsApp</a>}</section>
         <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
 

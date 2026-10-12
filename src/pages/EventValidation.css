@@ -1,0 +1,2 @@
+.event-save-error{background:#3d171b;color:#ffe7e9;border:1px solid #ff7c89;padding:18px;border-radius:14px;font-size:16px;line-height:1.5}.event-editor [aria-invalid="true"]{border:2px solid #ff7c89!important;outline:2px solid #ff7c8940;outline-offset:3px}.event-editor label:has([aria-invalid="true"]){color:#ffb6bf}.event-editor small{line-height:1.6}
+.event-editor label[data-error]::after{content:attr(data-error);display:block;font-size:15px;line-height:1.5;color:#ffb6bf;margin-top:8px}

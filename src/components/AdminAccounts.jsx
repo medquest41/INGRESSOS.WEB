@@ -1,3 +1,5 @@
+import {accountGroups,accountGroup,matchesAccountGroup} from '../utils/accountGroups'
+import {accountInviteLink} from '../utils/accountInvite'
 import AccountsPromoters from './AccountsPromoters'
 import { useMemo, useState } from 'react'
 import { MailPlus, Search, ShieldCheck, Trash2, UserCog, UserPlus } from 'lucide-react'
@@ -16,6 +18,8 @@ const allowedRoles = [
 export default function AdminAccounts() {
   const { currentUser, users, organizations = [], invitations = [], isLocalDemo, inviteUser, toggleUserActive, updateUserProfile, deleteUserSafely, changeUserPassword } = useAuth()
   const { orders } = useEventStore()
+  const [category,setCategory]=useState('cadastrados')
+  const [preparedInvite,setPreparedInvite]=useState(null)
   const [showPromoters,setShowPromoters]=useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState('')
@@ -34,19 +38,21 @@ export default function AdminAccounts() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase().replace(/\D/g, '')
     const raw = query.trim().toLowerCase()
-    if (!raw) return users
-    return users.filter(user => {
+    const grouped=users.filter(user=>matchesAccountGroup(user,category))
+    if (!raw) return grouped
+    return grouped.filter(user => {
       const cpf = String(cpfByUser.get(String(user.id)) || '').replace(/\D/g, '')
       return `${user.name || ''} ${user.email || ''} ${user.organizerName || ''}`.toLowerCase().includes(raw) || (q && cpf.includes(q))
     })
-  }, [users, query, cpfByUser])
+  }, [users, query, cpfByUser,category])
 
   async function submit(event) {
     event.preventDefault()
-    setError(''); setMessage(''); setBusy('invite')
+    setError(''); setMessage('');setPreparedInvite(null); setBusy('invite')
     try {
       const result = await inviteUser(draft)
-      setMessage(result?.status === 'existing' ? 'Conta existente vinculada com sucesso.' : isLocalDemo ? 'Conta criada no modo local.' : 'Convite enviado por e-mail. A pessoa cria o acesso pelo link recebido.')
+      if(result?.invitationUrl)setPreparedInvite({url:result.invitationUrl,email:draft.email})
+      setMessage(result?.status === 'existing' ? 'Conta existente vinculada com sucesso.' : isLocalDemo ? 'Conta criada no modo local.' : 'Convite preparado. Copie e compartilhe o link. A pessoa cria sua conta e aceita os termos pelo próprio cadastro.')
       setDraft({ name: '', email: '', password: '', role: 'organizador', organizerId: '', organizerName: '' })
     } catch (err) { setError(err.message || 'Não foi possível adicionar a conta.') }
     finally { setBusy('') }
@@ -102,7 +108,7 @@ export default function AdminAccounts() {
     <button type="button" className="promoter-button" aria-expanded={showPromoters} onClick={()=>setShowPromoters(v=>!v)}>{showPromoters?'Fechar consulta de promotores':'Ver promotores'}</button>{showPromoters&&<AccountsPromoters/>}
     {!showPromoters&&<div className="accounts-layout">
       <form className="admin-panel account-create-card" onSubmit={submit}>
-        <div className="team-card-title"><UserPlus/><div><h2>Adicionar conta</h2><p>{isLocalDemo ? 'Cria um acesso somente neste navegador.' : 'Envia um link para a pessoa entrar sem você precisar criar ou saber a senha dela.'}</p></div></div>
+        <div className="team-card-title"><UserPlus/><div><h2>Convidar para a equipe</h2><p>{isLocalDemo ? 'Cria um acesso somente neste navegador.' : 'Prepare um convite e envie o link à pessoa. Ela preenche o cadastro, aceita os termos e confirma o próprio e-mail.'}</p></div></div>
         <div className="form-grid">
           <label>Nome completo<input required value={draft.name} onChange={e=>setDraft({...draft,name:e.target.value})} /></label>
           <label>E-mail<input required type="email" value={draft.email} onChange={e=>setDraft({...draft,email:e.target.value})} /></label>
@@ -111,15 +117,15 @@ export default function AdminAccounts() {
           {draft.role === 'organizador' && <label className="full">Empresa / organizador<input required={!draft.organizerId} placeholder="Ex.: Alta Temporada Eventos" value={draft.organizerName} onChange={e=>setDraft({...draft,organizerName:e.target.value})}/></label>}
           {['financeiro','checkin'].includes(draft.role) && <label className="full">Organização<select required value={draft.organizerId} onChange={e=>setDraft({...draft,organizerId:e.target.value})}><option value="">Selecione</option>{organizations.filter(o=>o.active!==false).map(o=><option value={o.id} key={o.id}>{o.name}</option>)}</select></label>}
         </div>
-        <div className="account-security-note"><ShieldCheck/><span><strong>Sem senha no painel.</strong> Em produção, o acesso é ativado pelo e-mail enviado ao usuário.</span></div>
-        <button className="primary-small" disabled={busy==='invite'}>{isLocalDemo ? <UserPlus/> : <MailPlus/>}{busy==='invite'?'Aguarde...':isLocalDemo?'Criar conta local':'Enviar convite'}</button>
+        <div className="account-security-note"><ShieldCheck/><span><strong>Sem senha no painel.</strong> A pessoa define a própria senha e confirma o e-mail depois de aceitar os termos.</span></div>
+        <button className="primary-small" disabled={busy==='invite'}>{isLocalDemo ? <UserPlus/> : <MailPlus/>}{busy==='invite'?'Aguarde...':isLocalDemo?'Criar conta local':'Preparar convite'}</button>
       </form>
 
       <section className="admin-panel account-list-card">
-        <div className="account-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar nome, e-mail ou CPF"/></div>
+        <div className="account-category-tabs" role="group" aria-label="Categorias de contas">{[...accountGroups,...(users.some(u=>accountGroup(u)==='outros')?[['outros','Outros']]:[])].map(([key,label])=><button type="button" aria-pressed={category===key} key={key} onClick={()=>setCategory(key)}>{label}<span>{users.filter(u=>matchesAccountGroup(u,key)).length}</span></button>)}</div>{category==='visitante'&&<p className="account-category-note">Acessos sem e-mail cadastrado ficam separados aqui. Podem ter compras ou histórico; nenhuma conta foi apagada.</p>}<div className="account-search"><Search/><input value={query} onChange={e=>setQuery(e.target.value)} aria-label="Buscar contas nesta categoria" placeholder="Buscar nome, e-mail ou CPF nesta categoria"/></div>
         {error && <div className="auth-error" role="alert">{error}</div>}
-        {message && <p className="team-success" role="status">{message}</p>}
-        {!isLocalDemo && invitations.filter(i=>i.status==='pending').length>0 && <div className="pending-invites"><strong>Convites pendentes</strong>{invitations.filter(i=>i.status==='pending').map(i=><span key={i.id}>{i.name} • {i.email}</span>)}</div>}
+        {message && <p className="team-success" role="status">{message}</p>}{preparedInvite&&<InviteShare url={preparedInvite.url} email={preparedInvite.email}/>}
+        {!isLocalDemo && invitations.filter(i=>i.status==='pending').length>0 && <div className="pending-invites"><strong>Convites pendentes</strong>{invitations.filter(i=>i.status==='pending').map(i=><div key={i.id}><span>{i.name} • {i.email}</span><InviteShare url={accountInviteLink(i.id,i.role,location.origin)} email={i.email}/></div>)}</div>}
         <div className="account-list">
           {filtered.map(user => {
             const cpf = cpfByUser.get(String(user.id))
@@ -143,3 +149,5 @@ export default function AdminAccounts() {
     </div>}
   </>
 }
+
+function InviteShare({url,email}){const [message,setMessage]=useState('');async function copy(){try{await navigator.clipboard.writeText(url);setMessage('Convite copiado! Envie o link para '+email)}catch{setMessage('Selecione o endereço acima e copie o link.')}}async function share(){try{if(navigator.share)await navigator.share({title:'Convite Ingressos Experiences',text:'Abra o link, use o e-mail convidado e aceite os termos para criar seu acesso.',url});else await copy()}catch(e){if(e.name!=='AbortError')setMessage('Não foi possível compartilhar. Use Copiar convite.')}}return <div className="account-invite-share"><p>Convite para <strong>{email}</strong>. Use esse e-mail no cadastro; o link não concede acesso a outro endereço.</p><label>Link do convite<input readOnly value={url} onFocus={e=>e.target.select()}/></label><div><button type="button" className="ghost-btn" onClick={copy}>Copiar convite</button><button type="button" className="ghost-btn" onClick={share}>Compartilhar convite</button></div>{message&&<p role="status">{message}</p>}</div>}

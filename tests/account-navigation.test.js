@@ -1,0 +1,6 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {accountGroup,matchesAccountGroup} from '../src/utils/accountGroups.js'
+import {accountInviteLink} from '../src/utils/accountInvite.js'
+test('guests remain separate, named visitors with email are real customers',()=>{assert.equal(accountGroup({role:'cliente',email:null}),'visitante');assert.equal(accountGroup({role:'cliente',name:'Visitante',email:'real@example.test'}),'cliente');assert.equal(matchesAccountGroup({role:'cliente',email:null},'cadastrados'),false);assert.equal(matchesAccountGroup({role:'organizador',email:null},'organizador'),true);assert.equal(accountGroup({role:'other'}),'outros')})
+test('invite is a signup URL, with no account creation, privilege or email in the link',()=>{const id='10000000-0000-4000-8000-000000000001';const url=new URL(accountInviteLink(id,'organizador','https://example.test'));assert.equal(url.pathname,'/login');assert.equal(url.searchParams.get('cadastro'),'1');assert.equal(url.searchParams.get('returnTo'),'/admin');assert.equal(url.searchParams.get('convite'),id);assert.equal(url.searchParams.has('role'),false);assert.equal(new URL(accountInviteLink(id,'cliente','https://example.test')).searchParams.get('returnTo'),'/ingressos');assert.throws(()=>accountInviteLink('invalid','admin','https://example.test'),/Convite inválido/)})

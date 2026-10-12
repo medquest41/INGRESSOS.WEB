@@ -29,6 +29,7 @@ export default function Login() {
 
   const destination = authDestination(location.search, location.state?.from)
   const promoterAccess=destination.startsWith('/promotores');
+  const invitationAccess=new URLSearchParams(location.search).has('convite');
   useEffect(()=>{if(promoterAccess)window.scrollTo(0,0)},[promoterAccess]);
   const portaria = /^\/admin\/evento\/[^/]+\/checkin$/.test(destination)
 
@@ -89,7 +90,7 @@ export default function Login() {
           </div>
         </section>
 
-        <form className="auth-card" onSubmit={submit}>
+        <form className="auth-card" onSubmit={submit}>{invitationAccess&&<p className="team-success">Você recebeu um convite. Use o mesmo e-mail informado ao administrador, preencha seus dados e aceite os termos. Depois confirme seu e-mail para acessar.</p>}
           <div className="auth-card-icon"><ShieldCheck /></div>
           <span>{setup ? 'CONFIGURAÇÃO INICIAL' : promoterAccess ? 'PROGRAMA DE PROMOTORES' : portaria ? 'PORTARIA • SOMENTE VALIDAÇÃO' : 'ACESSO AO PAINEL'}</span>
           <h2>{setup ? 'Administrador principal' : register ? (promoterAccess?'Criar minha conta de promotor':'Criar conta') : (promoterAccess?'Entrar como promotor':'Entrar')}</h2>

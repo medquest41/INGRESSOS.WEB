@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, CreditCard, MessageCircle, ScanLine, Smartphone, CalendarDays, ChevronRight, Clock3, MapPin, Menu, Search, ShieldCheck, Sparkles, Star, Ticket, UserRound, X } from 'lucide-react'
 import Brand from '../components/Brand'
-import SupportWhatsApp from '../components/SupportWhatsApp'
 import Activity from '../components/Activity'
 import { Preferences, publicText } from '../components/PublicChrome'
 import { distanceKm, eventIsPublic } from '../utils/experience'
@@ -86,7 +85,7 @@ export default function Home({ catalog = false }) {
               <p className="hero-description">Descubra festas, shows e experiências únicas. Escolha seu ingresso, garanta seu lugar e viva cada momento.</p>
               <button className="party-toggle" aria-pressed={partyPaused} onClick={()=>setPartyPaused(!partyPaused)}>{partyPaused ? 'Ativar efeitos de festa' : 'Pausar efeitos de festa'}</button>
               <div className="hero-actions"><a href="#eventos" className="primary-cta">Explorar eventos <ArrowRight size={20}/></a><Link to="/ingressos" className="secondary-cta"><Ticket size={19}/>Meus ingressos</Link></div>
-              <SupportWhatsApp/>
+
               <div className="hero-trust"><div className="trust-item"><ShieldCheck size={21}/><div><strong>Compra segura</strong><span>Ingresso digital protegido</span></div></div><div className="trust-divider"/><div className="trust-item"><Ticket size={21}/><div><strong>QR Code exclusivo</strong><span>Validação rápida na entrada</span></div></div></div>
             </div>
 
@@ -119,7 +118,7 @@ export default function Home({ catalog = false }) {
             { icon: Smartphone, title: 'Tudo pelo celular', text: 'Encontre eventos e compre seu ingresso de onde estiver, sem sair de casa.' },
             { icon: ScanLine, title: 'Entrada com QR Code', text: 'Cada ingresso tem um código exclusivo. A validação protege contra o uso repetido.' },
             { icon: CreditCard, title: 'Pix ou cartão', text: 'Escolha a forma de pagamento disponível no checkout e acompanhe seu pedido.' },
-            { icon: MessageCircle, title: 'Atendimento próximo', text: 'Precisa de ajuda? Fale com a nossa equipe pelo WhatsApp da página principal.' },
+            { icon: MessageCircle, title: 'Atendimento próximo', text: 'Precisa de ajuda? Fale com o organizador pelo WhatsApp disponível na página do evento.' },
             { icon: CalendarDays, title: 'Seu evento, organizado', text: 'Gerencie ingressos e autorize sua equipe de portaria a validar as entradas.' },
           ].map(({ icon: Icon, title, text }) => <article className="home-benefit neon-outline" key={title}><span className="home-benefit-icon"><Icon size={26} aria-hidden="true"/></span><h3>{title}</h3><p>{text}</p></article>)}</div>
         </section>

@@ -1,3 +1,4 @@
+import { accountInviteLink } from '../utils/accountInvite'
 import { signupResult } from '../utils/signupResult'
 /* oxlint-disable react/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
@@ -79,14 +80,8 @@ function RemoteAuthProvider({ children }) {
       organization: input.organizerId === 'org-main' ? null : input.organizerId || null,
       organization_name: input.organizerName || null,
     }))
-    if (outcome?.status === 'pending') {
-      await result(supabase.auth.signInWithOtp({
-        email: input.email.trim(),
-        options: { shouldCreateUser: true, emailRedirectTo: location.origin + '/login' },
-      }))
-    }
     refresh()
-    return outcome
+    return outcome?.status==='pending'?{...outcome,invitationUrl:accountInviteLink(outcome.invitationId,input.role,location.origin)}:outcome
   }
   async function deleteUserSafely(id) { const status=await result(supabase.rpc('safe_delete_member',{member_id:id}));refresh();return status }
   async function becomeOrganizer(name) { const id=await result(supabase.rpc('become_organizer',{organization_name:name.trim()}));refresh();return id }

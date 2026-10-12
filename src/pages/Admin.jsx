@@ -1,3 +1,5 @@
+import { normalizeEventWhatsapp } from '../utils/eventContact'
+import './EventValidation.css'
 import PromoterAccountCard from '../components/PromoterAccountCard'
 import SalesCleanup from '../components/SalesCleanup'
 import EventCheckinTeam from '../components/EventCheckinTeam'
@@ -140,6 +142,13 @@ export default function Admin() {
     setScanResult(null)
   }
   const [editing, setEditing] = useState(null)
+  const [saveError,setSaveError]=useState('')
+  function showSaveError(message,selector){
+    setSaveError(message)
+    document.querySelectorAll('.event-editor [aria-invalid="true"]').forEach(el=>{el.removeAttribute('aria-invalid');delete el.closest('label')?.dataset.error})
+    const field=document.querySelector(selector||'.event-save-error')
+    if(field){field.setAttribute('aria-invalid','true');const label=field.closest('label');if(label)label.dataset.error=message;field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true})}
+  }
   const [uploadingHero, setUploadingImage] = useState(false)
   const [uploadingAttractions, setUploadingAttractions] = useState(false)
   const uploadingImage = uploadingHero || uploadingAttractions
@@ -195,6 +204,7 @@ export default function Admin() {
 
   function startNew() {
     if (!canManageEvents) return
+    setSaveError('')
     setEditing(blankEvent(currentUser))
     if (eventKey) navigate('/admin?tab=events')
     else setTab('events')
@@ -202,6 +212,7 @@ export default function Admin() {
 
   function editEvent(event) {
     if (!canManageEvents) return
+    setSaveError('')
     setEditing(clone(event))
     setTab('events')
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -247,10 +258,16 @@ export default function Admin() {
   async function save() {
     if (!canManageEvents || !editing || uploadingImage) return
     if (!isLocalDemo && role === 'admin' && (!editing.organizerId || editing.organizerId === 'org-main')) {
-      window.alert('Selecione ou cadastre um organizador antes de salvar o evento.')
+      showSaveError('Selecione ou cadastre o organizador responsável antes de salvar.', '.event-organizer-field select')
       return
     }
 
+    setSaveError('')
+    for(const [key,label] of [['title','nome do evento'],['date','data do evento'],['time','horário'],['location','local'],['address','endereço'],['city','cidade/UF']]){
+      if(!String(editing[key]||'').trim()){showSaveError('Preencha o campo '+label+' antes de salvar.', '#event-'+key);return}
+    }
+    let whatsapp
+    try{whatsapp=normalizeEventWhatsapp(editing.whatsapp)}catch(error){showSaveError(error.message,'#event-whatsapp');return}
     const minimumPrice = editing.ticketTypes.length
       ? Math.min(...editing.ticketTypes.map((ticket) => Number(ticket.price) || 0))
       : 0
@@ -261,7 +278,7 @@ export default function Admin() {
 
     let mapsUrl
     try { mapsUrl = normalizeMapsUrl(editing.mapsUrl) }
-    catch (error) { window.alert(error.message); return }
+    catch (error) { showSaveError(error.message,'#event-maps'); return }
 
     try { await saveEvent({
       ...editing,
@@ -270,9 +287,10 @@ export default function Admin() {
       archived: Boolean(editing.archived),
       attractions: prepareAttractions(editing.attractions, isLocalDemo),
       mapsUrl,
+      whatsapp,
       price: minimumPrice,
     })
-    setEditing(null) } catch (err) { window.alert(err.message) }
+    setEditing(null) } catch (err) { showSaveError(err.message) }
   }
 
   async function duplicateEvent(event) {
@@ -483,23 +501,24 @@ export default function Admin() {
               <div className="admin-actions"><button className="ghost-btn" disabled={uploadingImage} onClick={() => setEditing(null)}>Cancelar</button><button className="primary-small" disabled={uploadingImage} onClick={save}><Save />{uploadingImage ? 'Enviando imagem...' : 'Salvar'}</button></div>
             </div>
 
-            <div className="event-editor">
+            <div className="event-editor" onInputCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}} onChangeCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}}>
+              {saveError&&<p className="event-save-error" role="alert" tabIndex={-1}>{saveError}</p>}
               <section>
                 <h3>Informações principais</h3>
                 <div className="form-grid">
-                  <label>Nome<input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></label>
+                  <label>Nome<input id="event-title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></label>
                   <label>Categoria<input value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} /></label>
                   {role === 'admin' && (
                     <EventOrganizerField value={editing.organizerId} options={organizerOptions} onChange={organization => setEditing(event => ({ ...event, organizerId: organization.id, organizerName: organization.name }))} />
                   )}
                   <label className="full">Slug / link público<input value={editing.slug || ''} onChange={(e) => setEditing({ ...editing, slug: slugifyEventTitle(e.target.value) })} placeholder={slugifyEventTitle(editing.title) || 'nome-do-evento'} /></label>
                   <label>Data curta<input value={editing.shortDate} onChange={(e) => setEditing({ ...editing, shortDate: e.target.value })} /></label>
-                  <label>Data completa<input value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} /></label>
-                  <label>Horário<input value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} /></label>
-                  <label>Local<input value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} /></label>
-                  <label className="full">Link do Google Maps (opcional)<input type="url" value={editing.mapsUrl || ''} onChange={(e) => setEditing({ ...editing, mapsUrl: e.target.value })} placeholder="Cole aqui o link compartilhado do Google Maps"/><small>Este link será aberto pelo botão “Ver localização” no evento público.</small></label>
-                  <label>Endereço<input value={editing.address} onChange={(e) => setEditing({ ...editing, address: e.target.value })} /></label>
-                  <label>Cidade/UF<input value={editing.city} onChange={(e) => setEditing({ ...editing, city: e.target.value })} /></label>
+                  <label>Data completa<input id="event-date" value={editing.date} onChange={(e) => setEditing({ ...editing, date: e.target.value })} /></label>
+                  <label>Horário<input id="event-time" value={editing.time} onChange={(e) => setEditing({ ...editing, time: e.target.value })} /></label>
+                  <label>Local<input id="event-location" value={editing.location} onChange={(e) => setEditing({ ...editing, location: e.target.value })} /></label>
+                  <label className="full">Link do Google Maps (opcional)<input id="event-maps" type="url" value={editing.mapsUrl || ''} onChange={(e) => setEditing({ ...editing, mapsUrl: e.target.value })} placeholder="Cole aqui o link compartilhado do Google Maps"/><small>Este link será aberto pelo botão “Ver localização” no evento público.</small></label>
+                  <label>Endereço<input id="event-address" value={editing.address} onChange={(e) => setEditing({ ...editing, address: e.target.value })} /></label>
+                  <label>Cidade/UF<input id="event-city" value={editing.city} onChange={(e) => setEditing({ ...editing, city: e.target.value })} /></label>
                   <label>Badge<input value={editing.badge} onChange={(e) => setEditing({ ...editing, badge: e.target.value })} /></label>
                   <label>Status de venda<input value={editing.salesStatus} onChange={(e) => setEditing({ ...editing, salesStatus: e.target.value })} /></label>
                   <EventImageField value={editing.image} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={image => setEditing(event => event ? { ...event, image } : event)} onBusyChange={setUploadingImage} />
