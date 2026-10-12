@@ -3,7 +3,7 @@ import { legalCatalog, acceptanceClaims } from '../services/legal'
 import './LegalDocument.css'
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import Brand from '../components/Brand'
 import { validateBuyer } from '../utils/commerce'
 import { authDestination } from '../utils/authReturn'
@@ -21,6 +21,7 @@ export default function Login() {
   useEffect(()=>{let active=true;legalCatalog().then(c=>{if(active)setLegal(c)}).catch(()=>{});return()=>{active=false}},[])
   const [notice,setNotice]=useState('')
   const [busy, setBusy] = useState(false)
+  const [showPassword,setShowPassword]=useState(false)
   const [register, setRegister] = useState(new URLSearchParams(location.search).get('cadastro')==='1')
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
@@ -104,7 +105,7 @@ export default function Login() {
 
           <label>
             Senha
-            <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type="password" autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={register&&!isLocalDemo?"Mínimo de 8 caracteres":"Sua senha"} /></div>
+            <div className="auth-input"><LockKeyhole /><input required minLength={register&&!isLocalDemo?8:6} type={showPassword?'text':'password'} autoComplete={setup||register ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder={register&&!isLocalDemo?"Mínimo de 8 caracteres":"Sua senha"} /><button type="button" className="auth-password-toggle" aria-label={showPassword?"Ocultar senha":"Mostrar senha"} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff aria-hidden="true"/>:<Eye aria-hidden="true"/>}</button></div>
           </label>
 
           {register&&[['cpf','CPF','text'],['birthDate','Data de nascimento','date'],['phone','Celular com DDD','tel']].map(([key,label,type])=><label key={key}>{label}<div className="auth-input"><input required type={type} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></div></label>)}
