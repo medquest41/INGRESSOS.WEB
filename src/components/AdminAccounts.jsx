@@ -1,3 +1,4 @@
+import AccountsPromoters from './AccountsPromoters'
 import { useMemo, useState } from 'react'
 import { MailPlus, Search, ShieldCheck, Trash2, UserCog, UserPlus } from 'lucide-react'
 import { useAuth } from '../store/AuthStore'
@@ -15,6 +16,7 @@ const allowedRoles = [
 export default function AdminAccounts() {
   const { currentUser, users, organizations = [], invitations = [], isLocalDemo, inviteUser, toggleUserActive, updateUserProfile, deleteUserSafely, changeUserPassword } = useAuth()
   const { orders } = useEventStore()
+  const [showPromoters,setShowPromoters]=useState(false)
   const [query, setQuery] = useState('')
   const [busy, setBusy] = useState('')
   const [message, setMessage] = useState('')
@@ -97,7 +99,8 @@ export default function AdminAccounts() {
   return <>
     <div className="admin-title"><div><span className="section-kicker">ADMINISTRADOR GERAL</span><h1>Contas.</h1><p className="muted">Adicione acessos, pesquise por nome, e-mail ou CPF e remova contas com proteção do histórico.</p></div></div>
 
-    <div className="accounts-layout">
+    <button type="button" className="promoter-button" aria-expanded={showPromoters} onClick={()=>setShowPromoters(v=>!v)}>{showPromoters?'Fechar consulta de promotores':'Ver promotores'}</button>{showPromoters&&<AccountsPromoters/>}
+    {!showPromoters&&<div className="accounts-layout">
       <form className="admin-panel account-create-card" onSubmit={submit}>
         <div className="team-card-title"><UserPlus/><div><h2>Adicionar conta</h2><p>{isLocalDemo ? 'Cria um acesso somente neste navegador.' : 'Envia um link para a pessoa entrar sem você precisar criar ou saber a senha dela.'}</p></div></div>
         <div className="form-grid">
@@ -123,7 +126,7 @@ export default function AdminAccounts() {
             const primary = String(user.email||'').toLowerCase() === 'ingressosaltatemporada@gmail.com'
             return <article key={user.id} className={user.active===false?'account-disabled':''}>
               <div className="team-avatar">{String(user.name||'?').slice(0,1).toUpperCase()}</div>
-              <div className="account-copy"><strong>{user.name}</strong><span>{user.email}</span>{cpf && <small>CPF em compras: {formatCpf(cpf)}</small>}<small>{user.organizerName || (primary ? 'Administrador principal' : '')}</small></div>
+              <div className="account-copy"><strong>{user.name}</strong><span>{user.email}</span><small>Data de cadastro: {user.created_at&&!Number.isNaN(new Date(user.created_at).getTime())?new Date(user.created_at).toLocaleString('pt-BR'):'Não disponível'}</small>{cpf && <small>CPF em compras: {formatCpf(cpf)}</small>}<small>{user.organizerName || (primary ? 'Administrador principal' : '')}</small></div>
               <div className="account-actions">
                 {primary ? <span className="primary-admin-badge"><ShieldCheck/>Administrador principal</span> : <>
                   <select aria-label={`Perfil de ${user.name}`} value={user.role} disabled={busy==='role:'+user.id} onChange={e=>changeRole(user,e.target.value)}>{allowedRoles.map(([value,label])=><option key={value} value={value}>{label}</option>)}</select>
@@ -137,6 +140,6 @@ export default function AdminAccounts() {
           {filtered.length===0 && <p>Nenhuma conta encontrada.</p>}
         </div>
       </section>
-    </div>
+    </div>}
   </>
 }
