@@ -1,3 +1,4 @@
+import { existingAccountMessage, isExistingAccountError, loginErrorMessage } from '../utils/signupResult'
 import './LoginFields.css'
 import { legalCatalog, acceptanceClaims } from '../services/legal'
 import './LegalDocument.css'
@@ -22,6 +23,7 @@ export default function Login() {
   const [notice,setNotice]=useState('')
   const [busy, setBusy] = useState(false)
   const [showPassword,setShowPassword]=useState(false)
+  const [existingAccount,setExistingAccount]=useState(false)
   const [register, setRegister] = useState(new URLSearchParams(location.search).get('cadastro')==='1')
   const setup = needsSetup && (location.state?.from || '').startsWith('/admin')
 
@@ -37,7 +39,7 @@ export default function Login() {
   async function submit(event) {
     event.preventDefault()
     setBusy(true)
-    setError('');setNotice('')
+    setError('');setNotice('');setExistingAccount(false)
 
     try {
       if (setup) {
@@ -47,13 +49,14 @@ export default function Login() {
         const legalAcceptances=acceptanceClaims(legal,['termos','privacidade']);
         validateBuyer(form);
         const response = await registerCustomer({ ...form, legalAcceptances, marketing, returnTo: destination })
+        if (response?.existingAccount) { setExistingAccount(true);setRegister(false);setForm(v=>({...v,password:''}));setNotice(promoterAccess?existingAccountMessage:'Você já possui uma conta. Entre ou recupere sua senha para continuar.');return }
         if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':promoterAccess?'Conta criada. Confirme seu e-mail e entre para completar seu cadastro de promotor e informar seu Pix.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
       navigate(destination, { replace: true })
     } catch (err) {
-      setError(err.message || 'Não foi possível entrar.')
+      if(register&&isExistingAccountError(err.message)){setExistingAccount(true);setRegister(false);setForm(v=>({...v,password:''}));setNotice(promoterAccess?existingAccountMessage:'Você já possui uma conta. Entre ou recupere sua senha para continuar.');setError('')}else setError(loginErrorMessage(err.message))
     } finally {
       setBusy(false)
     }
@@ -116,7 +119,7 @@ export default function Login() {
           {!setup && <button type="button" className="ghost-btn" onClick={() => setRegister(!register)}>{register ? 'Já tenho conta — entrar' : 'Criar conta'}</button>}
 
           <button className="checkout-button" disabled={busy||(register&&(!termsAccepted||!legal?.ready))}>
-            {busy ? 'Aguarde...' : setup ? 'Criar administrador' : register ? 'Criar conta' : 'Entrar'}
+            {busy ? 'Aguarde...' : setup ? 'Criar administrador' : register ? 'Criar conta' : existingAccount ? 'Entrar na minha conta' : 'Entrar'}
             {!busy && <ArrowRight size={18} />}
           </button>
 

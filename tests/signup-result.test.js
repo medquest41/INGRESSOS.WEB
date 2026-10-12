@@ -1,0 +1,7 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {signupResult,isExistingAccountError,loginErrorMessage} from '../src/utils/signupResult.js'
+test('existing confirmed email is not reported as a newly created account',()=>{assert.deepEqual(signupResult({user:{identities:[]},session:null}),{existingAccount:true,confirmationRequired:false})})
+test('new and pending accounts retain email confirmation and live sessions enter normally',()=>{assert.equal(signupResult({user:{identities:[{provider:'email'}]},session:null}).confirmationRequired,true);assert.equal(signupResult({session:{},user:{identities:[]}}).existingAccount,false);assert.equal(signupResult({session:{}}).confirmationRequired,false)})
+test('only explicit duplicate identity errors suggest an existing account',()=>{for(const s of ['User already registered','CPF já cadastrado','Identidade já cadastrada ou autoindicação'])assert.equal(isExistingAccountError(s),true);for(const s of ['CPF inválido','Database error saving new user','Email rate limit exceeded'])assert.equal(isExistingAccountError(s),false)})
+test('login explains invalid credentials and confirmation without inventing account status',()=>{assert.match(loginErrorMessage('Invalid login credentials'),/E-mail ou senha incorretos/);assert.match(loginErrorMessage('Email not confirmed'),/Confirme seu e-mail/);assert.equal(loginErrorMessage('Falha de rede'),'Falha de rede')})

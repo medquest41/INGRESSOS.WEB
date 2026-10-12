@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises'
 import {randomUUID} from 'node:crypto'
 import {defaultEvents} from '../src/data/defaultEvents.js'
 const org='20000000-0000-4000-8000-000000000001',eventId='30000000-0000-4000-8000-000000000001',batch='40000000-0000-4000-8000-000000000001',userId='10000000-0000-4000-8000-000000000001',base=defaultEvents[0]
-async function mockApi(page,{role='cliente',price=0,error=false,owner=false}={}){
+async function mockApi(page,{role='cliente',price=0,error=false,owner=false,signupDuplicate=false}={}){
  const calls=[],orders=[];let logged=false
  const profile={id:userId,email:owner?'ingressosaltatemporada@gmail.com':role==='admin'?'medquest41@gmail.com':'cliente@example.test',name:'Cliente Teste',role,active:true,organization_id:role==='cliente'?null:org,organizations:{name:'Empresa A'}}
  const user={id:userId,email:profile.email,aud:'authenticated',role:'authenticated',email_confirmed_at:new Date().toISOString(),app_metadata:{provider:'email'},user_metadata:{name:profile.name}}
@@ -14,7 +14,7 @@ async function mockApi(page,{role='cliente',price=0,error=false,owner=false}={})
   if(p==='/auth/v1/token'){logged=true;return send({access_token:token,refresh_token:'synthetic-refresh',expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user})}
   if(p==='/auth/v1/user'){if(request.method()==='PUT')return send({user});return send(user)}
   if(p==='/auth/v1/logout'){logged=false;return send({})}
-  if(p==='/auth/v1/signup')return send({user:{...user,id:randomUUID()},session:null})
+  if(p==='/auth/v1/signup')return send({user:{...user,id:randomUUID(),identities:signupDuplicate?[]:[{provider:'email'}]},session:null})
   if(p==='/auth/v1/recover')return send({})
   if(p==='/rest/v1/profiles')return send(url.searchParams.has('id')?profile:[profile])
   if(p==='/rest/v1/organizations')return send([{id:org,name:'Empresa A',active:true}])
@@ -76,6 +76,9 @@ for(const viewport of [{name:'desktop',width:1366,height:900},{name:'mobile',wid
  await page.getByRole('link',{name:/Criar conta como promotor/}).click();await expect(page.getByRole('heading',{name:'Criar minha conta de promotor',exact:true})).toBeVisible();await expect(page.getByLabel('Confirmar e-mail',{exact:true})).toHaveCount(0);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);expect(await page.evaluate(()=>scrollY)).toBe(0);await page.screenshot({path:'test-results/promoter-signup-'+viewport.name+'.png',fullPage:true});
  await page.goto('/promotores');await page.getByRole('button',{name:'Quero ser promotor →',exact:true}).click();await page.getByRole('link',{name:/Cadastrar minha conta como promotor/}).click();await expect(page.getByRole('heading',{name:'Entrar como promotor',exact:true})).toBeVisible();await expect(page).toHaveURL(/participar%3D1/);
  await page.goto('/promotores');await page.getByRole('button',{name:'Quero ser promotor →',exact:true}).click();await page.keyboard.press('Escape');await expect(page.getByRole('dialog')).not.toBeVisible();await page.getByRole('button',{name:'Quero ser promotor →',exact:true}).click();await page.getByRole('link',{name:/Entrar no meu painel de promotor/}).click();await expect(page.getByRole('heading',{name:'Entrar como promotor',exact:true})).toBeVisible();await expect(page).toHaveURL(/returnTo=%2Fpromotores$/);
+ })
+ test('existing signup directs to login without claiming an email was sent',async({page})=>{
+ await mockApi(page,{signupDuplicate:true});await reviewedLegal(page);await program(page);await page.goto('/login?cadastro=1&returnTo=%2Fpromotores%3Fparticipar%3D1');await page.getByRole('button',{name:'Somente essenciais'}).click();await page.getByLabel('Seu nome',{exact:true}).fill('Pessoa Teste');await page.getByLabel('E-mail',{exact:true}).fill('existente@example.test');await page.getByLabel('Senha',{exact:true}).fill('Synthetic-Password-123');await page.getByLabel('CPF',{exact:true}).fill('52998224725');await page.getByLabel('Data de nascimento',{exact:true}).fill('1990-01-01');await page.getByLabel('Celular com DDD',{exact:true}).fill('45999999999');await page.getByRole('checkbox',{name:/Li e concordo/}).check();await page.getByRole('button',{name:'Criar conta',exact:true}).click();await expect(page.getByRole('status').filter({hasText:'Você já possui uma conta.'})).toBeVisible();await expect(page.getByRole('heading',{name:'Entrar como promotor',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Entrar na minha conta',exact:true})).toBeVisible();await expect(page.getByLabel('E-mail',{exact:true})).toHaveValue('existente@example.test');await expect(page.getByLabel('Senha',{exact:true})).toHaveValue('');await expect(page.getByRole('button',{name:'Esqueci minha senha',exact:true})).toBeVisible();await expect(page).toHaveURL(/participar%3D1/);
  })
  test('enrollment captures complementary data and current consent',async({page})=>{
  await mockApi(page);await reviewedLegal(page);const s=await program(page);await login(page,'cliente','/promotores');await page.getByRole('button',{name:'Somente essenciais'}).click();

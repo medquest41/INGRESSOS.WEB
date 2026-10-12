@@ -1,3 +1,4 @@
+import { signupResult } from '../utils/signupResult'
 /* oxlint-disable react/only-export-components */
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { loginPath } from '../utils/authReturn'
@@ -58,7 +59,7 @@ function RemoteAuthProvider({ children }) {
   async function logout() { try {await result(supabase.auth.signOut());setCurrentUser(null);setUsers([])} catch(err){setError(err.message)} }
   async function registerCustomer({name,email,password,returnTo,cpf,phone,birthDate,legalAcceptances,marketing}) {
     const data = await result(supabase.auth.signUp({email:email.trim(),password,options:{data:{name:name.trim(),cpf,phone,birthDate,legalAcceptances,marketing:marketing===true},emailRedirectTo:location.origin+loginPath(returnTo)}}))
-    return { confirmationRequired: !data.session }
+    return signupResult(data)
   }
   async function resetPassword(email) { return result(supabase.auth.resetPasswordForEmail(email.trim(),{redirectTo:location.origin+'/redefinir-senha'})) }
   async function changeUserPassword(userId) { const u=users.find(x=>x.id===userId); if(!u?.email) throw new Error('Usuário não encontrado.'); await resetPassword(u.email) }
