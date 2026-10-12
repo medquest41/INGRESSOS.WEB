@@ -1,3 +1,4 @@
+import ReservationDeadline from './ReservationDeadline'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
@@ -38,7 +39,9 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
     return()=>{active=false}
   },[orderId,onOrder,accept,reload,autoStart,initialMethod,cardEnabled])
   useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(timer)},[])
-  const seconds=order?Math.max(0,Math.ceil((new Date(result?.expiresAt||order.expiresAt).getTime()-now)/1000)):0
+  const deadline=result?.expiresAt||order?.expiresAt
+  const deadlineTime=new Date(deadline).getTime()
+  const seconds=Number.isFinite(deadlineTime)?Math.max(0,Math.ceil((deadlineTime-now)/1000)):0
   const waiting=Boolean(result&&['creating','pending','in_process','authorized','confirming'].includes(result.status)) || Boolean(error && order?.status==='pending' && !result)
   const check=useCallback(async()=>{
     if(fetching.current)return
@@ -73,6 +76,7 @@ export default function InlinePayment({orderId,initialMethod='pix',onConfirmed,o
     <h2 id={popup?'payment-popup-title':undefined}>{method==='card'?'Pagamento com cartão':'Pagamento Pix'}</h2>{popup&&<button type="button" className="ghost-btn payment-popup-close" onClick={()=>setPopupOpen(false)} aria-label="Fechar pagamento">Fechar</button>}{busy&&<p role="status">{cancelPrompt?'Cancelando pedido…':method==='card'?'Abrindo Mercado Pago…':'Gerando seu QR Code Pix…'}</p>}
     {error&&<p role="alert" className="auth-error">{error}</p>}
     {!order?<div><p role="status">{error?'O pagamento não carregou.':'Carregando pagamento…'}</p>{error&&<button className="ghost-btn" onClick={()=>{setError('');setReload(n=>n+1)}}>Tentar novamente</button>}<Link to="/ingressos">Ver meus pedidos</Link></div>:<>
+      <ReservationDeadline seconds={seconds} deadline={Number.isFinite(deadlineTime)?deadline:null} status={result?.status||order.status} onCheck={check}/>
       <p className="inline-payment-total">Total do pedido: <strong>{brl(order.total)}</strong></p>
       <div className="payment-options"><button type="button" disabled={locked||busy} className={method==='pix'?'active':''} onClick={()=>{setMethod('pix');setResult(null)}}><QrCode/>Pix<span>QR Code e copia e cola</span></button><button type="button" disabled={!cardEnabled||locked||busy} className={method==='card'?'active':''} onClick={()=>{setMethod('card');setResult(null)}}><CreditCard/>Cartão<span>{cardEnabled?'Checkout Mercado Pago':'Ainda indisponível'}</span></button></div>
       {result?.status==='approved'?<p role="status" className="team-success">Pagamento confirmado. Seus ingressos estão disponíveis.</p>:<>
