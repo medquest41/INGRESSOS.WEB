@@ -359,7 +359,7 @@ export default function Admin() {
           <span><strong>{currentUser.name}</strong><small>{roleLabels[role]}</small></span>
         </div>
 
-        <nav>{role==='organizador'&&<Link className="promoter-nav-highlight" to="/promotores">✦ Meu painel de promotor</Link>}{isPrimaryAdmin&&<><Link to="/preferencias-legais">Termos e aceites</Link><Link className="promoter-nav-highlight" to="/admin/promotores"><span>✦ Promotores</span><small>Aprovações e comissões</small></Link></>}
+        <nav>{role==='organizador'&&<Link className="promoter-nav-highlight" to="/promotores">✦ Meus ganhos de promotor</Link>}{isPrimaryAdmin&&<><Link to="/preferencias-legais">Termos e aceites</Link><Link className="promoter-nav-highlight" to="/admin/promotores"><span>✦ Ganhos dos promotores</span><small>Comissões, aprovações e pagamentos</small></Link></>}
           {role !== 'checkin' && <button className={tab === 'dashboard' ? 'active' : ''} onClick={() => goTab('dashboard')}><LayoutDashboard />Dashboard</button>}
           {canManageEvents && <button className={tab === 'events' ? 'active' : ''} onClick={() => goTab('events')}><CalendarDays />Eventos</button>}
           {canSeeOrders && <button className={tab === 'orders' ? 'active' : ''} onClick={() => goTab('orders')}><Ticket />Pedidos</button>}
@@ -392,7 +392,7 @@ export default function Admin() {
               {canManageEvents && <button onClick={startNew} className="primary-small"><Plus />Novo evento</button>}
             </div>
 
-            {role==='organizador'&&!eventId&&<PromoterAccountCard key={currentUser.id} userId={currentUser.id}/>}
+            {(role==='organizador'||isPrimaryAdmin)&&!eventId&&<PromoterAccountCard key={currentUser.id} userId={currentUser.id}/>}
             <div className="admin-stats">
               <div><span>Eventos ativos</span><strong>{activeEvents.length}</strong></div>
               <div><span>Pedidos</span><strong>{visibleOrders.length}</strong></div>
