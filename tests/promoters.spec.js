@@ -16,6 +16,7 @@ async function mockApi(page,{role='cliente',price=0,error=false,owner=false,sign
   if(p==='/auth/v1/logout'){logged=false;return send({})}
   if(p==='/auth/v1/signup')return send({user:{...user,id:randomUUID(),identities:signupDuplicate?[]:[{provider:'email'}]},session:null})
   if(p==='/rest/v1/rpc/prepare_account_invite')return send({status:'pending',invitationId:'80000000-0000-4000-8000-000000000001'});
+  if(p==='/functions/v1/payments'&&body.action==='capabilities')return send({status:'available',cardEnabled:false,version:'17.2'});
   if(p==='/auth/v1/recover')return send({})
   if(p==='/rest/v1/profiles')return send(url.searchParams.has('id')?profile:[profile,...accountRows])
   if(p==='/rest/v1/organizations')return send([{id:org,name:'Empresa A',active:true}])
