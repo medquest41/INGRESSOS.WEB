@@ -134,3 +134,5 @@
 .app-shell.party-paused .event-card:hover img { transform:none; }
 @media(max-width:720px) { .party-confetti:nth-child(n+14) { display:none; } .party-firework-2 { display:none; } .party-firework i { height:22px; } .party-firework-0 { top:210px; left:90%; } .party-firework-1 { top:760px; right:12%; } .party-orbit { opacity:.5; } }
 @media(prefers-reduced-motion:reduce) { .party-firework { display:none; } .party-atmosphere *, .app-shell .featured-card-image img { animation:none!important; } .app-shell .event-card:hover img { transform:none; } .app-shell .party-toggle { display:none; } }
+
+.app-shell .topbar .topbar-actions .account-panel-button{display:inline-flex}@media(max-width:1050px){.app-shell .topbar .topbar-actions .account-panel-button{min-height:40px;padding:9px 12px;font-size:13px;gap:7px}.app-shell .topbar .account-panel-button svg:last-child{display:none}}

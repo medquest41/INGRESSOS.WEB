@@ -29,8 +29,10 @@ export default function Home({ catalog = false }) {
   function locate(){if(!navigator.geolocation){setGeoError('Localização indisponível. Escolha sua cidade.');return}navigator.geolocation.getCurrentPosition(p=>{setPosition({latitude:p.coords.latitude,longitude:p.coords.longitude});setCity('');setGeoError('')},()=>setGeoError('Não foi possível acessar sua localização. Escolha uma cidade.'),{enableHighAccuracy:false,timeout:10000,maximumAge:600000})}
   const published = events.filter(eventIsPublic)
   const featured = published[0]
-  const panelUser = currentUser && ['admin','organizador','financeiro','checkin'].includes(currentUser.role)
+  const signedIn = Boolean(currentUser && !currentUser.guest)
+  const panelUser = signedIn && ['admin','organizador','financeiro','checkin'].includes(currentUser.role)
   const creatorPath = isLocalDemo || panelUser ? '/admin' : '/criar-evento'
+  const accountPath = panelUser ? '/admin' : '/ingressos'
   const creatorLabel = isLocalDemo ? 'Admin' : panelUser ? 'Meu painel' : 'Criar meu evento'
 
   const visibleEvents = published.filter((event) => {
@@ -66,12 +68,11 @@ export default function Home({ catalog = false }) {
         <Brand />
         <nav className="desktop-nav"><Link className="promoter-nav-highlight" to="/promotores">✦ Promotores</Link><Link to="/eventos">{publicText('events')}</Link><a href="#experiencia">Experiência</a><Link to="/ingressos">{publicText('tickets')}</Link></nav>
         <div className="topbar-actions">
-          <Link className="login-button" to={currentUser && !currentUser.guest ? '/eventos' : loginPath('/eventos')}><UserRound size={18}/>Entrar</Link>
-          <Link className="primary-small" to={creatorPath}>{creatorLabel} <ArrowRight size={17}/></Link>
+          {signedIn?<Link className="primary-small account-panel-button" to={accountPath}><UserRound size={18}/>Meu painel <ArrowRight size={17}/></Link>:<><Link className="login-button" to={loginPath('/eventos')}><UserRound size={18}/>Entrar ou cadastrar</Link><Link className="primary-small" to={creatorPath}>{creatorLabel} <ArrowRight size={17}/></Link></>}
           <button className="mobile-menu-button" aria-label={menuOpen?'Fechar menu':'Abrir menu'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X/> : <Menu/>}</button>
         </div>
         <div className="public-tools16"><Preferences/></div>
-        {menuOpen && <div className="mobile-menu"><Link className="promoter-nav-highlight" to="/promotores">✦ Quero ser promotor</Link><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link><Link to={creatorPath}>{creatorLabel}</Link></div>}
+        {menuOpen && <div className="mobile-menu"><Link className="promoter-nav-highlight" to="/promotores">✦ Quero ser promotor</Link><Link to="/eventos">Eventos</Link><Link to="/ingressos">Meus ingressos</Link>{signedIn?<Link to={accountPath}>Meu painel</Link>:<><Link to={loginPath('/eventos')}>Entrar ou cadastrar</Link><Link to={creatorPath}>{creatorLabel}</Link></>}</div>}
       </header>
 
       <section className="ticker16" aria-label="Benefícios da Ingressos Experiences"><div className="ticker-track16">{[0,1].map(copy=><div className="ticker-group16" key={copy} aria-hidden={copy===1?true:undefined}>{['🎟️ QR digital','⚡ Compra rápida','📍 Eventos perto de você','💬 Suporte via WhatsApp quando disponível','🎉 Chama a turma'].map(message=><span key={message}>{message}</span>)}</div>)}</div></section>
