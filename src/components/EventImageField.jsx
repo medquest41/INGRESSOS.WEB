@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase, isLocalDemo } from '../lib/supabase'
 import { validateImageFile } from '../utils/imageFile'
+import ImageCropEditor from './ImageCropEditor'
 import './EventImageField.css'
 
 export default function EventImageField({ value, organizationId, onChange, onBusyChange, label = 'Imagem do evento', disabled = false }) {
+  const [cropping, setCropping] = useState(false)
   const fileInput = useRef(null)
   const busyRef = useRef(false)
   const mounted = useRef(true)
@@ -37,7 +39,8 @@ export default function EventImageField({ value, organizationId, onChange, onBus
       if (!mounted.current) return
       onChange(url)
       setPreviewFailed(false)
-      setMessage('Imagem pronta. Clique em Salvar para vinculá-la ao evento.')
+      setMessage('Imagem pronta. Ajuste o enquadramento se necessário e clique em Salvar para vinculá-la ao evento.')
+      return true
     } catch (err) { setMessage(err.message) }
     finally { busyRef.current = false; setBusy(false); onBusyChange(false) }
   }
@@ -55,6 +58,8 @@ export default function EventImageField({ value, organizationId, onChange, onBus
     <small>No celular, use Escolher imagem. JPG, PNG, WebP ou GIF, até 8 MB. Use somente imagens públicas autorizadas para divulgação.</small>
     <label>Ou cole o link da imagem<input disabled={busy || disabled} type="url" value={value || ''} onChange={e => { onChange(e.target.value); setPreviewFailed(false) }} placeholder="https://..." /></label>
     {value && !previewFailed && <img className="event-image-preview" src={value} alt={'Prévia: ' + label.toLowerCase()} onError={() => setPreviewFailed(true)} />}
+    {value && !previewFailed && <button type="button" className="ghost-btn" disabled={busy || disabled} onClick={() => setCropping(true)}>Ajustar enquadramento / recortar</button>}
+    {cropping && <ImageCropEditor src={value} initialRatio={/atração|logo/i.test(label) ? 1 : 16 / 9} onCancel={() => setCropping(false)} onApply={async file => { if (await upload(file)) setCropping(false); else throw new Error('O recorte não foi salvo. Confira a mensagem de envio e tente novamente.') }} />}
     {value && <button type="button" className="ghost-btn" disabled={busy || disabled} onClick={() => { onChange(''); setPreviewFailed(false) }}>Remover imagem</button>}
     {previewFailed && <p>Não foi possível visualizar essa imagem. Confira o arquivo ou o link.</p>}
     {message && <p role="status">{message}</p>}
