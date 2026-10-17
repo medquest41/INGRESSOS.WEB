@@ -1,3 +1,4 @@
+import { useLocation } from 'react-router-dom'
 import { accountInviteLink } from '../utils/accountInvite'
 import { signupResult } from '../utils/signupResult'
 /* oxlint-disable react/only-export-components */
@@ -12,6 +13,9 @@ const Context = createContext(null)
 function LocalBridge({ children }) { const value = useLocalAuth(); return <Context.Provider value={{ ...value, loading: false, isLocalDemo: true }}>{children}</Context.Provider> }
 const profile = (p, email) => ({ ...p, email: p.email || email, organizerId: p.organization_id, organizerName: p.organizations?.name || '' })
 function RemoteAuthProvider({ children }) {
+  const { pathname } = useLocation()
+  const checkinPath = /^\/admin\/evento\/[^/]+\/checkin\/?$/.test(pathname) ? pathname : ''
+  const [verifiedCheckinPath, setVerifiedCheckinPath] = useState('')
   const [session, setSession] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
   const [users, setUsers] = useState([])
@@ -49,11 +53,16 @@ function RemoteAuthProvider({ children }) {
         }
         if (!cancelled && id === generation.current) {setCurrentUser({...profile(p,session.user.email),guest:session.user.is_anonymous===true}); setUsers(rows.map(x=>profile(x)));setOrganizations(orgs);setInvitations(inviteRows)}
       } catch (err) { if (!cancelled && id === generation.current) {setError(err.message);setCurrentUser(null);setUsers([]);setOrganizations([]);setInvitations([])} }
-      finally { if (!cancelled && id === generation.current) setLoading(false) }
+      finally { if (!cancelled && id === generation.current) { setLoading(false); setVerifiedCheckinPath(checkinPath) } }
     }
     load()
     return () => {cancelled = true}
-  }, [session, revision])
+  }, [session, revision, checkinPath])
+  useEffect(() => {
+    const refreshAccess = () => setRevision(v => v + 1)
+    window.addEventListener('focus', refreshAccess)
+    return () => window.removeEventListener('focus', refreshAccess)
+  }, [])
   const refresh = () => setRevision(v=>v+1)
   async function startGuest(){return result(supabase.auth.signInAnonymously({options:{data:{name:'Visitante'}}}))}
   async function login(email,password) { return result(supabase.auth.signInWithPassword({ email: email.trim(), password })) }
@@ -85,7 +94,7 @@ function RemoteAuthProvider({ children }) {
   }
   async function deleteUserSafely(id) { const status=await result(supabase.rpc('safe_delete_member',{member_id:id}));refresh();return status }
   async function becomeOrganizer(name) { const id=await result(supabase.rpc('become_organizer',{organization_name:name.trim()}));refresh();return id }
-  const value={currentUser,users,organizations,invitations,loading,error,needsSetup:false,startGuest,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,inviteUser,deleteUserSafely,becomeOrganizer,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
+  const value={currentUser,users,organizations,invitations,loading:loading || (!!checkinPath && verifiedCheckinPath !== checkinPath),error,needsSetup:false,startGuest,login,logout,registerCustomer,resetPassword,changeUserPassword,createUser,inviteUser,deleteUserSafely,becomeOrganizer,toggleUserActive,updateUserProfile,saveOrganization,roleLabels:ROLE_LABELS,isLocalDemo:false}
   return <Context.Provider value={value}>{error && <div role="alert" className="auth-error">{error} <button onClick={refresh}>Tentar novamente</button>{session && <button onClick={logout}>Sair</button>}</div>}{children}</Context.Provider>
 }
 export function AuthProvider({ children }) {
