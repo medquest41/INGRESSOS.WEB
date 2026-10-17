@@ -1,3 +1,4 @@
+import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
 import VenueMapEditor from '../components/VenueMapEditor'
 import { venueMapUrl } from '../utils/venueMap'
@@ -119,14 +120,6 @@ export default function Admin() {
     isLocalDemo, organizations = [],
   } = useAuth()
 
-  const role = currentUser.role
-  const canManageEvents = ['admin', 'organizador'].includes(role)
-  const canSeeOrders = ['admin', 'organizador', 'financeiro'].includes(role)
-  const canCheckin = ['admin', 'organizador', 'checkin'].includes(role)
-  const isPrimaryAdmin = role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL
-  const canManageTeam = isPrimaryAdmin
-  const defaultTab = role === 'checkin' ? 'checkin' : role === 'financeiro' ? 'orders' : 'dashboard'
-
   const [orderSearch,setOrderSearch]=useState('')
   const [orderStatus,setOrderStatus]=useState('')
   const { eventKey, section } = useParams()
@@ -134,6 +127,15 @@ export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams()
   const eventId = eventKey || searchParams.get('event') || ''
   const requestedTab = eventKey ? section : searchParams.get('tab')
+  const role = eventAdminRole(currentUser, events.find(event => String(event.id) === eventId), summary, requestedTab)
+  const canManageEvents = ['admin', 'organizador'].includes(role)
+  const canSeeOrders = ['admin', 'organizador', 'financeiro'].includes(role)
+  const canCheckin = ['admin', 'organizador', 'checkin'].includes(role)
+  const isPrimaryAdmin = role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL
+  const canManageTeam = isPrimaryAdmin
+  const defaultTab = role === 'checkin' ? 'checkin' : role === 'financeiro' ? 'orders' : 'dashboard'
+
+
   const tab = role === 'checkin' ? 'checkin' : ['dashboard','events','orders','checkin','team','event_team','event_promoters','customers','finance','reports','history','coupons','fees'].includes(requestedTab) ? requestedTab : defaultTab
   function setTab(next) {
     if (eventKey && next !== 'team') navigate('/admin/evento/' + encodeURIComponent(eventKey) + '/' + next)
@@ -180,8 +182,8 @@ export default function Admin() {
   const availableEvents = useMemo(() => {
     if (role === 'admin') return events
     if (role === 'checkin' && !isLocalDemo) return events.filter(event => summary.some(item => item.event_id === event.id))
-    return events.filter(event => event.organizerId === currentUser.organizerId)
-  }, [events, role, currentUser.organizerId, isLocalDemo, summary])
+    return events.filter(event => event.organizerId === currentUser.organizerId || (requestedTab === 'checkin' && summary.some(item => item.event_id === event.id)))
+  }, [events, role, currentUser.organizerId, isLocalDemo, summary, requestedTab])
   const selectedEvent = availableEvents.find(event => String(event.id) === eventId)
   const visibleEvents = useMemo(() => availableEvents.filter(event => !eventId || String(event.id) === eventId), [availableEvents,eventId])
   const scopedSummary = summary.filter(item => !eventId || String(item.event_id) === eventId)

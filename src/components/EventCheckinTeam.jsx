@@ -45,7 +45,7 @@ export default function EventCheckinTeam({ event }) {
   }
   return <section className="admin-panel" aria-busy={loading || busy}>
     <span className="section-kicker">EQUIPE DESTE EVENTO</span><h2>Gerenciar equipe</h2>
-    <p>Autorize o e-mail usado pela pessoa na própria conta. Se ainda não tiver conta, o convite será reconhecido após o cadastro e a confirmação desse e-mail. O acesso permite somente o check-in deste evento.</p>
+    <p>O mesmo e-mail pode ser autorizado em vários eventos. Autorize o e-mail usado pela pessoa na própria conta. Se ainda não tiver conta, o convite será reconhecido após o cadastro e a confirmação desse e-mail. O acesso permite somente o check-in deste evento.</p>
     <form onSubmit={e => { e.preventDefault(); change(email, true) }}>
       <label>E-mail da pessoa<input type="email" required autoComplete="off" value={email} onChange={e => setEmail(e.target.value)} placeholder="pessoa@exemplo.com" disabled={busy || loading || !ready} /></label>
       <button className="primary-small" disabled={busy || loading || !ready}>{busy ? 'Salvando…' : 'Autorizar portaria'}</button>
@@ -57,6 +57,7 @@ export default function EventCheckinTeam({ event }) {
     {members.map(member => <div className="order-row" key={member.id}>
       <div><strong>{member.name || member.email}</strong><p>{member.email} • {member.active ? 'Ativo' : 'Inativo'}</p>
         {member.pending && <p>Aguardando cadastro ou confirmação do e-mail.</p>}
+        {member.inheritedAccess && <p>Esta conta também possui acesso de gestão neste evento. Estes controles alteram somente o vínculo de portaria.</p>}
         {member.accountActive === false && <p>Conta desativada pelo administrador.</p>}
       </div>
       <button type="button" className="ghost-btn" disabled={busy || loading || !ready} onClick={() => change(member.email, !member.active)}>{member.active ? 'Desativar' : 'Ativar'}</button>

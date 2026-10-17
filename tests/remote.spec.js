@@ -142,12 +142,13 @@ test('authenticated recovery page saves a new password and signs out',async({pag
  test('owner manages check-in staff by email inside the selected event',async({page})=>{
   await mockApi(page,{role:'organizador'})
   let members=[]
-  await page.route('https://*.supabase.co/rest/v1/rpc/event_checkin_team',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(members)}))
+  await page.route('https://*.supabase.co/rest/v1/rpc/event_checkin_team_v18',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(members)}))
   await page.route('https://*.supabase.co/rest/v1/rpc/set_event_checkin_member',route=>{
    const body=route.request().postDataJSON();expect(body.target_event).toBe(eventId);expect(body.member_email).toBe('portaria@example.test')
-   members=body.enabled?[{id:'staff',name:'Portaria',email:body.member_email,active:true}]:[]
+   members=[{id:'staff',name:'Portaria',email:body.member_email,active:body.enabled}]
    return route.fulfill({contentType:'application/json',body:'null'})
   })
+  await page.route('https://*.supabase.co/rest/v1/rpc/remove_event_checkin_member',route=>{expect(route.request().postDataJSON().target_event).toBe(eventId);members=[];return route.fulfill({contentType:'application/json',body:'null'})})
   await login(page,'organizador','/admin/evento/'+eventId+'/event_team')
   await expect(page.getByRole('link',{name:'Gerenciar equipe',exact:true})).toBeVisible()
   await page.context().grantPermissions(['clipboard-read','clipboard-write'])
@@ -156,8 +157,12 @@ test('authenticated recovery page saves a new password and signs out',async({pag
   expect(await page.evaluate(()=>navigator.clipboard.readText())).toContain('/admin/evento/'+eventId+'/checkin')
   await page.getByLabel('E-mail da pessoa').fill('portaria@example.test')
   await page.getByRole('button',{name:'Autorizar portaria'}).click()
-  await expect(page.getByText('Acesso à portaria autorizado.',{exact:true})).toBeVisible()
-  await expect(page.getByText('portaria@example.test • Acesso ativo')).toBeVisible()
+  await expect(page.getByText('Acesso ao check-in ativado neste evento.',{exact:true})).toBeVisible()
+  await expect(page.getByText('portaria@example.test • Ativo')).toBeVisible()
+  await page.getByRole('button',{name:'Desativar',exact:true}).click()
+  await expect(page.getByText('portaria@example.test • Inativo')).toBeVisible()
+  await page.getByRole('button',{name:'Ativar',exact:true}).click()
+  await expect(page.getByText('portaria@example.test • Ativo')).toBeVisible()
   await page.getByRole('button',{name:'Remover acesso'}).click()
   await expect(page.getByText('Pessoas autorizadas (0)',{exact:true})).toBeVisible()
  })
@@ -249,4 +254,19 @@ test('sales cleanup is owner only and requires selection password and confirmati
 })
 test('other admins and organizers never see sales cleanup controls',async({page})=>{
  await mockApi(page,{role:'admin'});await login(page,'admin','/admin/evento/'+eventId+'/orders');await expect(page.getByRole('button',{name:'Revisar vendas de teste'})).toHaveCount(0)
+})
+
+test('invited organizer uses only check-in on another organization event',async({page})=>{
+ const state=await mockApi(page,{role:'organizador'});state.profile.organization_id='20000000-0000-4000-8000-000000000002'
+ let enabled=true
+ await page.route('https://*.supabase.co/rest/v1/rpc/checkin_summary',route=>route.fulfill({contentType:'application/json',body:JSON.stringify(enabled?[{event_id:eventId,issued:2,checked_in:0}]:[])}))
+ await login(page,'organizador','/admin/evento/'+eventId+'/checkin')
+ await expect(page.getByRole('button',{name:'Ler QR Code com a câmera',exact:true})).toBeVisible()
+ for(const name of ['Pedidos','Financeiro','Gerenciar equipe','Taxas'])await expect(page.getByRole('link',{name,exact:true})).toHaveCount(0)
+ await expect(page.getByRole('button',{name:'Pedidos',exact:true})).toHaveCount(0)
+ await page.goto('/admin/evento/'+eventId+'/finance')
+ await expect(page.getByRole('button',{name:'Ler QR Code com a câmera',exact:true})).toBeVisible()
+ enabled=false;await page.reload()
+ await expect(page.getByRole('heading',{name:'Evento não disponível',exact:true})).toBeVisible()
+ await expect(page.getByRole('button',{name:'Ler QR Code com a câmera',exact:true})).toHaveCount(0)
 })
