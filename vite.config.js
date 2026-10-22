@@ -8,5 +8,5 @@ export default defineConfig(({mode,command})=>{
   if(/SECRET|SERVICE_ROLE|PASSWORD|ACCESS_TOKEN|PRIVATE_KEY/.test(name)||value.startsWith('sb_secret_')||role==='service_role')throw new Error('Uma variável VITE_ contém credencial privada. Remova-a antes de continuar.')
  }
  if(command==='build'&&resolveRuntime(env,false).mode!=='supabase')throw new Error('Build de produção requer URL e chave pública Supabase válidas.')
- return {plugins:[react()],build:{rollupOptions:{output:{manualChunks(id){if(id.includes('node_modules/@supabase/'))return 'supabase';if(/node_modules[\\/](react|react-dom|react-router)/.test(id))return 'react'}}}}}
+ return {plugins:[react()],resolve:{dedupe:['react','react-dom']},optimizeDeps:{entries:['index.html']},build:{rollupOptions:{output:{manualChunks(id){if(id.includes('node_modules/@supabase/'))return 'supabase';if(/node_modules[\\/](react|react-dom|react-router)/.test(id))return 'react'}}}}}
 })

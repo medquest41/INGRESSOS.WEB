@@ -1,3 +1,4 @@
+import CamaroteMap from '../components/CamaroteMap'
 import VenueMap from '../components/VenueMap'
 import { eventContactPhone } from '../utils/eventContact'
 import { useMemo, useState } from 'react'
@@ -143,6 +144,7 @@ export default function Evento() {
 
         <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{eventContactPhone(event,organizations)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',eventContactPhone(event,organizations))} target="_blank" rel="noreferrer">Falar com o organizador no WhatsApp</a>}</section>
         <VenueMap key={event.id+event.venueMapImage} event={event} local={isLocalDemo}/>
+        <CamaroteMap event={event} getRemaining={getRemaining} onSelect={choose} selectedId={selectedTicket?.id} local={isLocalDemo}/>
         <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
 
@@ -160,7 +162,7 @@ export default function Evento() {
                   <button key={ticket.id} disabled={!getRemaining(event, ticket) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>
                     <div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
-                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p></div>
+                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{ticket.type==='camarote'&&<p>Camarote inteiro • {ticket.wristbands||8} pulseiras individuais</p>}</div>
                     </div>
                     <div className="ticket-option-price"><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{getRemaining(event, ticket)} disponíveis</span></div>
                     <div className="ticket-selected-check"><Check size={17} /></div>
@@ -177,7 +179,7 @@ export default function Evento() {
                   <div className="summary-header"><span>SEU PEDIDO</span><small>Reserva ainda não confirmada</small></div>
                   <div className="summary-event"><img src={event.image} alt={event.title} /><div><strong>{event.title}</strong><span>{event.date} • {event.time}</span></div></div>
                   <div className="summary-ticket"><div><small>INGRESSO</small><strong>{selectedTicket.name}</strong><span>{selectedTicket.batch}</span></div><strong>{brl(selectedTicket.price)}</strong></div>
-                  {selectedTicket.type !== 'table' && (
+                  {selectedTicket.type !== 'table' && selectedTicket.type !== 'camarote' && (
                     <div className="quantity-row"><span>Quantidade</span><div className="quantity-control"><button onClick={() => setQuantity((q) => Math.max(1, q - 1))}><Minus size={16} /></button><strong>{quantity}</strong><button onClick={() => setQuantity((q) => Math.min(10, selectedTicket.available, q + 1))}><Plus size={16} /></button></div></div>
                   )}
                   <div className="summary-values"><div><span>Subtotal</span><strong>{brl(subtotal)}</strong></div><div><span>Taxa de serviço</span><strong>{brl(fee)}</strong></div></div>

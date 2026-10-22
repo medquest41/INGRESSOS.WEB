@@ -68,6 +68,8 @@ export function LocalEventProvider({ children }) {
         const updated = event.ticketTypes.find(t => t.id === ticket.id)
         if (sold && (!updated || updated.available < sold)) throw new Error('Não remova lotes vendidos nem reduza a capacidade abaixo das vendas.')
       }
+      for(const t of event.ticketTypes)if(t.type==='camarote'&&(t.available!==1||!Number.isInteger(Number(t.wristbands))||Number(t.wristbands)<1||Number(t.wristbands)>100))throw Error('Camarote: estoque 1 e entre 1 e 100 pulseiras.');
+      for(const t of old?.ticketTypes||[]){const n=event.ticketTypes.find(x=>x.id===t.id);if(n&&(t.type==='camarote'||n.type==='camarote')&&fresh.orders.some(o=>o.ticketId===t.id)&&(n.type!==t.type||Number(n.wristbands)!==Number(t.wristbands)))throw Error('Preserve modalidade e pulseiras dos camarotes com histórico.')}
       fresh.events = old ? fresh.events.map(e => e.id === event.id ? event : e) : [event, ...fresh.events]
     })
   }
@@ -88,7 +90,7 @@ export function LocalEventProvider({ children }) {
       const event = fresh.events.find(e => e.id === input.eventId)
       const ticket = event?.ticketTypes.find(t => t.id === input.ticketId)
       const buyer = { ...input.buyer, email: currentUser.guest ? input.buyer.email : currentUser.email }
-      const holders=validateParticipants(event,input.quantity,buyer,buyer.participants||[],buyer.participantMode||'same',buyer.ageConfirmed)
+      const holders=validateParticipants(event,ticket?.type==='camarote'?Number(ticket.wristbands||8):input.quantity,buyer,Array.from({length:ticket?.type==='camarote'?Number(ticket.wristbands||8):input.quantity},(_,i)=>buyer.participants?.[i]||(i===0?buyer:{})),buyer.participantMode||'same',buyer.ageConfirmed)
       validateBuyer(buyer)
       const totals = quote(event, ticket, input.quantity, input.coupon, fresh.coupons, fresh.orders)
       const vip=buyer.vipListId?(event.vipLists||[]).find(l=>l.id===buyer.vipListId):null
@@ -96,7 +98,7 @@ export function LocalEventProvider({ children }) {
       if(buyer.vipListId){if(!vip||input.quantity!==1||vip.active===false||vip.visible===false||(vip.deadline&&new Date(vip.deadline)<=new Date())||vip.ticketTypeId!==ticket.id||Number(vip.price)!==ticket.price)throw Error('Lista VIP indisponível.');if(vipRows.filter(r=>r.eventId===event.id&&r.listId===vip.id&&r.status!=='cancelled').length>=vip.limit)throw Error('Lista VIP esgotada.');if(vipRows.some(r=>r.eventId===event.id&&r.listId===vip.id&&r.cpf===buyer.cpf.replace(/\D/g,'')))throw Error('CPF já inscrito.')}
 
       const payment = await mockPayment(input.method, input.outcome)
-      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, unitLabel: ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), platformFeeRate: Number(event.feeRate ?? 0.1), ...totals,providerFee:0,payoutStatus:'pending', ...payment, ticketCodes: Array.from({ length: input.quantity }, (_,i) => ({ holder:holders[i], number:i+1, code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
+      const order = { id: 'PED-' + crypto.randomUUID(), idempotencyKey: input.idempotencyKey, createdAt: new Date().toISOString(), userId: currentUser.id, eventId: event.id, organizerId: event.organizerId, eventTitle: event.title, eventImage: event.image, eventDate: event.date, eventTime: event.time, ticketId: ticket.id, ticketName: ticket.name, sector: ticket.sector || ticket.name, batch: ticket.batch, wristbands:ticket.type==='camarote'?Number(ticket.wristbands||8):undefined, unitLabel: ticket.type==='camarote'?'Pulseira individual do camarote':ticket.type === 'table' ? 'Mesa/camarote — entrada única do grupo' : 'Individual', quantity: input.quantity, buyer, method: input.method, source: String(input.source || 'direto').slice(0, 120), platformFeeRate: Number(event.feeRate ?? 0.1), ...totals,providerFee:0,payoutStatus:'pending', ...payment, ticketCodes: Array.from({ length: ticket.type==='camarote'?Number(ticket.wristbands||8):input.quantity }, (_,i) => ({ holder:holders[i], number:i+1, code: 'ING-' + crypto.randomUUID().toUpperCase(), used: false })) }
       if(vip){vipRows.push({...buyer,id:crypto.randomUUID(),cpf:buyer.cpf.replace(/\D/g,''),eventId:event.id,listId:vip.id,userId:currentUser.id,orderId:order.id,status:'confirmed',createdAt:order.createdAt});localStorage.setItem('ingressos_vip_v16',JSON.stringify(vipRows))}
       fresh.orders.unshift(order)
       return order

@@ -26,6 +26,8 @@ export function remaining(event, ticket, orders) {
 export function quote(event, ticket, quantity, couponCode, coupons, orders) {
   if (!event?.published || event.archived || !ticket) throw new Error('Este ingresso não está disponível para compra.')
   if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) throw new Error('Escolha entre 1 e 10 unidades.')
+  if(ticket.type==='camarote'&&quantity!==1)throw Error('Compre um camarote inteiro por pedido.')
+  if(ticket.active===false)throw Error('Ingresso bloqueado.')
   if (quantity > remaining(event, ticket, orders)) throw new Error('Quantidade indisponível. Atualize sua seleção.')
   const subtotal = money(ticket.price * quantity)
   let discount = 0

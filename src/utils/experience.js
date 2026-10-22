@@ -8,7 +8,7 @@ export function validateAge(event,birthDate,confirmed,now=new Date()) {
  if(needsAgeConfirmation(event)&&(!confirmed||age<18))throw Error('Confirme que você tem 18 anos ou mais.')
 }
 export function validateParticipants(event,quantity,buyer,participants,mode,confirmed) {
- if(!Number.isInteger(quantity)||quantity<1||quantity>10)throw Error('Escolha entre 1 e 10 ingressos.')
+ if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw Error('Escolha entre 1 e 100 participantes.')
  if(mode==='same'&&event.allowSameCpf===false&&quantity>1)throw Error('Este evento exige participantes individuais.')
  const list=mode==='same'?Array.from({length:quantity},()=>({name:buyer.name,cpf:buyer.cpf,birthDate:buyer.birthDate})):participants
  if(list.length!==quantity)throw Error('Informe um participante por ingresso.')

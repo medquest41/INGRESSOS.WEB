@@ -229,14 +229,14 @@ export default function Admin() {
   }
 
   function updateTicket(index, field, value) {
-    setEditing({
-      ...editing,
-      ticketTypes: editing.ticketTypes.map((ticket, itemIndex) =>
+    setEditing(current=>({
+      ...current,
+      ticketTypes: current.ticketTypes.map((ticket, itemIndex) =>
         itemIndex === index
-          ? { ...ticket, [field]: ['price', 'available'].includes(field) ? Number(value) : value }
+          ? { ...ticket, [field]: ['price', 'available','wristbands'].includes(field) ? Number(value) : value }
           : ticket,
       ),
-    })
+    }))
   }
 
   function addTicket() {

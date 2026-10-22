@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'./tests',testMatch:'camarotes.spec.js',workers:1,timeout:45000,use:{baseURL:'http://127.0.0.1:5217',headless:true,channel:'chrome'},reporter:'list',webServer:process.env.CAMAROTES_EXTERNAL_SERVER?undefined:{command:'node node_modules/vite/bin/vite.js --mode demo --host 127.0.0.1 --port 5217 --strictPort',url:'http://127.0.0.1:5217',reuseExistingServer:false},outputDir:'test-results-camarotes'})
