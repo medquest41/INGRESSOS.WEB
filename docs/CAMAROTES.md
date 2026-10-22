@@ -1,4 +1,4 @@
-# Camarotes — implementação local, sem publicação
+# Camarotes — configuração e histórico da implementação
 
 Base consultada em 22/10/2026: `origin/main` = `e2687605b0b3b9ab6f5baa9773c41c951b2641ef`.
 A pasta existente estava em HEAD `e8e6099`, com alterações não commitadas. A comparação foi feita também pelo conteúdo normalizado, pois CRLF/LF criava diferenças falsas. Os arquivos entregues partem do GitHub recente, sem regressão para a base antiga.
@@ -25,13 +25,13 @@ O backend continua verificando assinatura, tentativa, titularidade, valor, moeda
 
 ## Migração: autorização separada
 
-**Nada foi aplicado ao Supabase ou publicado no Render.**
+Este documento descreve o pacote inicial. A execução posteriormente autorizada, a auditoria do banco e o backend efetivamente publicado estão em `PUBLICACAO-CAMAROTES-20261022.md`. Não reaplique arquivos já executados.
 
 1. Em homologação, rode o arquivo somente leitura `PREFLIGHT-CAMAROTES.sql`. Guarde as definições atuais das funções e confira os pré-requisitos de participantes e pagamento verificado (012, 013 e 014). Compare funções customizadas antes de substituir. A ausência de `event_activity_summary` e `organizations.whatsapp` detectada anteriormente pode indicar instalação parcial; este pacote não tenta corrigir isso automaticamente.
 2. Não aplique pacotes antigos de ativação. Se faltar um pré-requisito, prepare uma correção específica após auditoria. O SQL 027 interrompe a aplicação quando faltam os principais pré-requisitos. As migrations 025/026 de portaria do GitHub não são reaplicadas por este pacote.
 3. Com os pré-requisitos confirmados, aplique **somente** `supabase/migrations/027_camarotes.sql` em homologação. O arquivo inteiro usa transação. Registre sua aplicação no controle de migrações usado pelo ambiente.
 4. Homologue com credenciais de teste e cobrança sandbox: Admin, mapa com imagem, Pix pendente/aprovado/expirado, cartão, retomada, cancelamento, duplicação de webhook, compartilhamento, PDF e portaria com usuários reais de teste. Execute disputa com conexões PostgreSQL independentes.
-5. Produção exige autorização explícita posterior. Não há mudança de Edge Function neste pacote; a migração integra as rotinas de pagamentos existentes. Frontend requer build e publicação autorizada depois da migração homologada.
+5. Produção exige autorização explícita posterior. A auditoria encontrou um backend Checkout Pro diferente do repositório. A adaptação publicada está em `supabase/deployment/payments-checkout-pro.ts`; consulte o relatório de publicação. Frontend requer build e publicação autorizada depois da migração homologada.
 
 ## Rollback seguro
 
@@ -46,7 +46,7 @@ Após cadastrar/vender camarotes, o rollback operacional seguro é bloquear nova
 - Três testes de navegador: compra simulada em 390 e 1366 px, oito ingressos, estoque indisponível após compra, bloqueio e edição Admin de pulseiras/posição. Chamadas externas bloqueadas.
 - Na pasta existente em D:, build e oito testes de camarotes/pagamentos também passaram. Os três testes visuais foram repetidos nessa instalação. Foi necessário limitar a descoberta do Vite a `index.html` e unificar React/React DOM: cópias antigas dentro de `work` estavam provocando carregamento duplicado no servidor de desenvolvimento. Nenhuma dessas cópias foi removida.
 - Testes SQL executam migração real em PGlite: reserva exclusiva, submissões concorrentes, duplicação de pedido/webhook, Pix e cartão confirmados, expiração e aprovação tardia, cancelamento/rejeição, estorno, privilégios, QR únicos, entradas independentes e regressão de ingresso comum.
-- **PGlite usa uma conexão e serializa consultas**: a submissão concorrente passou, mas não comprova contenção entre sessões PostgreSQL reais. Esse teste segue pendente em homologação.
+- **PGlite usa uma conexão e serializa consultas**: a submissão concorrente passou, mas não comprova contenção entre sessões PostgreSQL reais. A disputa entre duas conexões reais foi posteriormente homologada; consulte o relatório de publicação.
 - Não verificados em serviço real: cobranças, webhooks via rede, schema/RLS atuais de produção, PDF salvo pelo sistema operacional, entrega de e-mail, WhatsApp externo e portaria com câmera física. Os botões existentes foram preservados e a exibição foi conferida.
 - A migração não corrige pendências alheias de banco, documentos legais ou cadastro de organização.
 

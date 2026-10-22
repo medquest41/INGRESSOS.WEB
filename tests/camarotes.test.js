@@ -13,7 +13,7 @@ test('room quote is the entire room; participants support more than ten wristban
  assert.equal(validateParticipants({ageRating:'Livre'},20,buyer,[],'same',true).length,20)
 })
 
-test('SQL: exclusive reservation, verified payment, N QR, retry, expiration, check-in, privileges and rollback',async()=>{
+for(const partial of [false,true])test('SQL: exclusive reservation, verified payment, N QR, retry, expiration, check-in, privileges and rollback; partial schema='+partial,async()=>{
  const db=new PGlite(),buyer=crypto.randomUUID(),event=crypto.randomUUID(),batch=crypto.randomUUID()
  const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0]
  try{
@@ -22,7 +22,10 @@ test('SQL: exclusive reservation, verified payment, N QR, retry, expiration, che
  create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;
  grant usage on schema auth,public to anon,authenticated,service_role;`)
  const files=['001_platform.sql','002_production.sql','003_order_history_global_coupons.sql','004_preservation_reservation_limits.sql','005_primary_admin_email.sql','008_event_platform_fee_and_safe_delete.sql','009_payment_fees_payouts.sql','010_owner_only_platform_fee.sql','011_inline_payment_attempts.sql','011_self_service_organizers_and_account_admin.sql','012_verified_inline_payments.sql','013_experience_participants_vip.sql','014_atomic_inline_payments.sql','027_camarotes.sql']
- for(const file of files)await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))
+ for(const file of files){if(partial&&['013_experience_participants_vip.sql','014_atomic_inline_payments.sql'].includes(file))continue;await db.exec(await readFile(new URL('../supabase/migrations/'+file,import.meta.url),'utf8'))}
+ await db.exec(await readFile(new URL('../docs/ROLLBACK-CAMAROTES.sql',import.meta.url),'utf8'))
+ assert.equal(await scalar("select to_regprocedure('public.camarote_availability(uuid)')::text"),null)
+ await db.exec(await readFile(new URL('../supabase/migrations/027_camarotes.sql',import.meta.url),'utf8'))
  await db.query('insert into auth.users(id,email,email_confirmed_at) values($1,$2,now())',[buyer,'synthetic@example.test'])
  const org=await scalar("insert into public.organizations(name) values('Teste camarotes') returning id")
  await db.query("insert into events(id,organization_id,slug,title,published) values($1,$2,'teste-camarotes','Teste',true)",[event,org])
@@ -91,6 +94,24 @@ test('SQL: exclusive reservation, verified payment, N QR, retry, expiration, che
  // Refund revokes individual codes and releases the room, preserving history.
  await sync(id,a,'refunded');assert.equal(await scalar('select bool_and(cancelled) from tickets where order_id=$1',[id]),true)
  assert.equal(await scalar('select check_in($1)',[codes[2]]),'cancelled')
+ // Checkout Pro deployment uses the audited provider reconciliation, not inline attempts.
+ const hosted=await room(),hostedOrder=await make(hosted)
+ await db.query('select prepare_camarote_payment($1,$2)',[hostedOrder,buyer])
+ const expiry=await scalar('select expires_at from orders where id=$1',[hostedOrder])
+ await db.query('select prepare_camarote_payment($1,$2)',[hostedOrder,buyer])
+ assert.deepEqual(await scalar('select expires_at from orders where id=$1',[hostedOrder]),expiry)
+ const payment={id:5001,external_reference:hostedOrder,currency_id:'BRL',transaction_amount:1320,status:'pending',payment_method_id:'pix',fee_details:[]}
+ const hostedSync=()=>scalar('select reconcile_camarote_payment($1,$2)',[hostedOrder,payment])
+ assert.equal(await hostedSync(),'pending');assert.equal(await count(hostedOrder),0)
+ payment.status='approved';assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),8)
+ assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),8)
+ payment.status='pending';assert.equal(await hostedSync(),'approved')
+ payment.status='refunded';assert.equal(await hostedSync(),'review')
+ assert.equal(await scalar('select bool_and(cancelled) from tickets where order_id=$1',[hostedOrder]),true)
+ const lateHosted=await room(),lateHostedOrder=await make(lateHosted)
+ await db.query("update orders set expires_at=now()-interval '1 second' where id=$1",[lateHostedOrder])
+ assert.equal(await scalar('select reconcile_camarote_payment($1,$2)',[lateHostedOrder,{...payment,id:5002,external_reference:lateHostedOrder,status:'approved'}]),'review')
+ assert.equal(await count(lateHostedOrder),0)
  // Common tickets retain one QR per quantity.
  await db.query("insert into ticket_types(id,event_id,name,sector,batch,type,capacity,price_cents) values($1,$2,'Pista','Pista','1','individual',5,0)",[batch,event])
  const common=await scalar("select create_order($1,2,$2,'',$3,null,null)",[batch,person,crypto.randomUUID()]);assert.equal(await count(common),2)
