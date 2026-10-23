@@ -8,7 +8,7 @@ import { useEventStore } from '../store/EventStore'
 import { useAuth } from '../store/AuthStore'
 import { getEventPublicPath } from '../utils/eventSlug'
 import { canManage } from '../utils/commerce'
-import { DEFAULT_ACCENT, detectLogoAccent, getEventVisual, isSafeVisualImage } from '../utils/eventVisual'
+import { DEFAULT_ACCENT, detectLogoAccent, getEventVisual, isSafeVisualImage, prepareEventVisual } from '../utils/eventVisual'
 
 function VisualForm({ event }) {
   const navigate = useNavigate()
@@ -36,8 +36,8 @@ function VisualForm({ event }) {
     if (!isSafeVisualImage(visual.logo, isLocalDemo)) { setNotice({ type: 'error', message: 'Use uma imagem enviada pelo seletor ou um link HTTPS válido.' }); return }
     setSaving(true)
     try {
-      await saveEvent({ ...event, visualExperience: { ...visual, density: Number(visual.density) } })
-      setNotice({ type: 'success', message: 'Experiência salva com sucesso. As alterações já estão registradas neste evento.' })
+      await saveEvent({ ...event, visualExperience: prepareEventVisual(visual) })
+      setNotice({ type: 'success', message: visual.logo && visual.intro ? 'Experiência salva. A vinheta está ativada na entrada do evento.' : 'Experiência salva. A vinheta está desativada.' })
       if (!isLocalDemo) navigate('/admin/experiencia/' + encodeURIComponent(event.id), { replace: true })
     } catch (error) { setNotice({ type: 'error', message: 'Não foi possível salvar: ' + (error.message || 'Erro inesperado.') }) }
     finally { setSaving(false) }
@@ -46,13 +46,13 @@ function VisualForm({ event }) {
     <section className="ix-visual-editor-controls">
       <header><span className="section-kicker"><Palette size={16} /> IDENTIDADE VISUAL</span><h1>{event.title}</h1><p>Configure a entrada cinematográfica e o universo visual da página deste evento.</p></header>
       <div className="ix-control-card">
-        <label className="ix-toggle-row"><span><strong>Ativar experiência personalizada</strong><small>Quando desligada, o evento continua com o visual padrão.</small></span><input type="checkbox" checked={visual.enabled} onChange={e => update('enabled', e.target.checked)} /></label>
+        <p>Adicione a logo e clique em “Salvar experiência” para ativar. Sem logo, a vinheta não será exibida.</p>
         <EventImageField value={visual.logo} label="Logo do cliente (fundo transparente recomendado)" organizationId={event.organizerId} onChange={onLogoChange} onBusyChange={onBusyChange} />
         <div className="ix-color-controls">
           <label className="ix-toggle-row"><span><strong>Extrair cor da logo</strong><small>Ao carregar outra logo, a cor principal será sugerida automaticamente.</small></span><input type="checkbox" checked={visual.automaticColor} onChange={e => update('automaticColor', e.target.checked)} /></label>
           <label>Cor principal do evento <div className="ix-color-chooser"><input aria-label="Escolher cor" type="color" value={visual.primary || DEFAULT_ACCENT} onChange={e => update('primary', e.target.value)} /><strong>{visual.primary}</strong></div></label>
         </div>
-        <label className="ix-toggle-row"><span><strong>Vinheta cinematográfica</strong><small>Raios convergem para a logo por cerca de dois segundos.</small></span><input type="checkbox" checked={visual.intro} onChange={e => update('intro', e.target.checked)} /></label>
+        <label className="ix-toggle-row"><span><strong>Exibir vinheta ao entrar no evento</strong><small>Confirme esta opção e salve. A vinheta usa a logo cadastrada e dura cerca de dois segundos.</small></span><input type="checkbox" checked={visual.intro} onChange={e => update('intro', e.target.checked)} /></label>
         <label className="ix-toggle-row"><span><strong>Medalhões flutuantes em 3D</strong><small>Usa a logo e as fotos das atrações já cadastradas.</small></span><input type="checkbox" checked={visual.medallions} onChange={e => update('medallions', e.target.checked)} /></label>
         <label className="ix-range-field">Quantidade de medalhões: <strong>{visual.density}</strong><input type="range" min="3" max="12" step="1" value={visual.density} onChange={e => update('density', Number(e.target.value))} /></label>
         <p className="ix-footnote">Fotos de DJs e cantores: no painel do evento, abra “Editar”, depois “Atrações e programação” e carregue as imagens.</p>

@@ -68,3 +68,8 @@ export function isSafeVisualImage(value, isDemo) {
     return url.protocol === 'https:' && !url.username && !url.password
   } catch { return false }
 }
+
+export function prepareEventVisual(visual) {
+ const logo=typeof visual.logo==='string'?visual.logo.trim():''
+ return {...visual,logo,enabled:Boolean(logo),intro:Boolean(logo)&&visual.intro!==false,density:Number(visual.density)}
+}

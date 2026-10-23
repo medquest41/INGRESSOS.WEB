@@ -85,8 +85,8 @@ export default function EventCinematic({ children }) {
   }, [eventKey, event])
 
   useEffect(() => {
-    if (!allowed || !visual.enabled || !visual.intro || reducedMotion) return
-    const key = `ix-cinematic-seen:${event.id}`
+    if (!allowed || !visual.enabled || !visual.intro || !visual.logo || reducedMotion) return
+    const key = `ix-cinematic-seen:${event.id}:${visual.logo}`
     let seen = false
     try { seen = sessionStorage.getItem(key) === '1' } catch { /* storage indisponível */ }
     const forced = searchParams.get('cinema') === '1'
@@ -94,7 +94,7 @@ export default function EventCinematic({ children }) {
       setShowIntro(true)
       try { sessionStorage.setItem(key, '1') } catch { /* storage indisponível */ }
     }
-  }, [allowed, event?.id, visual.enabled, visual.intro, reducedMotion, searchParams])
+  }, [allowed, event?.id, visual.enabled, visual.intro, visual.logo, reducedMotion, searchParams])
 
   return <div className={visual.enabled && allowed ? 'ix-event-universe-enabled' : ''} style={{ '--ix-accent': visual.primary }}>
     {children}
