@@ -1,3 +1,5 @@
+import {shareOrderTickets} from '../services/ticketShare'
+import AdminOrderTickets from './AdminOrderTickets'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { approved } from '../utils/commerce'
@@ -7,10 +9,10 @@ import './EventOrderList.css'
 const brl = value => Number(value || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'})
 const statusLabel = order => ({approved:'Confirmado',pending:'Pendente',cancelled:'Cancelado',refunded:'Estornado'}[order.status || 'approved'] || order.status)
 export default function EventOrderList({ orders, events, eventId, cancelOrder, canViewCpf = false }) {
-  const [page,setPage] = useState(1)
+  const [page,setPage] = useState(1),[ticketOrder,setTicketOrder]=useState(null),[sharing,setSharing]=useState(''),[shareError,setShareError]=useState('')
   const groups = events.map(event=>({event,rows:orders.filter(order=>String(order.eventId)===String(event.id))})).filter(group=>group.rows.length)
   if (!orders.length) return <p className="muted">Nenhum pedido encontrado para este evento ou filtro.</p>
-  return <div className="event-order-groups">{groups.map(({event,rows})=>{
+  return <div className="event-order-groups">{shareError&&<p role="alert">{shareError}</p>}{groups.map(({event,rows})=>{
     const sorted=[...rows].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))
     const pages=Math.max(1,Math.ceil(sorted.length/25))
     const current=Math.min(page,pages)
@@ -18,14 +20,14 @@ export default function EventOrderList({ orders, events, eventId, cancelOrder, c
     return <details className="event-order-group" key={event.id} aria-label={'Pedidos de '+event.title}>
       <summary><div><h2>{event.title}</h2><p>{rows.length} pedido(s) • Confirmados: {brl(rows.filter(approved).reduce((sum,order)=>sum+Number(order.total||0),0))}</p></div><span className="event-order-toggle"><span className="event-order-show">Mostrar pedidos</span><span className="event-order-hide">Recolher pedidos</span></span></summary><div className="event-order-content">{!eventId&&<Link className="admin-event-management-link" to={'/admin/evento/'+encodeURIComponent(event.id)+'/orders'}>Ver pedidos deste evento</Link>}
       {displayed.map(order=><article className="event-order-item" key={order.id}>
-        <div><strong>{order.buyer?.name || 'Pedido registrado'}</strong>{canViewCpf && <span>CPF: {formatCpf(order.buyer?.cpf)}</span>}<span>{order.wristbands||order.quantity} ingresso(s) • {order.ticketName || 'Ingresso'} • {order.batch || ''}</span><small>Pedido {order.id}</small></div>
+        <div>{canViewCpf?<button type="button" className="order-buyer-ticket-link" onClick={()=>setTicketOrder(order)}>{order.buyer?.name || 'Pedido registrado'}</button>:<strong>{order.buyer?.name || 'Pedido registrado'}</strong>}{canViewCpf && <span>CPF: {formatCpf(order.buyer?.cpf)}</span>}<span>{order.wristbands||order.quantity} ingresso(s) • {order.ticketName || 'Ingresso'} • {order.batch || ''}</span><small>Pedido {order.id}</small></div>
         <div className="event-order-values"><strong>{brl(order.total)}</strong><span>{statusLabel(order)}</span><small>{order.source || 'Origem direta'}</small></div>
-        <details><summary>Detalhes do pedido</summary><p>{order.buyer?.email}</p>{order.wristbands&&<p>{order.ticketName} • {order.ticketCodes?.length||0} emitidos • {(order.ticketCodes||[]).filter(t=>t.used).length} utilizados • {(order.ticketCodes||[]).filter(t=>!t.used&&t.status!=='cancelled').length} pendentes de entrada</p>}<p>{order.createdAt ? new Date(order.createdAt).toLocaleString('pt-BR') : ''}</p><p>Subtotal: {brl(order.subtotal)} • Desconto: {brl(order.discount)} • Taxa: {brl(order.fee)}</p>{(order.orderHistory||[]).map(item=><p key={item.id}>{new Date(item.created_at).toLocaleString('pt-BR')} • {item.to_status}</p>)}</details>
+        <details><summary>Detalhes do pedido</summary>{canViewCpf&&<div className="order-ticket-support"><button type="button" className="ghost-btn" onClick={()=>setTicketOrder(order)}>Ver ingressos / baixar PDF ({order.ticketCodes?.length||0})</button>{approved(order)&&(order.ticketCodes||[]).length>0&&<button type="button" className="ghost-btn" disabled={Boolean(sharing)} onClick={async()=>{setSharing(order.id);setShareError('');try{await shareOrderTickets(order)}catch(err){setShareError(err.message)}finally{setSharing('')}}}>{sharing===order.id?'Preparando...':'Enviar pelo WhatsApp do comprador'}</button>}</div>}<p>{order.buyer?.email}</p>{order.wristbands&&<p>{order.ticketName} • {order.ticketCodes?.length||0} emitidos • {(order.ticketCodes||[]).filter(t=>t.used).length} utilizados • {(order.ticketCodes||[]).filter(t=>!t.used&&t.status!=='cancelled').length} pendentes de entrada</p>}<p>{order.createdAt ? new Date(order.createdAt).toLocaleString('pt-BR') : ''}</p><p>Subtotal: {brl(order.subtotal)} • Desconto: {brl(order.discount)} • Taxa: {brl(order.fee)}</p>{(order.orderHistory||[]).map(item=><p key={item.id}>{new Date(item.created_at).toLocaleString('pt-BR')} • {item.to_status}</p>)}</details>
         {(approved(order)||order.status==='pending')&&<button className="ghost-btn" onClick={async()=>{if(window.confirm('Cancelar este pedido e invalidar seus ingressos?')){try{await cancelOrder(order.id)}catch(err){window.alert(err.message)}}}}>Cancelar pedido</button>}
       </article>)}
       {!eventId&&rows.length>5&&<p>Mostrando os 5 pedidos mais recentes. Abra os pedidos deste evento para consultar todos.</p>}
       {eventId&&pages>1&&<nav aria-label="Páginas dos pedidos"><button className="ghost-btn" disabled={current===1} onClick={()=>setPage(current-1)}>Anterior</button><span>{current} de {pages}</span><button className="ghost-btn" disabled={current===pages} onClick={()=>setPage(current+1)}>Próxima</button></nav>}
       </div>
     </details>
-  })}</div>
+  })}{ticketOrder&&<AdminOrderTickets order={ticketOrder} onClose={()=>setTicketOrder(null)}/>}</div>
 }

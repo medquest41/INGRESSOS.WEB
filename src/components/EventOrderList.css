@@ -24,3 +24,5 @@
 .event-order-hide, .event-order-group[open] > summary .event-order-show { display: none; }
 .event-order-group[open] > summary .event-order-hide { display: inline; }
 .event-order-content > .admin-event-management-link { display: inline-block; margin-top: 16px; }
+
+.order-ticket-support{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
