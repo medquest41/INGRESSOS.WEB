@@ -1,0 +1,2 @@
+import {defineConfig} from '@playwright/test'
+export default defineConfig({testDir:'./tests',testMatch:'shared-ticket.spec.js',workers:1,timeout:30000,use:{baseURL:'http://127.0.0.1:5219',headless:true,channel:'chrome'},reporter:'list',webServer:process.env.SHARED_EXTERNAL_SERVER?undefined:{command:'node node_modules/vite/bin/vite.js --host 127.0.0.1 --port 5219 --strictPort',url:'http://127.0.0.1:5219',env:{VITE_SUPABASE_URL:'https://camarotes-test.supabase.co',VITE_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_synthetic_test_only'}},outputDir:'test-results-shared-ticket'})
