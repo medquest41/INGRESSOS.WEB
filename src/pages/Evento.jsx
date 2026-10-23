@@ -155,7 +155,7 @@ export default function Evento() {
           </div>
 
           <div className="purchase-layout">
-            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>document.getElementById('unidades-numeradas')?.scrollIntoView({behavior:'smooth',block:'start'})}>Escolher camarote ou mesa VIP por número</button>}
+            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>document.getElementById('unidades-numeradas')?.scrollIntoView({behavior:'smooth',block:'start'})}>Escolher unidade por categoria e número</button>}
               {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote').map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (

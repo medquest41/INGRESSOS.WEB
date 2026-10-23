@@ -1,0 +1,16 @@
+import {test,expect} from './support/offline-network.js'
+for(const width of [390,1280])test('custom category, blank quantities and collapsed editor '+width,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.goto('/tests/fixtures/ticket-setup-preview.html')
+ const existing=page.locator('.ticket-batch-editor').first();await expect(existing.getByLabel('Pulseiras inclusas',{exact:true})).toBeHidden()
+ await existing.locator('summary').first().click();const quantity=existing.getByLabel('Pulseiras inclusas',{exact:true})
+ await quantity.fill('');await expect(quantity).toHaveValue('');await page.getByRole('button',{name:'Validar rascunho de teste'}).click();await expect(page.getByTestId('draft-status')).toContainText('informe de 1 a 100')
+ await quantity.fill('25');await expect(quantity).toHaveValue('25');const price=existing.getByLabel('Preço do ingresso (R$)',{exact:true});await price.fill('');await expect(price).toHaveValue('');await price.fill('0');await expect(price).toHaveValue('0');await existing.locator('summary').first().click();await expect(quantity).toBeHidden()
+ await page.getByText('Categorias e unidades numeradas',{exact:true}).click();await page.getByRole('button',{name:'+ Adicionar categoria',exact:true}).click()
+ await page.getByLabel('Nome da categoria',{exact:true}).fill('Boxes');await page.getByLabel('Nome de cada unidade (opcional)',{exact:true}).fill('Box');await page.getByRole('button',{name:'Adicionar categoria ao evento',exact:true}).click()
+ await expect(page.getByLabel('Quantidade de unidades',{exact:true})).toHaveValue('');await expect(page.getByLabel('Ingressos gerados por unidade',{exact:true})).toHaveValue('')
+ await page.getByLabel('Quantidade de unidades',{exact:true}).fill('3');await page.getByLabel('Começar no número',{exact:true}).fill('1');await page.getByLabel('Preço integral por unidade (R$)',{exact:true}).fill('500');await page.getByLabel('Ingressos gerados por unidade',{exact:true}).fill('10');await page.getByRole('button',{name:'Gerar unidades numeradas',exact:true}).click()
+ await expect(page.locator('.ticket-batch-editor')).toHaveCount(4);await expect(page.locator('.ticket-batch-editor[open]')).toHaveCount(0)
+ await page.getByRole('button',{name:'Boxes • 3 disponíveis',exact:true}).click();await page.getByRole('button',{name:/Box 03 • Disponível/}).first().click();await expect(page.locator('.camarote-detail')).toContainText('10 ingressos individuais')
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.locator('.camarote-section').evaluate(el=>el.style.display='none');await page.locator('.reserved-generator').evaluate(el=>el.open=false);await page.getByRole('button',{name:'Validar rascunho de teste'}).evaluate(el=>el.style.display='none');await page.getByTestId('draft-status').evaluate(el=>el.style.display='none');await page.evaluate(()=>scrollTo(0,0));await page.screenshot({path:'test-results-ticket-setup/recolhidos-'+width+'.png'})
+})

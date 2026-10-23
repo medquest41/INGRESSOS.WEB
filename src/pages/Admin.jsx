@@ -1,3 +1,4 @@
+import {validateTicketDrafts} from '../utils/reservedUnits'
 import ReservedUnitGenerator from '../components/ReservedUnitGenerator'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
@@ -83,17 +84,7 @@ function blankEvent(user) {
     highlights: ['Estrutura premium'],
     feeRate: 0.1,
     feeEditableByOrganizer: false,
-    ticketTypes: [
-      {
-        id: `ing-${Date.now()}`,
-        name: 'Pista',
-        batch: '1º lote',
-        description: 'Acesso ao evento.',
-        price: 0,
-        available: 100,
-        type: 'individual',
-      },
-    ],
+    ticketTypes: [],
   }
 }
 
@@ -153,7 +144,7 @@ export default function Admin() {
     setSaveError(message)
     document.querySelectorAll('.event-editor [aria-invalid="true"]').forEach(el=>{el.removeAttribute('aria-invalid');delete el.closest('label')?.dataset.error})
     const field=document.querySelector(selector||'.event-save-error')
-    if(field){field.setAttribute('aria-invalid','true');const label=field.closest('label');if(label)label.dataset.error=message;field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true})}
+    if(field){for(let parent=field.parentElement;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true}field.setAttribute('aria-invalid','true');const label=field.closest('label');if(label)label.dataset.error=message;field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true})}
   }
   const [uploadingHero, setUploadingImage] = useState(false)
   const [uploadingAttractions, setUploadingAttractions] = useState(false)
@@ -234,7 +225,7 @@ export default function Admin() {
       ...current,
       ticketTypes: current.ticketTypes.map((ticket, itemIndex) =>
         itemIndex === index
-          ? { ...ticket, [field]: ['price', 'available','wristbands'].includes(field) ? Number(value) : value }
+          ? { ...ticket, [field]: ['price', 'available','wristbands'].includes(field) ? (value===''?'':Number(value)) : value }
           : ticket,
       ),
     }))
@@ -247,11 +238,11 @@ export default function Admin() {
         ...editing.ticketTypes,
         {
           id: `ing-${Date.now()}`,
-          name: 'Novo ingresso',
-          batch: '1º lote',
+          name: '',
+          batch: '',
           description: '',
-          price: 0,
-          available: 100,
+          price: '',
+          available: '',
           type: 'individual',
         },
       ],
@@ -273,6 +264,7 @@ export default function Admin() {
     for(const [key,label] of [['title','nome do evento'],['date','data do evento'],['time','horário'],['location','local'],['address','endereço'],['city','cidade/UF']]){
       if(!String(editing[key]||'').trim()){showSaveError('Preencha o campo '+label+' antes de salvar.', '#event-'+key);return}
     }
+    try{validateTicketDrafts(editing.ticketTypes)}catch(error){showSaveError(error.message,error.field?`.ticket-batch-editor[data-ticket-index="${error.ticketIndex}"] [data-field="${error.field}"]`:undefined);return}
     let whatsapp
     try{whatsapp=normalizeEventWhatsapp(editing.whatsapp)}catch(error){showSaveError(error.message,'#event-whatsapp');return}
     const minimumPrice = editing.ticketTypes.length
@@ -544,7 +536,7 @@ export default function Admin() {
 
               <section>
                 <div className="editor-section-head"><h3>Ingressos e preços</h3><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
-                <p className="ticket-editor-explanation">Cada cartão é um tipo ou lote de ingresso, como Pista e VIP. Para oferecer 100 ingressos de Pista, use um cartão com quantidade 100. Adicione outro cartão somente para outro tipo ou lote.</p>
+                <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, use “Categorias e unidades numeradas” acima.</p>
                 {editing.ticketTypes.map((ticket, index) => (
                   <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}

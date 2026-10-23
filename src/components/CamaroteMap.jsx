@@ -1,4 +1,4 @@
-import {unitKind} from '../utils/reservedUnits'
+import {unitKind,getReservedCategories} from '../utils/reservedUnits'
 import {useEffect,useState} from 'react'
 import {rpc} from '../services/remoteData'
 import {venueMapUrl} from '../utils/venueMap'
@@ -10,6 +10,7 @@ export default function CamaroteMap({event,getRemaining=()=>1,onSelect,selectedI
  const [editingId,setEditingId]=useState(''),[statuses,setStatuses]=useState({}),[selected,setSelected]=useState(''),[category,setCategory]=useState(''),[zoom,setZoom]=useState(1)
  const rooms=(event.ticketTypes||[]).filter(t=>t.type==='camarote')
  const visibleRooms=editor?rooms:rooms.filter(t=>unitKind(t)===category)
+ const categories=getReservedCategories(event).filter(c=>rooms.some(t=>unitKind(t)===c.id))
  const hasRooms=rooms.length>0
  useEffect(()=>{
   if(editor||local||!hasRooms)return
@@ -22,10 +23,10 @@ export default function CamaroteMap({event,getRemaining=()=>1,onSelect,selectedI
  let url='';try{url=venueMapUrl(event.venueMapImage,{local})}catch{/* schematic remains usable */}
  const status=t=>t.active===false?'blocked':statuses[t.id]||(getRemaining(event,t)>0?'available':'unavailable')
  const current=visibleRooms.find(t=>t.id===(editor?editingId:selected||selectedId))
- return <section className="camarote-section" id="unidades-numeradas" aria-label={editor?'Posicionar camarotes e mesas VIP':'Escolha camarote ou mesa VIP'}>
-  <h2>{editor?'Posicione camarotes e mesas VIP':'Escolha camarote ou mesa VIP'}</h2>
+ return <section className="camarote-section" id="unidades-numeradas" aria-label={editor?'Posicionar unidades numeradas':'Escolha sua unidade numerada'}>
+  <h2>{editor?'Posicione as unidades numeradas':'Escolha sua unidade numerada'}</h2>
   <p>{editor?'Selecione o número e toque na planta. Ajuste também pelos campos abaixo.':'Cada número corresponde a uma unidade inteira. A disponibilidade é confirmada pelo servidor ao continuar o checkout.'}</p>
-  {!editor&&<div className="reserved-categories">{[['camarote','Camarotes'],['table','Mesas VIP']].filter(([kind])=>rooms.some(t=>unitKind(t)===kind)).map(([kind,label])=><button type="button" className="ghost-btn" key={kind} aria-pressed={category===kind} onClick={()=>{setCategory(kind);setSelected('')}}>{label} • {rooms.filter(t=>unitKind(t)===kind&&status(t)==='available').length} disponíveis</button>)}</div>}
+  {!editor&&<div className="reserved-categories">{categories.map(({id:kind,name:label})=><button type="button" className="ghost-btn" key={kind} aria-pressed={category===kind} onClick={()=>{setCategory(kind);setSelected('')}}>{label} • {rooms.filter(t=>unitKind(t)===kind&&status(t)==='available').length} disponíveis</button>)}</div>}
   {(editor||category)&&<>
   {editor&&<label>Unidade a posicionar<select value={editingId} onChange={e=>setEditingId(e.target.value)}><option value="">Selecione</option>{rooms.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
   <label className="reserved-zoom">Ampliar mapa<input type="range" min="1" max="3" step="0.5" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/></label><div className="reserved-map-scroll" tabIndex={0} role="region" aria-label="Mapa navegável: deslize para ver os números"><div style={{width:zoom===1?'100%':(zoom*100)+'%'}} className={'camarote-map '+(!url?'schematic':'')} onClick={editor?e=>{if(!editingId)return;const rect=e.currentTarget.getBoundingClientRect();onMove(editingId,Math.round((e.clientX-rect.left)/rect.width*100),Math.round((e.clientY-rect.top)/rect.height*100))}:undefined}>
