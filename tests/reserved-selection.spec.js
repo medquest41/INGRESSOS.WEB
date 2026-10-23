@@ -1,0 +1,16 @@
+import {test,expect} from './support/offline-network.js'
+for(const width of [390,1280])test('select numbered room and VIP table '+width,async({page})=>{
+ await page.setViewportSize({width,height:900});await page.goto('/tests/fixtures/reserved-preview.html')
+ await page.getByRole('button',{name:'Camarotes • 14 disponíveis',exact:true}).click()
+ await expect(page.getByRole('button',{name:/Camarote 02 • Indisponível/})).toBeDisabled()
+ await page.getByRole('button',{name:/Camarote 15 • Disponível/}).first().click()
+ await expect(page.getByTestId('selected')).toHaveText('Camarote 15')
+ await page.getByRole('button',{name:'Mesas VIP • 20 disponíveis',exact:true}).click()
+ await page.getByRole('button',{name:/Mesa VIP 20 • Disponível/}).first().click()
+ await expect(page.getByTestId('selected')).toHaveText('Mesa VIP 20')
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.screenshot({path:'test-results-reserved/mesas-'+width+'.png'})
+ await page.getByText('Criar camarotes e mesas VIP numerados',{exact:true}).click()
+ await page.getByLabel('Começar no número',{exact:true}).fill('21');await page.getByLabel('Preço integral por unidade (R$)',{exact:true}).fill('500');await page.getByRole('button',{name:'Gerar unidades numeradas',exact:true}).click()
+ await expect(page.getByRole('status').first()).toContainText('Unidades adicionadas')
+})

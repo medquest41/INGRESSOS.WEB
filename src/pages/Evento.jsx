@@ -144,7 +144,7 @@ export default function Evento() {
 
         <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{eventContactPhone(event,organizations)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',eventContactPhone(event,organizations))} target="_blank" rel="noreferrer">Falar com o organizador no WhatsApp</a>}</section>
         <VenueMap key={event.id+event.venueMapImage} event={event} local={isLocalDemo}/>
-        <CamaroteMap event={event} getRemaining={getRemaining} onSelect={choose} selectedId={selectedTicket?.id} local={isLocalDemo}/>
+        <CamaroteMap event={event} getRemaining={getRemaining} onSelect={ticket=>{choose(ticket);document.getElementById('ingressos')?.scrollIntoView({behavior:'smooth',block:'start'})}} selectedId={selectedTicket?.id} local={isLocalDemo}/>
         <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
 
@@ -155,8 +155,8 @@ export default function Evento() {
           </div>
 
           <div className="purchase-layout">
-            <div className="ticket-options">
-              {(event.ticketTypes || []).map((ticket) => {
+            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>document.getElementById('unidades-numeradas')?.scrollIntoView({behavior:'smooth',block:'start'})}>Escolher camarote ou mesa VIP por número</button>}
+              {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote').map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
                   <button key={ticket.id} disabled={!getRemaining(event, ticket) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>

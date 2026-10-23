@@ -1,3 +1,4 @@
+import ReservedUnitGenerator from '../components/ReservedUnitGenerator'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
 import VenueMapEditor from '../components/VenueMapEditor'
@@ -536,6 +537,7 @@ export default function Admin() {
                 </div>
               </section>
 
+              <ReservedUnitGenerator event={editing} onChange={setEditing}/>
               <VenueMapEditor event={editing} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={setEditing} onBusyChange={setUploadingVenueMap}/>
               <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
               <AttractionEditor key={editing.id} value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
