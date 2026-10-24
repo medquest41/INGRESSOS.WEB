@@ -11,3 +11,8 @@ Correção preparada: reconhecer somente POST topic=payment com ID numérico, se
 Aplicação requer autorização específica de atualizar payments para essa correção de notificações e reconsultar o pagamento informado. Antes da atualização, comparar a fonte publicada com a base 1161604. Após publicar, reprocessar somente uma pista para o pagamento informado e consultar o banco: liberar apenas se o Mercado Pago confirmar estorno integral e todos os QR ficarem inválidos. Estorno parcial deve continuar em revisão, sem revender o espaço. Nenhuma transferência financeira deve ser executada.
 
 Rollback: restaurar a fonte anterior da mesma função, preservando os estados de pedidos já reconciliados e o schema atual. ZIP não inclui segredos nem dados de banco. Fonte oficial do protocolo: https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-orders/resources/notifications/ipn
+
+## Resultado em produção após autorização específica
+O usuário autorizou atualizar payments para corrigir avisos de estorno e reconciliar o pedido informado. A fonte ativa foi comparada com a base e preservada, a atualização foi publicada pelo painel e conferida integralmente após recarregar. Uma única pista foi reenviada para 184906143807, sem status fornecido: o backend consultou o Mercado Pago autenticado e reconciliou o resultado.
+
+Consulta somente leitura posterior confirmou Camarote 15, status refunded, 15 emitidos, 15 invalidados, 3 registros históricos de uso preservados e disponibilidade available. Nenhuma cobrança/restituição financeira foi solicitada por este trabalho, nem houve alteração manual de status por SQL. Sem migração.
