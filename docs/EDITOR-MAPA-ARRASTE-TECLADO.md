@@ -13,3 +13,9 @@ Tudo fica no rascunho até Salvar evento/Salvar ingressos e preços. Nenhuma inf
 Validação: 112 testes unitários/de banco e 24 testes de interface passaram. Cobertura nova: arraste em pixels com coordenadas fracionárias, limites, setas normal/Shift/Alt, alteração de tamanho individual, persistência após reabrir rascunho sintético, menu em celular 390px e desktop 1280px, continuação da numeração, rejeição de duplicados/configurações inválidas e persistência de mapSize pela RPC de banco usada no cadastro. Build e lint passaram. Capturas visuais conferidas. Não houve cobrança ou alteração de eventos, pedidos ou ingressos em produção nos testes. Safari/iOS e gesto de arraste em aparelho físico ainda não verificados.
 
 Não há nova migração: save_event já preserva os detalhes JSON dos ingressos. Rollback: reverter esta revisão do frontend; mapSize pode permanecer no JSON, sendo ignorado pela versão anterior. Nunca restaurar banco nem alterar QR/pagamentos como rollback visual.
+
+## Complemento: seleção direta e tema dos campos
+
+Ao clicar num marcador, ele recebe o foco para as setas imediatamente. A seleção pela lista/dropdown também transfere o foco para o marcador. Os campos horizontal/vertical ficam recolhidos em Ajuste avançado por coordenadas; não é necessário usá-los para mover o item. Um teste de interface usa o teclado da página após o clique/seleção, sem focar campos nem usar o atalho de foco do teste.
+
+Campos de descrição sem estilo específico passam a usar a superfície escura, texto claro, bordas arredondadas e foco dourado. Campos de texto e seletores do editor do mapa também receberam o tema. Conferência visual em 390px e 1280px, sem transbordamento horizontal. Build e lint passaram. Publicação permanece pendente da autorização específica solicitada após a recusa automática anterior; nenhum novo push foi tentado.

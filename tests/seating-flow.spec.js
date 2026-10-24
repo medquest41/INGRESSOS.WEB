@@ -26,7 +26,7 @@ test('guided Admin none, presets, numbering, position and reload',async({page})=
  await page.getByLabel('Quantidade de unidades',{exact:true}).fill('15');await page.getByLabel('Começar no número',{exact:true}).fill('1');await page.getByLabel('Preço integral por unidade (R$)',{exact:true}).fill('1200');await page.getByLabel('Ingressos gerados por unidade',{exact:true}).fill('15');await page.getByRole('button',{name:'Gerar unidades numeradas',exact:true}).click()
  await expect(page.getByLabel('Unidade a posicionar').locator('option')).toHaveCount(16)
  await page.getByLabel('Unidade a posicionar').selectOption({label:'Camarote 15'})
- await page.getByLabel('Posição horizontal (%)').fill('55');await page.getByLabel('Posição vertical (%)').fill('65')
+ await page.getByText('Ajuste avançado por coordenadas',{exact:true}).click();await page.getByLabel('Posição horizontal (%)').fill('55');await page.getByLabel('Posição vertical (%)').fill('65')
  await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload()
  await expect(page.getByRole('button',{name:/Camarote 15 • Disponível/}).first()).toHaveAttribute('style',/left: 55%; top: 65%/)
  await expect(page.getByRole('button',{name:'Camarotes • 14 disponíveis',exact:true})).toBeVisible()

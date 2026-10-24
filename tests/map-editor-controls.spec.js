@@ -36,3 +36,15 @@ for(const width of [390,1280])test('three-dot menu creates VIP tables and contin
  await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload();await expect(page.getByRole('button',{name:'Mesas VIP • 5 disponíveis',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toHaveAttribute('style',/width: 5%/)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
+
+test('click or select a marker makes keyboard adjustment immediate without coordinate fields',async({page})=>{
+ const editor=await openEditor(page);const pin=editor.getByRole('button',{name:/^Camarote 04 •/}).first()
+ await pin.click();await expect(pin).toBeFocused();await expect(editor.getByLabel('Posição vertical (%)')).toBeHidden()
+ const before=await point(pin),map=await editor.locator('.camarote-map').boundingBox()
+ await page.keyboard.press('ArrowDown');const after=await point(pin);expect(after.y).toBeCloseTo(before.y+1/map.height*100,2)
+ await editor.getByLabel('Unidade a posicionar').selectOption({label:'Camarote 05'})
+ const other=editor.getByRole('button',{name:/^Camarote 05 •/}).first();await expect(other).toBeFocused()
+ const next=await point(other);await page.keyboard.press('ArrowRight');expect((await point(other)).x).toBeCloseTo(next.x+1/map.width*100,2)
+ await expect(editor.getByLabel('Posição horizontal (%)')).toBeHidden()
+ await editor.screenshot({path:'test-results-map-controls/clique-ajuste-direto.png'})
+})
