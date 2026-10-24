@@ -1,3 +1,4 @@
 import {defineConfig} from '@playwright/test'
-export default defineConfig({testDir:'./tests',testMatch:['editor-sections.spec.js','map-editor-controls.spec.js','group-ticket-setup.spec.js','ticket-setup.spec.js','existing-ticket-support.spec.js','ticket-pdf.spec.js','seating-flow.spec.js','reserved-selection.spec.js'],workers:1,use:{baseURL:'http://127.0.0.1:5219',channel:'chrome',headless:true},outputDir:'test-results-ticket-release',reporter:'list'})
+export default defineConfig({testDir:'./tests',testMatch:['event-error.spec.js','editor-sections.spec.js','map-editor-controls.spec.js','group-ticket-setup.spec.js','ticket-setup.spec.js','existing-ticket-support.spec.js','ticket-pdf.spec.js','seating-flow.spec.js','reserved-selection.spec.js'],workers:1,use:{baseURL:'http://127.0.0.1:5219',channel:'chrome',headless:true},outputDir:'test-results-ticket-release',reporter:'list'})
+
 

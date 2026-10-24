@@ -1,0 +1,8 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {eventSaveError,duplicateUnit} from '../src/utils/eventSaveError.js'
+import {validateTicketDrafts} from '../src/utils/reservedUnits.js'
+const unit=name=>({name,type:'camarote',price:100,available:1,wristbands:15})
+test('duplicate reserved names are rejected before saving and identify the second name field',()=>{const tickets=[unit('Camarote 01'),unit(' camarote 01 ')];assert.equal(duplicateUnit(tickets),1);assert.throws(()=>validateTicketDrafts(tickets),error=>error.ticketIndex===1&&error.field==='name'&&/Altere o nome/.test(error.message));const result=eventSaveError({message:'duplicate key value violates unique constraint "camarote_event_name_unique"'},tickets);assert.match(result.message,/Cada camarote/);assert.match(result.selector,/index="1"/);assert.doesNotMatch(result.message,/constraint|duplicate key/)})
+test('individual lots can repeat names and distinct reserved units are accepted',()=>{assert.equal(duplicateUnit([{name:'Pista',type:'individual'},{name:'Pista',type:'individual'}]),-1);validateTicketDrafts([unit('Camarote 01'),unit('Camarote 02')])})
+test('technical errors have actionable Portuguese messages',()=>{assert.match(eventSaveError('Failed to fetch').message,/internet/);assert.match(eventSaveError('permission denied for table events').message,/permissão/);assert.match(eventSaveError('duplicate key violates unique constraint other').message,/cadastro/);assert.match(eventSaveError('column xyz does not exist').message,/suporte/);assert.equal(eventSaveError('Preencha o nome.').message,'Preencha o nome.')})

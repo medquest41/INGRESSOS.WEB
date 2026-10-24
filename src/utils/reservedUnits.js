@@ -1,3 +1,4 @@
+import {duplicateUnit} from './eventSaveError.js'
 const text=value=>typeof value==='string'?value.trim():''
 export const unitKind=t=>text(t.reservationCategoryId)||(t.reservationKind==='table'?'table':t.reservationKind==='group'?'group':'camarote')
 export const unitLabel=t=>text(t.reservationCategoryName)||(t.reservationKind==='table'?'Mesa VIP':t.reservationKind==='group'?'Grupo':'Camarote')
@@ -26,5 +27,8 @@ export function generateReservedUnits(existing,{kind,category,count,start,price,
  return [...existing,...units]
 }
 export function validateTicketDrafts(tickets){
+ const duplicate=duplicateUnit(tickets);if(duplicate>=0)throw Object.assign(Error('Já existe uma unidade chamada '+tickets[duplicate].name+'. Altere o nome para diferenciar cada camarote, mesa ou grupo.'),{ticketIndex:duplicate,field:'name'})
  tickets.forEach((t,ticketIndex)=>{const name=t.name?.trim()||'Ingresso';const fail=(message,field)=>{throw Object.assign(Error(name+': '+message),{ticketIndex,field})};if(t.price===''||t.price==null||!Number.isFinite(Number(t.price))||Number(t.price)<0)fail('informe o preço. Use 0 somente se for gratuito.','price');if(t.available===''||t.available==null||!Number.isInteger(Number(t.available))||Number(t.available)<0)fail('informe o estoque.','available');if(t.type==='camarote'&&(t.wristbands===''||t.wristbands==null||!Number.isInteger(Number(t.wristbands))||Number(t.wristbands)<1||Number(t.wristbands)>100))fail('informe de 1 a 100 ingressos por unidade.','wristbands')})
 }
+
+

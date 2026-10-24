@@ -8,7 +8,7 @@ export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrder
       <button type="button" className="danger" onClick={onRemove}>Excluir este ingresso</button>
     </header>
     <div className="ticket-batch-fields">{ticket.reservationCategoryName&&<p>Categoria: <strong>{ticket.reservationCategoryName}</strong></p>}
-      <label>Nome do ingresso<input value={ticket.name} onChange={e => onChange('name', e.target.value)} placeholder="Ex.: Pista, VIP, Camarote 01" /></label>
+      <label>Nome do ingresso<input data-field="name" value={ticket.name} onChange={e => onChange('name', e.target.value)} placeholder="Ex.: Pista, VIP, Camarote 01" /></label>
       {ticket.salesPredecessorId&&<p role="status">Nova opção de Grupo para as próximas compras. Ao salvar, o cadastro anterior sai das novas vendas e seus pedidos e QR Codes continuam preservados.</p>}
       {ticket.retiredForSales&&<p role="note">Cadastro anterior preservado para consultar o histórico. As novas vendas usam a opção de Grupo criada separadamente.</p>}
       {hasOrders&&<p role="note">Este cadastro já tem pedidos. Para vender com outra quantidade de ingressos inclusos, adicione um novo tipo de ingresso ou uma nova unidade. Os pedidos e QR Codes anteriores são preservados.</p>}
@@ -36,4 +36,5 @@ export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrder
     </>}
   </div></details>
 }
+
 

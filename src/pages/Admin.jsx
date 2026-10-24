@@ -1,3 +1,4 @@
+import {eventSaveError,focusEditorError} from '../utils/eventSaveError'
 import EditorSection from '../components/EditorSection'
 import {editTicketDraft} from '../utils/groupUpgrade'
 import {validateTicketDrafts} from '../utils/reservedUnits'
@@ -142,10 +143,9 @@ export default function Admin() {
   const [editing, setEditing] = useState(null)
   const [saveError,setSaveError]=useState('')
   function showSaveError(message,selector){
-    setSaveError(message)
-    document.querySelectorAll('.event-editor [aria-invalid="true"]').forEach(el=>{el.removeAttribute('aria-invalid');delete el.closest('label')?.dataset.error})
-    const field=document.querySelector(selector||'.event-save-error')
-    if(field){for(let parent=field.parentElement;parent;parent=parent.parentElement){if(parent.tagName==='DETAILS')parent.open=true}field.setAttribute('aria-invalid','true');const label=field.closest('label');if(label)label.dataset.error=message;field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true})}
+    const friendly=eventSaveError(message,editing?.ticketTypes)
+    setSaveError(friendly.message)
+    requestAnimationFrame(()=>focusEditorError(friendly.message,selector||friendly.selector))
   }
   const [uploadingHero, setUploadingImage] = useState(false)
   const [uploadingAttractions, setUploadingAttractions] = useState(false)
@@ -587,4 +587,5 @@ export default function Admin() {
     </div>
   )
 }
+
 

@@ -27,3 +27,4 @@ textarea::placeholder{color:#94a99c;opacity:1}
 textarea:focus-visible{outline:2px solid #dfc27a;outline-offset:2px;border-color:#dfc27a;box-shadow:0 0 0 4px rgba(223,194,122,.09)}
 textarea:disabled{opacity:.65;cursor:not-allowed}
 @media(max-width:600px){textarea{font-size:16px}}
+.event-editor [aria-invalid="true"]{border:2px solid #ff707c!important;outline:2px solid rgba(255,112,124,.25);background:#34171c!important}.event-field-error{display:block;color:#ffb0b8;font-size:13px;line-height:1.5;margin-top:7px}
