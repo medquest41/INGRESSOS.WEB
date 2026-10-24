@@ -1,0 +1,38 @@
+import {test,expect} from './support/offline-network.js'
+async function openEditor(page,query=''){
+ await page.goto('/tests/fixtures/seating-flow-preview.html'+query)
+ await page.getByRole('button',{name:'Configurar mapa',exact:true}).click()
+ await page.getByText('Mapa do evento, camarotes e mesas',{exact:true}).click()
+ return page.locator('.editor-mode')
+}
+async function point(pin){return pin.evaluate(el=>({x:parseFloat(el.style.left),y:parseFloat(el.style.top)}))}
+test('mouse drag, fine keyboard, individual size and reload preserve exact placement',async({page})=>{
+ await page.setViewportSize({width:1280,height:950});let editor=await openEditor(page)
+ let pin=editor.getByRole('button',{name:/^Camarote 03 •/}).first()
+ await pin.scrollIntoViewIfNeeded();const before=await point(pin),box=await pin.boundingBox(),map=await editor.locator('.camarote-map').boundingBox()
+ await page.mouse.move(box.x+box.width/2,box.y+box.height/2);await page.mouse.down();await page.mouse.move(box.x+box.width/2+27,box.y+box.height/2+12,{steps:5});await page.mouse.up()
+ let after=await point(pin);expect(after.x).toBeCloseTo(before.x+27/map.width*100,2);expect(after.y).toBeCloseTo(before.y+12/map.height*100,2)
+ const dragEnd=after;await pin.press('ArrowRight');after=await point(pin);expect(after.x).toBeCloseTo(dragEnd.x+1/map.width*100,2)
+ await pin.press('Alt+ArrowLeft');after=await point(pin);expect(after.x).toBeCloseTo(dragEnd.x+.75/map.width*100,2)
+ await pin.press('Shift+ArrowDown');after=await point(pin);expect(after.y).toBeCloseTo(dragEnd.y+10/map.height*100,2)
+ const size=editor.getByRole('slider',{name:/Tamanho do quadrado/});await size.focus();await size.press('Home');await size.press('ArrowRight');await size.press('ArrowRight');await size.press('ArrowRight')
+ await expect(size).toHaveValue('1.75');const resized=await pin.boundingBox();expect(resized.width).toBeCloseTo(resized.height,0)
+ await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload();await page.getByRole('button',{name:'Configurar mapa',exact:true}).click();await page.getByText('Mapa do evento, camarotes e mesas',{exact:true}).click()
+ editor=page.locator('.editor-mode');pin=editor.getByRole('button',{name:/^Camarote 03 •/}).first();expect(await point(pin)).toEqual(after);await expect(pin).toHaveAttribute('style',/width: 1.75%/)
+ await pin.click();await expect(editor.locator('.camarote-detail')).toContainText('15 ingressos individuais')
+ await editor.screenshot({path:'test-results-map-controls/arraste-teclado-tamanho.png'})
+})
+for(const width of [390,1280])test('three-dot menu creates VIP tables and continues numbering '+width,async({page})=>{
+ await page.setViewportSize({width,height:950});let editor=await openEditor(page,'?empty=1')
+ await page.getByLabel('Este evento tem camarotes, mesas ou outras unidades numeradas?').selectOption('numbered');editor=page.locator('.editor-mode')
+ await editor.locator('.map-items-menu>summary').click();await editor.getByRole('button',{name:'Adicionar novo item',exact:true}).click()
+ let dialog=page.getByRole('dialog',{name:'Adicionar itens ao mapa'})
+ await dialog.getByLabel('Nome do item',{exact:true}).fill('Mesas VIP');await dialog.getByLabel('Nome de cada unidade (opcional)',{exact:true}).fill('Mesa VIP');await dialog.getByLabel('Quantidade de unidades',{exact:true}).fill('3');await dialog.getByLabel('Preço da unidade inteira (R$)',{exact:true}).fill('350');await dialog.getByLabel('Ingressos inclusos por unidade',{exact:true}).fill('4')
+ await dialog.screenshot({path:'test-results-map-controls/novo-item-'+width+'.png'})
+ await dialog.getByRole('button',{name:'Adicionar itens ao mapa',exact:true}).click();await expect(dialog).toHaveCount(0);await expect(editor.locator('.camarote-pin')).toHaveCount(3)
+ await editor.locator('.map-items-menu>summary').click();await editor.getByRole('button',{name:'Adicionar novo item',exact:true}).click();dialog=page.getByRole('dialog')
+ await dialog.getByLabel('Nome do item',{exact:true}).fill('Mesas VIP');await dialog.getByLabel('Quantidade de unidades',{exact:true}).fill('2');await dialog.getByLabel('Preço da unidade inteira (R$)',{exact:true}).fill('350');await dialog.getByLabel('Ingressos inclusos por unidade',{exact:true}).fill('4');await dialog.getByRole('button',{name:'Adicionar itens ao mapa',exact:true}).click()
+ await expect(editor.locator('.camarote-pin')).toHaveCount(5);await expect(editor.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toBeVisible()
+ await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload();await expect(page.getByRole('button',{name:'Mesas VIP • 5 disponíveis',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toHaveAttribute('style',/width: 5%/)
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+})

@@ -47,11 +47,12 @@ for(const wristbands of [8,10,15,30])for(const partial of wristbands===8?[false,
  // Exercise the real Admin persistence RPC before the verified-payment flow.
  if(wristbands===15){
   await db.query("update public.profiles set role='admin' where id=$1",[buyer])
-  const payload={id:event,organizerId:org,title:'Teste',slug:'teste-camarotes',published:true,numberedUnitsMode:'numbered',venueMapTitle:'Escolha seu camarote',ticketTypes:[{id:first,name:'Camarote 01',type:'camarote',reservationKind:'group',available:1,price:1200,wristbands:15,unitNumber:1,mapX:55,mapY:65}]}
+  const payload={id:event,organizerId:org,title:'Teste',slug:'teste-camarotes',published:true,numberedUnitsMode:'numbered',venueMapTitle:'Escolha seu camarote',ticketTypes:[{id:first,name:'Camarote 01',type:'camarote',reservationKind:'group',available:1,price:1200,wristbands:15,unitNumber:1,mapX:55,mapY:65,mapSize:3.5}]}
   await db.query('select public.save_event($1::jsonb)',[JSON.stringify(payload)])
   assert.equal(await scalar("select (details->>'wristbands')::integer from ticket_types where id=$1",[first]),15)
   assert.equal(await scalar("select details->>'reservationKind' from ticket_types where id=$1",[first]),'group')
   assert.equal(await scalar("select (details->>'mapX')::integer from ticket_types where id=$1",[first]),55)
+  assert.equal(Number(await scalar("select (details->>'mapSize')::numeric from ticket_types where id=$1",[first])),3.5)
   assert.equal(await scalar("select details->>'venueMapTitle' from events where id=$1",[event]),'Escolha seu camarote')
   await db.query("update public.profiles set role='cliente' where id=$1",[buyer])
  }
