@@ -1,3 +1,4 @@
+import EditorSection from './EditorSection'
 /* oxlint-disable react/set-state-in-effect -- Clear the upload status when the selected organization changes. */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react'
@@ -74,10 +75,10 @@ export default function AttractionEditor({ value, organizationId, onChange, onBu
       window.requestAnimationFrame(() => document.querySelector(`[data-attraction-id="${id}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
     })
   }
-  return <section className="attractions-editor" aria-label="Atrações do evento">
-    <div className="editor-section-head"><h3>Atrações e programação</h3><button type="button" className="ghost-btn" disabled={uploading || items.length >= 100} onClick={addAttraction}><Plus/>Adicionar atração</button></div>
+  return <EditorSection className="attractions-editor" title="Atrações e programação">
+    <div className="editor-section-head"><span>Configure as atrações deste evento</span><button type="button" className="ghost-btn" disabled={uploading || items.length >= 100} onClick={addAttraction}><Plus/>Adicionar atração</button></div>
     <p className="ticket-editor-explanation">Cada atração fica em uma aba compacta. Clique no nome para abrir. Ao adicionar uma nova atração, ela aparece no topo e abre automaticamente.</p>
     {!items.length && <p className="attractions-empty">Nenhuma atração cadastrada. Use Adicionar atração para começar.</p>}
     {items.map((item, index) => <AttractionCard key={item.id} item={item} index={index} total={items.length} organizationId={organizationId} onChange={update} onMove={move} onRemove={remove} onBusy={onBusy} disabled={uploading} expanded={expandedId === item.id} onToggle={() => setExpandedId(current => current === item.id ? null : item.id)}/>) }
-  </section>
+  </EditorSection>
 }

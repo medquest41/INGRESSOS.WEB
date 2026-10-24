@@ -1,3 +1,4 @@
+import EditorSection from '../components/EditorSection'
 import {editTicketDraft} from '../utils/groupUpgrade'
 import {validateTicketDrafts} from '../utils/reservedUnits'
 import { eventAdminRole } from '../utils/eventAccess'
@@ -496,10 +497,9 @@ export default function Admin() {
               <div className="admin-actions"><button className="ghost-btn" disabled={uploadingImage} onClick={() => setEditing(null)}>Cancelar</button><button className="primary-small" disabled={uploadingImage} onClick={save}><Save />{uploadingImage ? 'Enviando imagem...' : 'Salvar'}</button></div>
             </div>
 
-            <div className="event-editor" onInputCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}} onChangeCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}}>
+            <div key={editing.id} className="event-editor" onInputCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}} onChangeCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}}>
               {saveError&&<p className="event-save-error" role="alert" tabIndex={-1}>{saveError}</p>}
-              <section>
-                <h3>Informações principais</h3>
+              <EditorSection title="Informações principais">
                 <div className="form-grid">
                   <label>Nome<input id="event-title" value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></label>
                   <label>Categoria<input value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })} /></label>
@@ -520,20 +520,20 @@ export default function Admin() {
                   <label className="full">Descrição<textarea value={editing.description} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></label>
                   <label className="check-label"><input type="checkbox" checked={Boolean(editing.published)} onChange={(e) => setEditing({ ...editing, published: e.target.checked, archived: false })} /> Publicado no site</label>
                 </div>
-              </section>
+              </EditorSection>
 
               <VenueMapEditor event={editing} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={setEditing} onBusyChange={setUploadingVenueMap}/>
               <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
               <AttractionEditor key={editing.id} value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
 
-              <section>
-                <div className="editor-section-head"><h3>Ingressos e preços</h3><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
+              <EditorSection title="Ingressos e preços">
+                <div className="editor-section-head"><span>Tipos, lotes e unidades</span><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
                 <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, abra “Mapa do evento, camarotes e mesas” acima.</p>
                 {editing.ticketTypes.map((ticket, index) => (
                   <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
                 <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
-              </section>
+              </EditorSection>
             </div>
           </>
         )}
