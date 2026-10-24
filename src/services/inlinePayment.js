@@ -1,9 +1,10 @@
+import {paymentErrorMessage} from '../utils/paymentErrors'
 import { supabase } from '../lib/supabase'
 async function request(action,orderId){
  const {data:{session},error:sessionError}=await supabase.auth.getSession()
  if(sessionError||!session)throw new Error('Sua sessão expirou. Entre novamente.')
  const {data,error}=await supabase.functions.invoke('payments',{headers:{Authorization:'Bearer '+session.access_token},body:{action,orderId}})
- if(error||data?.error){let message=data?.error;if(!message&&error?.context){try{message=(await error.context.json()).error}catch{/* fallback */}}throw new Error(message||'Não foi possível consultar o pagamento. Tente novamente.')}
+ if(error||data?.error){let message=data?.error;if(!message&&error?.context){try{message=(await error.context.json()).error}catch{/* fallback */}}throw new Error(paymentErrorMessage(message))}
  if(!data||typeof data.status!=='string')throw new Error('Resposta de pagamento inválida.')
  return data
 }

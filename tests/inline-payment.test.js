@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {paymentBody,safePayment,createInlinePayment,publicPayment} from '../server/inline-payment.mjs'
+import {pixExpiration,paymentBody,safePayment,createInlinePayment,publicPayment} from '../server/inline-payment.mjs'
 const order={id:'10000000-0000-4000-8000-000000000001',total_cents:5500,expires_at:new Date(Date.now()+32*60000).toISOString(),buyer:{email:'buyer@example.test',name:'Cliente Teste',cpf:'52998224725'},snapshot:{eventTitle:'Festa'}}
 test('Pix uses server amount, identity and deadline; browser totals/card details are ignored',async()=>{
  const body=paymentBody(order,'pix',{transaction_amount:1,payer:{email:'attacker@example.test'}},'https://example.test/webhook')
- assert.equal(body.transaction_amount,55);assert.equal(body.payer.email,'buyer@example.test');assert.equal(body.date_of_expiration,order.expires_at)
+ assert.equal(body.transaction_amount,55);assert.equal(body.payer.email,'buyer@example.test');assert.equal(body.date_of_expiration,new Date(order.expires_at).toISOString().replace('Z','+00:00'))
  assert.equal(body.payment_method_id,'pix');assert.equal(body.external_reference,order.id)
  let submitted
  await createInlinePayment({accessToken:'synthetic',order,method:'pix',idempotencyKey:'synthetic-unique',webhookUrl:'https://example.test/webhook',fetchImpl:async(url,args)=>{submitted=args;return {ok:true,json:async()=>({id:123})}}})
@@ -30,4 +30,11 @@ test('provider result cannot approve the browser until database settlement succe
  assert.equal(publicPayment({...payment,status:'pending'},order,false,Date.now()+3600000).qrCode,'')
  const challenge=publicPayment({...payment,status:'pending',status_detail:'pending_challenge',three_ds_info:{external_resource_url:'https://bank.example.test/challenge',creq:'synthetic-challenge'}},order,false)
  assert.equal(challenge.challenge.externalResourceURL,'https://bank.example.test/challenge')
+})
+
+test('Pix normalizes PostgreSQL fractional seconds and offsets without extending the reservation',()=>{
+ for(const input of ['2026-10-24T21:22:54.123456+00:00','2026-10-24T18:22:54.123456-03:00','2026-10-24T21:22:54Z']){
+  const output=pixExpiration(input);assert.match(output,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+00:00$/);assert.equal(Date.parse(output),Date.parse(input))
+ }
+ for(const input of [undefined,'','2026-10-24','2026-10-24T21:22:54','invalid'])assert.throws(()=>pixExpiration(input),/validade do Pix/)
 })

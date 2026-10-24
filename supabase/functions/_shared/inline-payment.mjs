@@ -1,3 +1,8 @@
+export function pixExpiration(value) {
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)||!Number.isFinite(Date.parse(value)))throw new Error('A validade do Pix está inválida. Volte ao pedido e tente novamente.')
+  return new Date(value).toISOString().replace(/Z$/,'+00:00')
+}
+
 export function safePayment(payment, order, collectorId, method, liveMode=true) {
   if(!/^\d+$/.test(String(payment.id))||!['pending','in_process','authorized','approved','rejected','cancelled','refunded','charged_back'].includes(payment.status))throw new Error('Resposta de pagamento inválida.')
   if(String(payment.collector_id)!==String(collectorId)||payment.live_mode!==liveMode||payment.currency_id!=='BRL'||payment.external_reference!==order.id||Math.round(Number(payment.transaction_amount)*100)!==order.total_cents)throw new Error('Pagamento incompatível com o pedido.')
@@ -16,7 +21,7 @@ export function paymentBody(order,method,card,webhookUrl) {
   if(!['pix','card'].includes(method)||!Number.isSafeInteger(order.total_cents)||order.total_cents<=0)throw new Error('Forma ou valor inválido.')
   const name=String(order.buyer?.name||'').trim().split(/\s+/)
   const body={transaction_amount:order.total_cents/100,description:'Ingresso — '+String(order.snapshot?.eventTitle||order.id).slice(0,180),external_reference:order.id,notification_url:webhookUrl,payer:{email:order.buyer.email,first_name:name[0],last_name:name.slice(1).join(' '),identification:{type:'CPF',number:order.buyer.cpf}}}
-  if(method==='pix')return {...body,payment_method_id:'pix',date_of_expiration:order.expires_at}
+  if(method==='pix')return {...body,payment_method_id:'pix',date_of_expiration:pixExpiration(order.expires_at)}
   if(typeof card?.token!=='string'||!/^[a-zA-Z0-9_-]{8,200}$/.test(card.token)||typeof card.payment_method_id!=='string'||!/^[a-zA-Z0-9_-]{1,40}$/.test(card.payment_method_id)||card.payment_method_id==='pix'||!Number.isInteger(card.installments)||card.installments!==1)throw new Error('Confira os dados do cartão. Apenas pagamento à vista está disponível.')
   const payer=card.payer
   if(payer){

@@ -18,13 +18,14 @@ test('deployed Checkout Pro adaptation: mocked Pix deadline, payment ownership, 
   let patch=null;const q={select:()=>q,eq:()=>q,maybeSingle:async()=>({data:order,error:null}),update:value=>{patch=value;return q},then:resolve=>{Object.assign(order,patch||{});resolve({data:order,error:null})}};return q
  },rpc:async(name,args)=>{
   calls.push({name,args})
-  if(name==='prepare_camarote_payment')return {data:{...order,expires_at:new Date(Date.now()+32*60000).toISOString()},error:null}
+  if(name==='prepare_camarote_payment')return {data:{...order,expires_at:new Date(Date.now()+32*60000).toISOString().replace('Z','123+00:00')},error:null}
   if(name==='reconcile_camarote_payment'){order.payment_id=String(payment.id);return {data:roomResult,error:fail?Error('synthetic-db-failure'):null}}
   return {data:null,error:null}
  }}
  const providerFetch=async(url,options={})=>{
   const parsed=new URL(url),body=options.body?JSON.parse(options.body):null
   providerCalls.push({path:parsed.pathname,body})
+  if(parsed.pathname==='/v1/payments'&&body?.date_of_expiration&&!/\.\d{3}[+-]\d{2}:\d{2}$/.test(body.date_of_expiration))return Response.json({message:'date_of_expiration: formato inválido'},{status:400})
   if(parsed.pathname==='/users/me')return Response.json({id:42})
   return Response.json(payment)
  }
@@ -33,7 +34,7 @@ test('deployed Checkout Pro adaptation: mocked Pix deadline, payment ownership, 
  const invoke=async(action)=>handler(new Request('https://synthetic.test/payments',{method:'POST',headers:{Authorization:'Bearer synthetic-user','Content-Type':'application/json'},body:JSON.stringify({action,orderId:id})}))
  reset();let response=await invoke('create_pix'),data=await response.json()
  assert.equal(data.status,'pending');assert.equal(data.qrCode,'synthetic-pix');assert.equal(order.payment_id,'8001')
- assert.equal(providerCalls.find(c=>c.path==='/v1/payments').body.date_of_expiration,order.expires_at)
+ assert.equal(providerCalls.find(c=>c.path==='/v1/payments').body.date_of_expiration,new Date(order.expires_at).toISOString().replace('Z','+00:00'))
  assert.equal(calls.filter(c=>c.name==='reconcile_camarote_payment').length,1)
  assert.equal(calls.some(c=>c.name==='settle_payment'),false)
  roomResult='approved';payment.status='approved';response=await invoke('status');assert.equal((await response.json()).status,'approved')

@@ -1,6 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+function pixExpiration(value: string) {
+  if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value)||!Number.isFinite(Date.parse(value)))throw new Error('A validade do Pix está inválida. Volte ao pedido e tente novamente.')
+  return new Date(value).toISOString().replace(/Z$/,'+00:00')
+}
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -449,7 +454,7 @@ Deno.serve(async (req) => {
             "X-Idempotency-Key": idempotencyKey,
           },
           body: JSON.stringify({
-            ...(order.snapshot?.wristbands?{date_of_expiration:order.expires_at}:{}),
+            ...(order.snapshot?.wristbands?{date_of_expiration:pixExpiration(order.expires_at)}:{}),
             transaction_amount: order.total_cents / 100,
             description: `Ingressos Experiences - Pedido ${order.id}`,
             payment_method_id: "pix",
@@ -517,7 +522,7 @@ Deno.serve(async (req) => {
       {
         error:
           error instanceof Error
-            ? error.message
+            ? /date_of_expiration/.test(error.message) ? 'Não foi possível gerar o Pix porque o provedor recusou o prazo de pagamento. Volte ao pedido e tente novamente. Se já pagou, não pague de novo.' : error.message
             : "Erro interno no pagamento.",
       },
       500,
