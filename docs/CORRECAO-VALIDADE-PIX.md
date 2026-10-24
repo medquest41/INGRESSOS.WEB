@@ -14,7 +14,7 @@ Erros de formato de data conhecidos recebem explicação em português no backen
 ## Aplicação e rollback
 Não requer migração. O arquivo a publicar é supabase/deployment/payments-checkout-pro.ts como index.ts da função payments. Não substituir pela implementação inline diferente de supabase/functions/payments/index.ts. Preservar configurações, segredos e autenticação atuais. Antes de publicar, comparar com o backup da função corrente. Para rollback, restaurar apenas a fonte anterior dessa mesma função; não reverter tabelas ou a reconciliação.
 
-A publicação da função de produção foi bloqueada pela revisão automática por exigir autorização explícita específica e está pendente. Não houve tentativa alternativa. O frontend também está preparado, sem publicação neste pacote até a resolução dessa autorização. Sem segredos ou arquivos de banco no ZIP incremental.
+A revisão automática exigiu autorização específica para a função de produção. O usuário autorizou expressamente atualizar payments em ingressos-web. Após essa autorização, a função foi publicada pelo painel; a página foi recarregada e a fonte persistida coincidiu integralmente com a correção testada. Nenhuma migração, alteração de segredos ou cobrança foi feita. A confirmação de pagamento real e os 15 ingressos desta compra dependem do pagamento do usuário; não foram simulados em produção. Sem segredos ou arquivos de banco no ZIP incremental.
 
 Referência oficial: https://www.mercadopago.com.br/developers/pt/docs/checkout-api-payments/integration-configuration/integrate-pix?scope=prod
 Formato exemplificado pelo provedor: https://www.mercadopago.com.br/developers/pt/docs/checkout-pro-preferences/additional-settings/expiration-date
