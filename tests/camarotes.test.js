@@ -13,7 +13,7 @@ test('room quote is the entire room; participants support more than ten wristban
  assert.equal(validateParticipants({ageRating:'Livre'},20,buyer,[],'same',true).length,20)
 })
 
-for(const partial of [false,true])test('SQL: exclusive reservation, verified payment, N QR, retry, expiration, check-in, privileges and rollback; partial schema='+partial,async()=>{
+for(const wristbands of [8,10,15,30])for(const partial of wristbands===8?[false,true]:[true])test('SQL: '+wristbands+' individual QR, verified payment, retry, expiration, check-in and rollback; partial schema='+partial,async()=>{
  const db=new PGlite(),buyer=crypto.randomUUID(),event=crypto.randomUUID(),batch=crypto.randomUUID()
  const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0]
  try{
@@ -32,7 +32,7 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  let roomNumber=0
  const room=async()=>{
   const id=crypto.randomUUID()
-  await db.query("insert into ticket_types(id,event_id,name,sector,batch,type,capacity,price_cents,details) values($1,$2,$3,'Camarotes','Único','camarote',1,120000,'{\"wristbands\":8}')",[id,event,'Camarote '+String(++roomNumber).padStart(2,'0')])
+  await db.query("insert into ticket_types(id,event_id,name,sector,batch,type,capacity,price_cents,details) values($1,$2,$3,'Camarotes','Único','camarote',1,120000,$4)",[id,event,'Camarote '+String(++roomNumber).padStart(2,'0'),JSON.stringify({wristbands})])
   return id
  }
  await db.exec("update settings set value='true'::jsonb where key='payments_enabled'")
@@ -43,6 +43,17 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  const sync=(id,a,status,external='10001',total=132000)=>scalar('select reconcile_inline_payment($1,$2,$3,$4,$5,\'pix\',now(),0,0)',[id,external,a.attempt_key,status,total])
  const count=id=>scalar('select count(*)::integer from tickets where order_id=$1',[id])
  const first=await room(),key=crypto.randomUUID()
+ // Exercise the real Admin persistence RPC before the verified-payment flow.
+ if(wristbands===15){
+  await db.query("update public.profiles set role='admin' where id=$1",[buyer])
+  const payload={id:event,organizerId:org,title:'Teste',slug:'teste-camarotes',published:true,numberedUnitsMode:'numbered',venueMapTitle:'Escolha seu camarote',ticketTypes:[{id:first,name:'Camarote 01',type:'camarote',reservationKind:'group',available:1,price:1200,wristbands:15,unitNumber:1,mapX:55,mapY:65}]}
+  await db.query('select public.save_event($1::jsonb)',[JSON.stringify(payload)])
+  assert.equal(await scalar("select (details->>'wristbands')::integer from ticket_types where id=$1",[first]),15)
+  assert.equal(await scalar("select details->>'reservationKind' from ticket_types where id=$1",[first]),'group')
+  assert.equal(await scalar("select (details->>'mapX')::integer from ticket_types where id=$1",[first]),55)
+  assert.equal(await scalar("select details->>'venueMapTitle' from events where id=$1",[event]),'Escolha seu camarote')
+  await db.query("update public.profiles set role='cliente' where id=$1",[buyer])
+ }
  await assert.rejects(db.query("insert into ticket_types(event_id,name,type,capacity,price_cents,details) values($1,' camarote 01 ','camarote',1,120000,'{\"wristbands\":8}')",[event]),/unique/)
  // Submitted together. PGlite serializes a single database connection; external PostgreSQL stress test is separate.
  const competing=await Promise.allSettled([make(first,key),make(first),make(first),make(first)])
@@ -62,18 +73,18 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  await assert.rejects(sync(id,a,'approved'),/permission denied/)
  await assert.rejects(db.query('select issue_tickets($1)',[id]),/permission denied/)
  await db.exec('reset role')
- await sync(id,a,'approved');assert.equal(await count(id),8)
+ await sync(id,a,'approved');assert.equal(await count(id),wristbands)
  const codes=(await db.query('select code from tickets where order_id=$1 order by ticket_number',[id])).rows.map(r=>r.code)
- assert.equal(new Set(codes).size,8)
- await Promise.all([sync(id,a,'approved'),sync(id,a,'approved')]);assert.equal(await count(id),8)
+ assert.equal(new Set(codes).size,wristbands)
+ await Promise.all([sync(id,a,'approved'),sync(id,a,'approved')]);assert.equal(await count(id),wristbands)
  assert.deepEqual((await db.query('select code from tickets where order_id=$1 order by ticket_number',[id])).rows.map(r=>r.code),codes)
  assert.equal(await scalar('select quantity from orders where id=$1',[id]),1)
- assert.equal(await scalar("select (snapshot->>'wristbands')::integer from orders where id=$1",[id]),8)
+ assert.equal(await scalar("select (snapshot->>'wristbands')::integer from orders where id=$1",[id]),wristbands)
  await db.query("update profiles set role='admin' where id=$1",[buyer])
  assert.equal(await scalar('select check_in($1)',[codes[0]]),'valid')
  assert.equal(await scalar('select check_in($1)',[codes[0]]),'used')
  assert.equal(await scalar('select check_in($1)',[codes[1]]),'valid')
- assert.equal(await scalar('select count(*)::integer from tickets where order_id=$1 and used_at is null',[id]),6)
+ assert.equal(await scalar('select count(*)::integer from tickets where order_id=$1 and used_at is null',[id]),wristbands-2)
  // Sold, pending, expiration and late webhook after another purchase.
  assert.equal((await scalar('select jsonb_agg(x) from camarote_availability($1) x',[event])).find(r=>r.id===first).status,'sold')
  const lateRoom=await room(),late=await make(lateRoom),la=await attempt(late)
@@ -90,7 +101,7 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  const cardRoom=await room(),cardOrder=await make(cardRoom)
  const cardAttempt=await scalar("select begin_inline_payment($1,$2,'card')",[cardOrder,buyer])
  await scalar("select reconcile_inline_payment($1,'10005',$2,'approved',132000,'card',now(),0,0)",[cardOrder,cardAttempt.attempt_key])
- assert.equal(await count(cardOrder),8)
+ assert.equal(await count(cardOrder),wristbands)
  // Refund revokes individual codes and releases the room, preserving history.
  await sync(id,a,'refunded');assert.equal(await scalar('select bool_and(cancelled) from tickets where order_id=$1',[id]),true)
  assert.equal(await scalar('select check_in($1)',[codes[2]]),'cancelled')
@@ -103,8 +114,8 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  const payment={id:5001,external_reference:hostedOrder,currency_id:'BRL',transaction_amount:1320,status:'pending',payment_method_id:'pix',fee_details:[]}
  const hostedSync=()=>scalar('select reconcile_camarote_payment($1,$2)',[hostedOrder,payment])
  assert.equal(await hostedSync(),'pending');assert.equal(await count(hostedOrder),0)
- payment.status='approved';assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),8)
- assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),8)
+ payment.status='approved';assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),wristbands)
+ assert.equal(await hostedSync(),'approved');assert.equal(await count(hostedOrder),wristbands)
  payment.status='pending';assert.equal(await hostedSync(),'approved')
  payment.status='refunded';assert.equal(await hostedSync(),'review')
  assert.equal(await scalar('select bool_and(cancelled) from tickets where order_id=$1',[hostedOrder]),true)
@@ -121,6 +132,6 @@ for(const partial of [false,true])test('SQL: exclusive reservation, verified pay
  await db.exec('reset role')
  await assert.rejects(db.exec(await readFile(new URL('../docs/ROLLBACK-CAMAROTES.sql',import.meta.url),'utf8')),/Rollback bloqueado/)
  await db.exec('rollback')
- assert.equal(await count(id),8)
+ assert.equal(await count(id),wristbands)
  }finally{await db.close()}
 })

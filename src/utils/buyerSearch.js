@@ -7,7 +7,7 @@ export function matchesBuyerSearch(record, query) {
   if (!text) return true
   const buyer = record.buyer || record
   if ([record.id, record.eventTitle, buyer.name, buyer.email].filter(Boolean).join(' ').toLowerCase().includes(text)) return true
-  if (!/^[\d.\-\s]+$/.test(text)) return false
+  if (!/^[\d.\-\s()+]+$/.test(text)) return false
   const digits = text.replace(/\D/g, '')
-  return Boolean(digits && String(buyer.cpf || '').replace(/\D/g, '').includes(digits))
+  return Boolean(digits && [buyer.cpf,buyer.phone].some(value=>String(value||'').replace(/\D/g,'').includes(digits)))
 }

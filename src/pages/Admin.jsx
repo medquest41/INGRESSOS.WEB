@@ -1,5 +1,4 @@
 import {validateTicketDrafts} from '../utils/reservedUnits'
-import ReservedUnitGenerator from '../components/ReservedUnitGenerator'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
 import VenueMapEditor from '../components/VenueMapEditor'
@@ -529,16 +528,15 @@ export default function Admin() {
                 </div>
               </section>
 
-              <ReservedUnitGenerator event={editing} onChange={setEditing}/>
               <VenueMapEditor event={editing} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={setEditing} onBusyChange={setUploadingVenueMap}/>
               <ExperienceEditor event={editing} onChange={setEditing} isPrimaryAdmin={isPrimaryAdmin}/>
               <AttractionEditor key={editing.id} value={editing.attractions} organizationId={role === 'organizador' ? currentUser.organizerId : editing.organizerId} onChange={attractions => setEditing(event => ({ ...event, attractions }))} onBusyChange={setUploadingAttractions}/>
 
               <section>
                 <div className="editor-section-head"><h3>Ingressos e preços</h3><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
-                <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, use “Categorias e unidades numeradas” acima.</p>
+                <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, abra “Mapa do evento, camarotes e mesas” acima.</p>
                 {editing.ticketTypes.map((ticket, index) => (
-                  <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
+                  <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
                 <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
               </section>
@@ -554,7 +552,7 @@ export default function Admin() {
           <>
             <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>{selectedEvent ? 'Pedidos deste evento.' : 'Pedidos.'}</h1></div></div>
             <SalesCleanup event={selectedEvent} orders={visibleOrders}/><section className="admin-panel">
-              <div className="form-grid"><label>Buscar pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Pedido, evento, nome, e-mail ou CPF"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
+              <div className="form-grid"><label>Buscar cliente ou pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Nome, CPF, e-mail, telefone ou número do pedido"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
               <EventOrderList key={eventId + ':' + orderStatus + ':' + orderSearch} eventId={eventId} events={visibleEvents} orders={visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&matchesBuyerSearch(o,orderSearch))} cancelOrder={cancelOrder} canViewCpf={['admin','organizador'].includes(role)}/>
             </section>
           </>

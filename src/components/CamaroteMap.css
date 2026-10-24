@@ -3,3 +3,7 @@
 .reserved-categories{display:flex;flex-wrap:wrap;gap:12px;margin:16px 0}.reserved-categories button[aria-pressed="true"]{border-color:#e8c875;background:#e8c87522}.camarote-pin{min-width:44px}.camarote-map.schematic{height:620px}
 
 .reserved-map-scroll{max-width:100%;overflow:auto;overscroll-behavior:contain}.reserved-map-scroll .camarote-map{min-width:620px;margin-top:0}.reserved-zoom{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}.reserved-zoom input{width:180px}.reserved-map-scroll:focus-visible{outline:2px solid #e8c875}
+
+.camarote-list-toggle{margin-top:16px}.camarote-list-toggle>summary{cursor:pointer;font-weight:700;padding:12px 0}
+
+.camarote-map.has-image{min-height:0}.camarote-map.has-image img{height:auto;min-height:0;object-fit:contain}

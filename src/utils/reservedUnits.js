@@ -1,10 +1,10 @@
 const text=value=>typeof value==='string'?value.trim():''
-export const unitKind=t=>text(t.reservationCategoryId)||(t.reservationKind==='table'?'table':'camarote')
-export const unitLabel=t=>text(t.reservationCategoryName)||(t.reservationKind==='table'?'Mesa VIP':'Camarote')
+export const unitKind=t=>text(t.reservationCategoryId)||(t.reservationKind==='table'?'table':t.reservationKind==='group'?'group':'camarote')
+export const unitLabel=t=>text(t.reservationCategoryName)||(t.reservationKind==='table'?'Mesa VIP':t.reservationKind==='group'?'Grupo':'Camarote')
 export function getReservedCategories(event){
  const result=new Map()
  for(const c of event.reservationCategories||[])if(text(c.id)&&text(c.name))result.set(c.id,{id:c.id,name:text(c.name),prefix:text(c.prefix)||text(c.name)})
- for(const t of event.ticketTypes||[])if(t.type==='camarote'&&!result.has(unitKind(t)))result.set(unitKind(t),{id:unitKind(t),name:text(t.reservationCategoryName)||(t.reservationKind==='table'?'Mesas VIP':'Camarotes'),prefix:unitLabel(t)})
+ for(const t of event.ticketTypes||[])if(t.type==='camarote'&&!result.has(unitKind(t)))result.set(unitKind(t),{id:unitKind(t),name:text(t.reservationCategoryName)||(t.reservationKind==='table'?'Mesas VIP':t.reservationKind==='group'?'Grupos':'Camarotes'),prefix:unitLabel(t)})
  return [...result.values()]
 }
 export function addReservedCategory(event,name,prefix,id=()=>crypto.randomUUID()){

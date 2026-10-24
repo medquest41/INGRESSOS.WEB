@@ -1,3 +1,4 @@
+import {ticketOrdinal} from '../utils/ticketNumbering'
 import {supabase,result} from '../lib/supabase'
 import {canShowQR,shareLink,ticketShareUrl,whatsappUrl} from '../utils/experience'
 import {normalizeEventWhatsapp} from '../utils/eventContact'
@@ -20,7 +21,8 @@ export async function shareOrderTickets(order){
  const phone=buyerPhone(order),tickets=(order.ticketCodes||[]).filter(t=>canShowQR(order,t))
  if(!tickets.length)throw Error('Nenhum ingresso válido disponível para enviar.')
  const links=[];for(const ticket of tickets)links.push(await ticketUrl(order,ticket,true))
- const text='Seus ingressos para '+order.eventTitle+' — '+order.ticketName+'. Links válidos por 24 horas; abra cada um para salvar o PDF.\n'+links.map((link,i)=>'Ingresso '+(i+1)+': '+link).join('\n')
+ const text='Seus ingressos para '+order.eventTitle+' — '+order.ticketName+'. Links válidos por 24 horas; abra cada um para salvar o PDF.\n'+links.map((link,i)=>'Ingresso '+ticketOrdinal(tickets[i],i)+' de '+(order.wristbands||order.ticketCodes.length)+': '+link).join('\n')
  window.location.assign(whatsappUrl(text,phone))
 }
-export {printTicket,printOrderTickets} from '../utils/ticketPrint'
+import '../components/TicketPrint.css'
+export {printTicket,printOrderTickets,printAllTickets} from '../utils/ticketPrint'
