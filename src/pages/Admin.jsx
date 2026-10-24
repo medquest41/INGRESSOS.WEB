@@ -1,3 +1,4 @@
+import {editTicketDraft} from '../utils/groupUpgrade'
 import {validateTicketDrafts} from '../utils/reservedUnits'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
@@ -220,14 +221,7 @@ export default function Admin() {
   }
 
   function updateTicket(index, field, value) {
-    setEditing(current=>({
-      ...current,
-      ticketTypes: current.ticketTypes.map((ticket, itemIndex) =>
-        itemIndex === index
-          ? { ...ticket, [field]: ['price', 'available','wristbands'].includes(field) ? (value===''?'':Number(value)) : value }
-          : ticket,
-      ),
-    }))
+    setEditing(current=>editTicketDraft(current,index,field,value,{originalTickets:events.find(event=>event.id===current.id)?.ticketTypes||[],orders}))
   }
 
   function addTicket() {

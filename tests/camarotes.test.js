@@ -1,3 +1,4 @@
+import {editTicketDraft} from '../src/utils/groupUpgrade.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
@@ -126,6 +127,27 @@ for(const wristbands of [8,10,15,30])for(const partial of wristbands===8?[false,
  // Common tickets retain one QR per quantity.
  await db.query("insert into ticket_types(id,event_id,name,sector,batch,type,capacity,price_cents) values($1,$2,'Pista','Pista','1','individual',5,0)",[batch,event])
  const common=await scalar("select create_order($1,2,$2,'',$3,null,null)",[batch,person,crypto.randomUUID()]);assert.equal(await count(common),2)
+ if(wristbands===15){
+  const oldCodes=await scalar('select jsonb_agg(code order by code) from tickets where order_id=$1',[common])
+  const rows=(await db.query('select * from ticket_types where event_id=$1',[event])).rows
+  const oldTypes=rows.map(t=>({...t.details,id:t.id,name:t.name,sector:t.sector,batch:t.batch,type:t.type,price:t.price_cents/100,available:t.capacity,active:t.active}))
+  const newGroup=crypto.randomUUID()
+  let edited=editTicketDraft({ticketTypes:oldTypes},oldTypes.findIndex(t=>t.id===batch),'type','camarote',{originalTickets:oldTypes,orders:[{ticketId:batch}],id:()=>newGroup})
+  edited.ticketTypes=edited.ticketTypes.map(t=>t.id===newGroup?{...t,wristbands:15,price:1200,reservationKind:'group'}:t)
+  await db.query("update public.profiles set role='admin' where id=$1",[buyer])
+  await db.query('select save_event($1::jsonb)',[JSON.stringify({...edited,id:event,organizerId:org,title:'Teste',slug:'teste-camarotes',published:true})])
+  await db.query("update public.profiles set role='cliente' where id=$1",[buyer])
+  assert.equal(await scalar('select capacity from ticket_types where id=$1',[batch]),5)
+  assert.equal(await scalar('select active from ticket_types where id=$1',[batch]),false)
+  assert.deepEqual(await scalar('select jsonb_agg(code order by code) from tickets where order_id=$1',[common]),oldCodes)
+  const futureOrder=await make(newGroup)
+  assert.equal(await count(futureOrder),0)
+  const confirmed={...payment,id:5003,external_reference:futureOrder,status:'approved'}
+  await scalar('select reconcile_camarote_payment($1,$2)',[futureOrder,confirmed])
+  assert.equal(await count(futureOrder),15)
+  await scalar('select reconcile_camarote_payment($1,$2)',[futureOrder,confirmed])
+  assert.equal(await count(futureOrder),15);assert.equal(await count(common),2)
+ }
  await db.exec('set role anon');await assert.rejects(db.query('select * from orders'),/permission denied/)
  const publicRows=(await db.query('select * from camarote_availability($1)',[event])).rows
  assert.deepEqual(Object.keys(publicRows[0]).sort(),['id','status'])

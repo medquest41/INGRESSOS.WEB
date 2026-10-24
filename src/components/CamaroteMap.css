@@ -7,3 +7,5 @@
 .camarote-list-toggle{margin-top:16px}.camarote-list-toggle>summary{cursor:pointer;font-weight:700;padding:12px 0}
 
 .camarote-map.has-image{min-height:0}.camarote-map.has-image img{height:auto;min-height:0;object-fit:contain}
+
+.editor-mode .reserved-map-scroll{max-height:min(55vh,480px);margin-top:12px;border:1px solid #64748b66;border-radius:12px}.editor-mode .reserved-map-scroll .camarote-map{min-width:0}.editor-mode .camarote-map.schematic{height:auto;min-height:0;aspect-ratio:1.6}.editor-mode .camarote-pin{min-width:32px;min-height:32px;padding:4px;font-size:12px;max-width:100px}.reserved-zoom output{min-width:3em}

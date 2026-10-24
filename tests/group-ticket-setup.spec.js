@@ -11,3 +11,18 @@ for(const width of [390,1280])test('group of 15 preserves configured quantity an
  await editor.locator('summary').first().click();await expect(editor.locator('summary').first()).toContainText('15 ingressos por unidade')
  await editor.locator('summary').first().click();await expect(editor.getByLabel('Pulseiras inclusas',{exact:true})).toHaveValue('15')
 })
+
+test('switching a sold legacy ticket creates future group and preserves historical capacity',async({page})=>{
+ await page.goto('/tests/fixtures/ticket-setup-preview.html?legacy=1')
+ await page.locator('.ticket-batch-editor').first().locator('summary').first().click()
+ await page.locator('.ticket-batch-editor').first().getByLabel('Tipo de entrada').selectOption('group')
+ const group=page.locator('.ticket-batch-editor').first()
+ await group.locator('summary').first().click()
+ await group.getByLabel('Pulseiras inclusas',{exact:true}).fill('15')
+ await expect(page.locator('.ticket-batch-editor')).toHaveCount(2)
+ await expect(group).toContainText('Nova opção de Grupo para as próximas compras')
+ const historical=page.locator('.ticket-batch-editor').nth(1);if(await historical.getAttribute('open')===null)await historical.locator('summary').first().click()
+ await expect(historical.getByLabel('Quantidade de ingressos',{exact:true})).toHaveValue('50')
+ await expect(historical.getByText('Disponível para venda',{exact:true}).locator('..').getByRole('checkbox')).not.toBeChecked()
+ await page.getByRole('button',{name:'Validar rascunho de teste'}).click();await expect(page.getByTestId('draft-status')).toHaveText('Válido')
+})

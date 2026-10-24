@@ -154,7 +154,7 @@ export default function Evento() {
 
           <div className="purchase-layout">
             <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>document.getElementById('unidades-numeradas')?.scrollIntoView({behavior:'smooth',block:'start'})}>Escolher unidade por categoria e número</button>}
-              {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote').map((ticket) => {
+              {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote'&&!ticket.retiredForSales).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
                   <button key={ticket.id} disabled={!getRemaining(event, ticket) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>
