@@ -47,6 +47,15 @@ test('deployed Checkout Pro adaptation: mocked Pix deadline, payment ownership, 
  const sig=createHmac('sha256',env.MERCADOPAGO_WEBHOOK_SECRET).update(`id:8001;request-id:${rid};ts:${ts};`).digest('hex')
  response=await handler(new Request('https://synthetic.test/payments?type=payment&data.id=8001',{method:'POST',headers:{'x-signature':`ts=${ts},v1=${sig}`,'x-request-id':rid}}))
  assert.equal((await response.json()).status,'review');assert.equal(calls.some(c=>c.name==='reconcile_camarote_payment'),true)
+ // A legacy notification cannot supply a status, amount, seller or order.
+ reset();roomResult='review';payment.status='refunded';payment.transaction_amount_refunded=1320
+ const legacy=()=>handler(new Request('https://synthetic.test/payments?topic=payment&id=8001',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved',orderId:'forged',transaction_amount:1})}))
+ response=await legacy();assert.equal(response.status,200);assert.equal((await response.json()).status,'review');assert.equal(calls.find(c=>c.name==='reconcile_camarote_payment').args.provider_payment.status,'refunded')
+ reset();payment.status='approved';roomResult='approved';response=await legacy();assert.equal((await response.json()).status,'approved');assert.equal(calls.find(c=>c.name==='reconcile_camarote_payment').args.provider_payment.status,'approved')
+ reset();payment.collector_id=99;response=await legacy();assert.equal(response.status,500);assert.equal(calls.some(c=>c.name==='reconcile_camarote_payment'),false)
+ reset();payment.live_mode=true;response=await legacy();assert.equal(response.status,500);assert.equal(calls.some(c=>c.name==='reconcile_camarote_payment'),false)
+ reset();response=await handler(new Request('https://synthetic.test/payments?topic=payment&id=8001',{method:'POST',headers:{'x-signature':'ts=123,v1=invalid','x-request-id':'invalid'}}));assert.equal(response.status,401);assert.equal(providerCalls.length,0)
+ reset();response=await handler(new Request('https://synthetic.test/payments?topic=payment&id=abc',{method:'POST'}));assert.equal(response.status,401);assert.equal(providerCalls.length,0)
  reset(false);response=await invoke('create_pix');data=await response.json();assert.equal(data.status,'pending')
  assert.equal(providerCalls.find(c=>c.path==='/v1/payments').body.date_of_expiration,undefined)
  assert.equal(calls.some(c=>c.name==='prepare_camarote_payment'),false)

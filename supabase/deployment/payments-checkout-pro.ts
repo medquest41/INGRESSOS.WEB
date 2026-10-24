@@ -152,22 +152,21 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
 
-    const isWebhook =
-      req.headers.has("x-signature") ||
+    // Legacy IPN is an untrusted hint, never a payment authority. Only the
+    // provider's authenticated GET response may change an order.
+    const isLegacyPaymentHint = req.method === "POST" && !req.headers.has("x-signature") &&
+      url.searchParams.get("topic") === "payment" && /^\d{1,20}$/.test(url.searchParams.get("id") || "");
+    const isWebhook = isLegacyPaymentHint || req.headers.has("x-signature") ||
       url.searchParams.get("type") === "payment";
 
     /*
      * WEBHOOK MERCADO PAGO
      */
     if (isWebhook) {
-      if (!WEBHOOK_SECRET) {
-        return json({ error: "Webhook ainda não configurado." }, 401);
-      }
-
-      const valid = await verifyWebhook(req, WEBHOOK_SECRET);
-
-      if (!valid) {
-        return json({ error: "Assinatura inválida." }, 401);
+      if (req.method !== "POST") return json({ error: "Método inválido." }, 405);
+      if (!isLegacyPaymentHint) {
+        if (!WEBHOOK_SECRET) return json({ error: "Webhook ainda não configurado." }, 401);
+        if (!await verifyWebhook(req, WEBHOOK_SECRET)) return json({ error: "Assinatura inválida." }, 401);
       }
 
       const paymentId =
@@ -183,6 +182,11 @@ Deno.serve(async (req) => {
         MERCADOPAGO_ACCESS_TOKEN,
       );
 
+      const seller = await mercadoPagoRequest("/users/me", MERCADOPAGO_ACCESS_TOKEN);
+      if (String(payment.id) !== String(paymentId) || String(payment.collector_id) !== String(seller.id) ||
+        payment.live_mode !== !MERCADOPAGO_ACCESS_TOKEN.startsWith("TEST-") || payment.currency_id !== "BRL") {
+        throw Error("Notificação incompatível com a conta de pagamentos.");
+      }
       const roomStatus = await reconcileRoom(supabase,payment,MERCADOPAGO_ACCESS_TOKEN);
       if(roomStatus!==null) return json(isWebhook ? {received:true,status:roomStatus} : {status:roomStatus,orderStatus:roomStatus,paymentId:String(payment.id),qrCode:payment.point_of_interaction?.transaction_data?.qr_code||null,qrCodeBase64:payment.point_of_interaction?.transaction_data?.qr_code_base64||null,expiresAt:payment.date_of_expiration||null});
       if (payment.status === "approved") {
