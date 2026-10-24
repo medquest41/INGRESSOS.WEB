@@ -20,3 +20,5 @@ export function focusEditorError(message,selector,root=document){
  if(label){const hint=root.createElement('span');hint.className='event-field-error';hint.id='event-field-error';hint.textContent=message;hint.setAttribute('role','alert');label.append(hint);field.setAttribute('aria-describedby',hint.id)}
  field.scrollIntoView({behavior:'smooth',block:'center'});field.focus({preventScroll:true})
 }
+
+export function clearEditorFieldError(field){if(!field?.removeAttribute)return;field.removeAttribute('aria-invalid');if(field.getAttribute('aria-describedby')==='event-field-error')field.removeAttribute('aria-describedby');const label=field.closest('label');if(label){delete label.dataset.error;label.querySelectorAll('.event-field-error').forEach(el=>el.remove())}}

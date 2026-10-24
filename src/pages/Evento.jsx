@@ -1,3 +1,4 @@
+import {requiredUnitCategory} from '../utils/unitSelection'
 import EventSeating from '../components/EventSeating'
 import { eventContactPhone } from '../utils/eventContact'
 import { useMemo, useState } from 'react'
@@ -51,6 +52,7 @@ export default function Evento() {
   const [quantity, setQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
   const [seatingRequest,setSeatingRequest]=useState(0)
+  const [seatingCategory,setSeatingCategory]=useState(null)
   const preview = searchParams.get('preview') === '1' && canManage(currentUser, event)
 
   if (!event || ((!event.published || event.archived) && !preview)) {
@@ -67,12 +69,14 @@ export default function Evento() {
   const { fee, total } = calculateFees(subtotal, 0, event.feeRate ?? 0.1, event.feePayer || 'buyer')
 
   function choose(ticket) {
+    const category=requiredUnitCategory(event,ticket);if(category){setSeatingCategory(category.id);setSeatingRequest(n=>n+1);return}
     setSelectedTicket(ticket)
     setQuantity(1)
   }
 
   function checkout(chosen=selectedTicket) {
     if (!chosen?.id) return
+    const category=requiredUnitCategory(event,chosen);if(category){setSeatingCategory(category.id);setSeatingRequest(n=>n+1);return}
     const params = new URLSearchParams({ event: event.id, ticket: chosen.id, q: String(chosen.type==='camarote'?1:quantity) })
     const source = searchParams.get('ref') || searchParams.get('utm_source')
     if (source) params.set('ref', source)
@@ -145,7 +149,7 @@ export default function Evento() {
         <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{eventContactPhone(event,organizations)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',eventContactPhone(event,organizations))} target="_blank" rel="noreferrer">Falar com o organizador no WhatsApp</a>}</section>
         <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
-        <EventSeating openRequest={seatingRequest} event={event} getRemaining={getRemaining} onSelect={choose} onBuy={checkout} selectedId={selectedTicket?.id} local={isLocalDemo}/>
+        <EventSeating initialCategory={seatingCategory} openRequest={seatingRequest} event={event} getRemaining={getRemaining} onSelect={choose} onBuy={checkout} selectedId={selectedTicket?.id} local={isLocalDemo}/>
 
         <section className="ticket-section" id="ingressos">
           <div className="ticket-section-title">
@@ -158,12 +162,12 @@ export default function Evento() {
               {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote'&&!ticket.retiredForSales).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
-                  <button key={ticket.id} disabled={!getRemaining(event, ticket) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>
+                  <button key={ticket.id} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>
                     <div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
-                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>Camarote inteiro • {ticket.wristbands||8} pulseiras individuais</p>}</div>
+                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>Camarote inteiro • {ticket.wristbands||8} pulseiras individuais</p>}</div>
                     </div>
-                    <div className="ticket-option-price"><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{getRemaining(event, ticket)} disponíveis</span></div>
+                    <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>Escolher número</strong><span>Ver unidades disponíveis</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{getRemaining(event, ticket)} disponíveis</span></>}</div>
                     <div className="ticket-selected-check"><Check size={17} /></div>
                   </button>
                 )

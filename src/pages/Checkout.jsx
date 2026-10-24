@@ -1,3 +1,5 @@
+import EventSeating from '../components/EventSeating'
+import {requiredUnitCategory} from '../utils/unitSelection'
 import CheckoutSeating from '../components/CheckoutSeating'
 import BirthDateInput from '../components/BirthDateInput'
 /* oxlint-disable react/set-state-in-effect -- Debounced server quote must invalidate stale amounts immediately. */
@@ -93,7 +95,7 @@ export default function Checkout() {
   if(!isLocalDemo){totals=reservedTotals||serverQuote;quoteError=serverError}
   async function finish(e) {
     e.preventDefault()
-    if (pending.current || !totals) return
+    if (pending.current || !totals || requiredUnitCategory(event,ticket)) return
     pending.current = true; setBusy(true); setError('')
     try {
       if(participantCount>1&&!participantsSaved){resumePayment.current=true;setParticipantsOpen(true);return}
@@ -104,6 +106,8 @@ export default function Checkout() {
       navigate('/ingressos', { replace: true, state: { approved: true } })
     } catch (err) { setError(err.message) } finally { pending.current = false; setBusy(false) }
   }
+  const neededCategory=requiredUnitCategory(event,ticket)
+  if(neededCategory&&!hasReservation)return <main className="checkout-wrap"><section><Link to={getEventPublicPath(event)}>← Voltar ao evento</Link><h1>Escolha o número da sua unidade</h1><p>Antes de preencher seus dados, selecione qual {neededCategory.prefix||neededCategory.name} deseja comprar. Nenhum pagamento foi iniciado.</p><EventSeating event={event} openRequest={1} initialCategory={neededCategory.id} getRemaining={getRemaining} local={isLocalDemo} onBuy={chosen=>{const next=new URLSearchParams(params);next.set('ticket',chosen.id);next.set('q','1');navigate('/checkout?'+next.toString(),{replace:true})}}/></section></main>
   if(!currentUser)return <main className="auth-wrap"><section className="auth-card"><h1>Como você quer comprar?</h1><p>Continue sem senha ou use sua conta da Ingressos Experiences.</p><p>Na compra rápida, volte a Meus ingressos neste mesmo navegador. Salve o PDF após a confirmação. Para recuperar em outro aparelho, use uma conta com o e-mail da compra confirmado.</p>{error&&<p role="alert">{error}</p>}<button className="checkout-button" disabled={busy} onClick={async()=>{setBusy(true);try{await startGuest()}catch(err){setError(err.message)}finally{setBusy(false)}}}>Compra rápida sem conta</button><Link to={'/login?returnTo='+encodeURIComponent(window.location.pathname+window.location.search)}>Entrar / Criar conta</Link></section></main>
   if (!event?.published || event.archived || !ticket) return <div className="empty-page"><h1>Ingresso indisponível.</h1><Link to="/eventos">Ver eventos</Link></div>
   return <div className="checkout-page"><header className="simple-header"><Link to={getEventPublicPath(event)} className="event-back"><ArrowLeft size={18}/>Voltar</Link><Brand/><Link to={currentUser.guest?'/login?returnTo='+encodeURIComponent(window.location.pathname+window.location.search):'/eventos'}>{currentUser.guest?'Entrar / Criar conta':'Minha conta'}</Link></header><main className="checkout-wrap"><section><span className="section-kicker">CHECKOUT</span><h1>Finalize sua experiência.</h1><CheckoutSeating event={event} ticket={ticket} getRemaining={getRemaining} local={isLocalDemo} locked={hasReservation}/><form ref={buyerForm} className="buyer-form" onSubmit={finish}><h3>Dados do comprador</h3><p>Se sair, seus dados ficam salvos neste navegador por até 24 horas.</p>{!hasReservation&&<button type="button" className="ghost-btn" disabled={busy} onClick={clearDraft}>Limpar dados preenchidos</button>}<div className="form-grid">

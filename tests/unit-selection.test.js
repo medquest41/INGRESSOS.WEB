@@ -1,0 +1,8 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {requiredUnitCategory,filterUnits,unitMarkerLabel} from '../src/utils/unitSelection.js'
+const room={id:'r15',name:'Camarote 15',type:'camarote',unitNumber:12,wristbands:15,price:100,reservationKind:'camarote'}
+const table={id:'t1',name:'Mesa VIP 01',type:'camarote',unitNumber:1,wristbands:4,price:50,reservationKind:'table'}
+test('generic legacy CAMAROTE routes to numbered units without changing existing ticket records',()=>{const event={ticketTypes:[room,table]};assert.equal(requiredUnitCategory(event,{type:'individual',name:'CAMAROTE'}).id,'camarote');assert.equal(requiredUnitCategory(event,{type:'table',name:'Mesa VIP'}).id,'table');assert.equal(requiredUnitCategory(event,{type:'individual',name:'Pista'}),null);assert.equal(requiredUnitCategory(event,room),null);assert.equal(requiredUnitCategory({ticketTypes:[]},{name:'CAMAROTE'}),null);assert.equal(room.unitNumber,12)})
+test('marker follows displayed name number when old metadata differs',()=>{assert.equal(unitMarkerLabel(room),'15');assert.equal(unitMarkerLabel(table),'1');assert.equal(unitMarkerLabel({name:'Lounge Azul',unitNumber:8}),8)})
+test('search normalizes accents, orders prices, preserves data and excludes unavailable',()=>{const units=[room,table,{...room,id:'r3',name:'Camarote 03',price:25}];assert.deepEqual(filterUnits(units,{query:'15'}).map(t=>t.id),['r15']);assert.deepEqual(filterUnits(units,{sort:'price'}).map(t=>t.id),['r3','t1','r15']);assert.equal(filterUnits(units,{availableOnly:true,status:t=>t.id==='r15'?'sold':'available'}).length,2);assert.equal(units[0],room)})

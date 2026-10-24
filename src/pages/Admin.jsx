@@ -1,4 +1,6 @@
-import {eventSaveError,focusEditorError} from '../utils/eventSaveError'
+import TicketEditorTools from '../components/TicketEditorTools'
+import {searchText} from '../utils/unitSelection'
+import {eventSaveError,focusEditorError,clearEditorFieldError} from '../utils/eventSaveError'
 import EditorSection from '../components/EditorSection'
 import {editTicketDraft} from '../utils/groupUpgrade'
 import {validateTicketDrafts} from '../utils/reservedUnits'
@@ -142,7 +144,9 @@ export default function Admin() {
   }
   const [editing, setEditing] = useState(null)
   const [saveError,setSaveError]=useState('')
+  const [ticketSearch,setTicketSearch]=useState('')
   function showSaveError(message,selector){
+    setTicketSearch('')
     const friendly=eventSaveError(message,editing?.ticketTypes)
     setSaveError(friendly.message)
     requestAnimationFrame(()=>focusEditorError(friendly.message,selector||friendly.selector))
@@ -497,7 +501,7 @@ export default function Admin() {
               <div className="admin-actions"><button className="ghost-btn" disabled={uploadingImage} onClick={() => setEditing(null)}>Cancelar</button><button className="primary-small" disabled={uploadingImage} onClick={save}><Save />{uploadingImage ? 'Enviando imagem...' : 'Salvar'}</button></div>
             </div>
 
-            <div key={editing.id} className="event-editor" onInputCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}} onChangeCapture={e=>{e.target.removeAttribute('aria-invalid');const label=e.target.closest('label');if(label)delete label.dataset.error}}>
+            <div key={editing.id} className="event-editor" onInputCapture={e=>clearEditorFieldError(e.target)} onChangeCapture={e=>clearEditorFieldError(e.target)}>
               {saveError&&<p className="event-save-error" role="alert" tabIndex={-1}>{saveError}</p>}
               <EditorSection title="Informações principais">
                 <div className="form-grid">
@@ -529,8 +533,9 @@ export default function Admin() {
               <EditorSection title="Ingressos e preços">
                 <div className="editor-section-head"><span>Tipos, lotes e unidades</span><button type="button" className="ghost-btn" onClick={addTicket}><Plus />Adicionar tipo de ingresso</button></div>
                 <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, abra “Mapa do evento, camarotes e mesas” acima.</p>
+                <TicketEditorTools tickets={editing.ticketTypes} query={ticketSearch} onQuery={setTicketSearch}/>
                 {editing.ticketTypes.map((ticket, index) => (
-                  <TicketBatchEditor key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
+                  <TicketBatchEditor hidden={!searchText([ticket.name,ticket.sector,ticket.batch].join(' ')).includes(searchText(ticketSearch))} key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
                 <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
               </EditorSection>
