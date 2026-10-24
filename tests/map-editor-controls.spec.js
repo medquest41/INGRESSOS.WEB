@@ -33,7 +33,7 @@ for(const width of [390,1280])test('three-dot menu creates VIP tables and contin
  await editor.locator('.map-items-menu>summary').click();await editor.getByRole('button',{name:'Adicionar novo item',exact:true}).click();dialog=page.getByRole('dialog')
  await dialog.getByLabel('Nome do item',{exact:true}).fill('Mesas VIP');await dialog.getByLabel('Quantidade de unidades',{exact:true}).fill('2');await dialog.getByLabel('Preço da unidade inteira (R$)',{exact:true}).fill('350');await dialog.getByLabel('Ingressos inclusos por unidade',{exact:true}).fill('4');await dialog.getByRole('button',{name:'Adicionar itens ao mapa',exact:true}).click()
  await expect(editor.locator('.camarote-pin')).toHaveCount(5);await expect(editor.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toBeVisible()
- await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload();await expect(page.getByRole('button',{name:'Mesas VIP • 5 disponíveis',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toHaveAttribute('style',/width: 5%/)
+ await page.getByRole('button',{name:'Salvar rascunho sintético'}).click();await page.reload();await page.getByRole('button',{name:'Ver mapa e escolher número',exact:true}).click();await expect(page.getByRole('button',{name:'Mesas VIP • 5 disponíveis',exact:true})).toBeVisible();await expect(page.getByRole('button',{name:/^Mesa VIP 05 •/}).first()).toHaveAttribute('style',/width: 5%/)
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
 

@@ -50,6 +50,7 @@ export default function Evento() {
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [quantity, setQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
+  const [seatingRequest,setSeatingRequest]=useState(0)
   const preview = searchParams.get('preview') === '1' && canManage(currentUser, event)
 
   if (!event || ((!event.published || event.archived) && !preview)) {
@@ -144,7 +145,7 @@ export default function Evento() {
         <section className="admin-panel"><h2>Esse rolê está ativo ✨</h2><Activity event={event} full/><p>Classificação: {event.ageRating||'Livre'}{event.requireDocument?' • Documento obrigatório na entrada':''}</p><p>{event.rules}</p><button className="primary-small" onClick={()=>{recordActivity(event.id,'share');shareLink(event.title,window.location.origin+getEventPublicPath(event))}}>Chamar amigos</button><Link className="ghost-btn" to={'/organizador/'+encodeURIComponent(event.organizerId)}>Mais deste organizador</Link>{eventContactPhone(event,organizations)&&<a className="primary-small" href={whatsappUrl(event.whatsappMessage||'Oi! Tenho interesse no evento '+event.title+'. Pode me ajudar?',eventContactPhone(event,organizations))} target="_blank" rel="noreferrer">Falar com o organizador no WhatsApp</a>}</section>
         <VipPublic event={event}/>
         <AttractionList value={event.attractions} allowDemo={isLocalDemo}/>
-        <EventSeating event={event} getRemaining={getRemaining} onSelect={choose} onBuy={checkout} selectedId={selectedTicket?.id} local={isLocalDemo}/>
+        <EventSeating openRequest={seatingRequest} event={event} getRemaining={getRemaining} onSelect={choose} onBuy={checkout} selectedId={selectedTicket?.id} local={isLocalDemo}/>
 
         <section className="ticket-section" id="ingressos">
           <div className="ticket-section-title">
@@ -153,7 +154,7 @@ export default function Evento() {
           </div>
 
           <div className="purchase-layout">
-            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>document.getElementById('unidades-numeradas')?.scrollIntoView({behavior:'smooth',block:'start'})}>Escolher unidade por categoria e número</button>}
+            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>setSeatingRequest(n=>n+1)}>Escolher unidade por categoria e número</button>}
               {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote'&&!ticket.retiredForSales).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
