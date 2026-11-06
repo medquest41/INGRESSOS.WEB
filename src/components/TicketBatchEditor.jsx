@@ -1,8 +1,18 @@
 import { toBrasiliaInput, fromBrasiliaInput } from '../utils/batchTime'
 import './TicketBatchEditor.css'
+import {ticketHighlights} from '../utils/ticketPresentation'
+import {useLayoutEffect,useRef} from 'react'
 
-export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrders=false, hidden=false, onChange, onRemove }) {
-  return <details hidden={hidden} className="ticket-batch-editor" data-ticket-index={index} aria-label={`Ingresso ${index + 1}`}><summary className="ticket-batch-summary"><span><small>INGRESSO {index+1}</small><strong>{ticket.name||'Novo ingresso'}{ticket.retiredForSales?' • Histórico preservado':''}{ticket.batch?' • '+ticket.batch:''}</strong><span>{ticket.price!==''&&ticket.price!=null?Number(ticket.price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Preço a preencher'} • {ticket.type==='camarote'?(ticket.wristbands!==''&&ticket.wristbands!=null?ticket.wristbands+' ingressos por unidade':'Ingressos por unidade a preencher'):(ticket.available!==''&&ticket.available!=null?ticket.available+' unidades':'Estoque a preencher')}</span></span><span className="ticket-batch-expand"><span className="ticket-show">Abrir edição ▾</span><span className="ticket-hide">Recolher ▴</span></span></summary><div className="ticket-batch-content">
+export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrders=false, hidden=false, autoReveal=false, onChange, onRemove }) {
+  const editor=useRef(null)
+  useLayoutEffect(()=>{
+    if(!autoReveal||!editor.current)return
+    for(let node=editor.current;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true
+    const name=editor.current.querySelector('[data-field="name"]')
+    name?.focus({preventScroll:true})
+    name?.scrollIntoView({block:'center',behavior:'auto'})
+  },[autoReveal])
+  return <details ref={editor} hidden={hidden} className="ticket-batch-editor" data-ticket-index={index} aria-label={`Ingresso ${index + 1}`}><summary className="ticket-batch-summary"><span><small>INGRESSO {index+1}</small><strong>{ticket.name||'Novo ingresso'}{ticket.retiredForSales?' • Histórico preservado':''}{ticket.batch?' • '+ticket.batch:''}</strong><span>{ticket.price!==''&&ticket.price!=null?Number(ticket.price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'Preço a preencher'} • {ticket.type==='camarote'?(ticket.wristbands!==''&&ticket.wristbands!=null?ticket.wristbands+' ingressos por unidade':'Ingressos por unidade a preencher'):(ticket.available!==''&&ticket.available!=null?ticket.available+' unidades':'Estoque a preencher')}</span></span><span className="ticket-batch-expand"><span className="ticket-show">Abrir edição ▾</span><span className="ticket-hide">Recolher ▴</span></span></summary><div className="ticket-batch-content">
     <header>
       <div><span>INGRESSO {index + 1}</span><h4>{ticket.name || 'Novo ingresso'}</h4></div>
       <button type="button" className="danger" onClick={onRemove}>Excluir este ingresso</button>
@@ -16,6 +26,7 @@ export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrder
       <label>Setor<input value={ticket.sector || ''} onChange={e => onChange('sector', e.target.value)} placeholder="Ex.: Pista Premium, VIP ou Camarotes" /></label>
       <label>O que este ingresso inclui<textarea aria-label="O que este ingresso inclui" rows={3} maxLength={1500} value={ticket.description||''} onChange={e=>onChange('description',e.target.value)} placeholder="Ex.: acesso à área VIP. Informe os benefícios, restrições e se inclui bebidas ou alimentação."/></label>
       <label>Nome do lote<input value={ticket.batch || ''} onChange={e => onChange('batch', e.target.value)} placeholder="Ex.: 1º lote" /></label>
+      <label>Destaque na página de vendas<select value={ticket.highlight||''} onChange={e=>onChange('highlight',e.target.value)}>{ticketHighlights.map(item=><option key={item.value} value={item.value}>{item.label}</option>)}</select><small>Opcional. Exibe uma faixa no cartão. “Mais vendido” é uma indicação escolhida por você; use quando corresponder às vendas.</small></label>
       <label className="ticket-price-field">{ticket.type==='camarote'?'Preço da unidade inteira (R$)':'Preço do ingresso (R$)'}<input aria-label="Preço do ingresso (R$)" type="number" inputMode="decimal" min="0" step="0.01" data-field="price" value={ticket.price??''} placeholder="" onChange={e => onChange('price', e.target.value)} /><small>Valor de uma unidade. Ex.: 85,00. Zero significa gratuito.</small></label>
       <label>{ticket.type==='camarote'?'Estoque exclusivo desta unidade':'Estoque do lote (unidades à venda)'}<input aria-label="Quantidade de ingressos" type="number" inputMode="numeric" min="0" step="1" disabled={ticket.type==='camarote'} data-field="available" value={ticket.type==='camarote'?1:ticket.available??''} onChange={e => onChange('available', e.target.value)} /><small>Estoque total à venda, incluindo unidades já vendidas. Os ingressos inclusos são definidos separadamente.</small></label>
       {ticket.type!=='camarote'&&/camarote/i.test(ticket.name||'')&&<p role="note">Este ingresso está configurado para emitir um QR por unidade comprada. Para vender o camarote inteiro com vários QR Codes, escolha “Grupo — vários ingressos com QR individuais” e informe as pulseiras inclusas.</p>}

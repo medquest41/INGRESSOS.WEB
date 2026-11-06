@@ -145,6 +145,7 @@ export default function Admin() {
   const [editing, setEditing] = useState(null)
   const [saveError,setSaveError]=useState('')
   const [ticketSearch,setTicketSearch]=useState('')
+  const [newTicketId,setNewTicketId]=useState(null)
   function showSaveError(message,selector){
     setTicketSearch('')
     const friendly=eventSaveError(message,editing?.ticketTypes)
@@ -230,12 +231,15 @@ export default function Admin() {
   }
 
   function addTicket() {
-    setEditing({
-      ...editing,
+    const id=crypto.randomUUID()
+    setTicketSearch('')
+    setNewTicketId(id)
+    setEditing(current=>({
+      ...current,
       ticketTypes: [
-        ...editing.ticketTypes,
+        ...current.ticketTypes,
         {
-          id: `ing-${Date.now()}`,
+          id,
           name: '',
           batch: '',
           description: '',
@@ -244,7 +248,7 @@ export default function Admin() {
           type: 'individual',
         },
       ],
-    })
+    }))
   }
 
   function removeTicket(index) {
@@ -535,7 +539,7 @@ export default function Admin() {
                 <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, abra “Mapa do evento, camarotes e mesas” acima.</p>
                 <TicketEditorTools tickets={editing.ticketTypes} query={ticketSearch} onQuery={setTicketSearch}/>
                 {editing.ticketTypes.map((ticket, index) => (
-                  <TicketBatchEditor hidden={!searchText([ticket.name,ticket.sector,ticket.batch].join(' ')).includes(searchText(ticketSearch))} key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
+                  <TicketBatchEditor autoReveal={ticket.id===newTicketId} hidden={!searchText([ticket.name,ticket.sector,ticket.batch].join(' ')).includes(searchText(ticketSearch))} key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
                 <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
               </EditorSection>

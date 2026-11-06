@@ -1,4 +1,6 @@
 import {requiredUnitCategory} from '../utils/unitSelection'
+import {publicTicketOptions,ticketHighlightLabel,isNumberedUnit} from '../utils/ticketPresentation'
+import './TicketHighlights.css'
 import EventSeating from '../components/EventSeating'
 import { eventContactPhone } from '../utils/eventContact'
 import { useMemo, useState } from 'react'
@@ -158,14 +160,15 @@ export default function Evento() {
           </div>
 
           <div className="purchase-layout">
-            <div className="ticket-options">{event.ticketTypes?.some(t=>t.type==='camarote')&&<button type="button" className="ticket-option" onClick={()=>setSeatingRequest(n=>n+1)}>Escolher unidade por categoria e número</button>}
-              {(event.ticketTypes || []).filter(ticket=>ticket.type!=='camarote'&&!ticket.retiredForSales).map((ticket) => {
+            <div className="ticket-options">{event.ticketTypes?.some(t=>isNumberedUnit(t)&&!t.retiredForSales)&&<button type="button" className="ticket-option" onClick={()=>setSeatingRequest(n=>n+1)}>Escolher unidade por categoria e número</button>}
+              {publicTicketOptions(event).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
-                  <button key={ticket.id} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''}`} onClick={() => choose(ticket)}>
+                  <button key={ticket.id} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''}`} onClick={() => choose(ticket)}>
+                    {ticketHighlightLabel(ticket)&&<span className="ticket-highlight-ribbon">{ticketHighlightLabel(ticket)}</span>}
                     <div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
-                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>Camarote inteiro • {ticket.wristbands||8} pulseiras individuais</p>}</div>
+                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>
                     </div>
                     <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>Escolher número</strong><span>Ver unidades disponíveis</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{getRemaining(event, ticket)} disponíveis</span></>}</div>
                     <div className="ticket-selected-check"><Check size={17} /></div>
