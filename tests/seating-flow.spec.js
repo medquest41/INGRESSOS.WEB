@@ -51,11 +51,11 @@ for(const width of [390,1280])test('same uploaded plan and original-image link o
  await page.getByRole('button',{name:'Ver mapa e escolher número',exact:true}).click();await page.keyboard.press('Escape');await expect(map).toBeHidden()
  await page.getByRole('button',{name:'Ver mapa e escolher número',exact:true}).click()
  await page.getByRole('dialog').screenshot({path:'test-results-seating/janela-selecao-'+width+'.png'})
- await map.getByRole('button',{name:/Camarote 15 • Disponível/}).first().click();await map.getByRole('button',{name:'Continuar para pagamento',exact:true}).click()
+ await expect(map.locator('.camarote-pin')).toHaveCount(0);await map.getByRole('complementary').getByRole('button',{name:/Camarote 15/}).click();await map.getByRole('button',{name:'Continuar para pagamento',exact:true}).click()
  const review=page.getByRole('region',{name:'Mapa da unidade escolhida',exact:true})
  await expect(review.locator('.camarote-map img')).toHaveAttribute('src',url)
  await expect(review.getByRole('link',{name:'Ver planta original enviada ↗'})).toHaveAttribute('href',url)
- await expect(review.locator('.camarote-pin.chosen')).toHaveText('15')
+ await expect(review.locator('.camarote-pin')).toHaveCount(0);await expect(review).toContainText('Camarote 15')
  await page.screenshot({path:'test-results-seating/planta-enviada-checkout-'+width+'.png',fullPage:true})
 })
 

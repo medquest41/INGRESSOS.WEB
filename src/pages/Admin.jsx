@@ -3,6 +3,7 @@ import {searchText} from '../utils/unitSelection'
 import {eventSaveError,focusEditorError,clearEditorFieldError} from '../utils/eventSaveError'
 import EditorSection from '../components/EditorSection'
 import {editTicketDraft} from '../utils/groupUpgrade'
+import {configureNumberedTables} from '../utils/numberedTables'
 import {validateTicketDrafts} from '../utils/reservedUnits'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
@@ -253,6 +254,13 @@ export default function Admin() {
 
   function removeTicket(index) {
     setEditing({ ...editing, ticketTypes: editing.ticketTypes.filter((_, itemIndex) => itemIndex !== index) })
+  }
+
+  function configureTables(ticketId,options){
+    const result=configureNumberedTables(editing,ticketId,options)
+    setTicketSearch('')
+    setEditing(result.event)
+    setNewTicketId(result.parentId)
   }
 
   async function save() {
@@ -539,7 +547,7 @@ export default function Admin() {
                 <p className="ticket-editor-explanation">Clique na faixa de um ingresso ou lote para abrir a edição. Para criar áreas reservadas com vários números, abra “Mapa do evento, camarotes e mesas” acima.</p>
                 <TicketEditorTools tickets={editing.ticketTypes} query={ticketSearch} onQuery={setTicketSearch}/>
                 {editing.ticketTypes.map((ticket, index) => (
-                  <TicketBatchEditor autoReveal={ticket.id===newTicketId} hidden={!searchText([ticket.name,ticket.sector,ticket.batch].join(' ')).includes(searchText(ticketSearch))} key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
+                  <TicketBatchEditor onConfigureTables={options=>configureTables(ticket.id,options)} autoReveal={ticket.id===newTicketId} hidden={!searchText([ticket.name,ticket.sector,ticket.batch].join(' ')).includes(searchText(ticketSearch))} key={ticket.id} ticket={ticket} index={index} isLocalDemo={isLocalDemo} hasOrders={orders.some(order=>order.ticketId===ticket.id)} onChange={(field, value) => updateTicket(index, field, value)} onRemove={() => removeTicket(index)} />
                 ))}
                 <div className="ticket-section-save"><button type="button" className="primary-small" disabled={uploadingImage} onClick={save}><Save size={17}/>{uploadingImage ? 'Aguarde...' : 'Salvar ingressos e preços'}</button><small>Salva o evento com os ingressos, lotes e preços atuais.</small></div>
               </EditorSection>

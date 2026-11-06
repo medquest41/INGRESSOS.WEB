@@ -1,3 +1,4 @@
+import {configureNumberedTables} from '../src/utils/numberedTables.js'
 import {editTicketDraft} from '../src/utils/groupUpgrade.js'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -14,7 +15,7 @@ test('room quote is the entire room; participants support more than ten wristban
  assert.equal(validateParticipants({ageRating:'Livre'},20,buyer,[],'same',true).length,20)
 })
 
-for(const wristbands of [8,10,15,30])for(const partial of wristbands===8?[false,true]:[true])test('SQL: '+wristbands+' individual QR, verified payment, retry, expiration, check-in and rollback; partial schema='+partial,async()=>{
+for(const wristbands of [4,8,10,15,30])for(const partial of wristbands===8?[false,true]:[true])test('SQL: '+wristbands+' individual QR, verified payment, retry, expiration, check-in and rollback; partial schema='+partial,async()=>{
  const db=new PGlite(),buyer=crypto.randomUUID(),event=crypto.randomUUID(),batch=crypto.randomUUID()
  const scalar=async(sql,args=[])=>Object.values((await db.query(sql,args)).rows[0])[0]
  try{
@@ -57,13 +58,29 @@ for(const wristbands of [8,10,15,30])for(const partial of wristbands===8?[false,
   await db.query("update public.profiles set role='cliente' where id=$1",[buyer])
  }
  await assert.rejects(db.query("insert into ticket_types(event_id,name,type,capacity,price_cents,details) values($1,' camarote 01 ','camarote',1,120000,'{\"wristbands\":8}')",[event]),/unique/)
+ if(wristbands===4){
+  await db.query("update public.profiles set role='admin' where id=$1",[buyer])
+  // Start with an already-persisted COMBO VIP: ordered persistence must avoid a
+  // duplicate-name collision while retaining its original exclusive SKU.
+  await db.query("update ticket_types set name='COMBO VIP' where id=$1",[first])
+  const priorReservation=await make(first,key)
+  const configured=configureNumberedTables({id:event,ticketTypes:[{id:first,name:'COMBO VIP',type:'camarote',reservationKind:'table',price:1200,available:1,wristbands:4,active:true}]},first,{count:10})
+  await db.query('select save_event($1::jsonb)',[JSON.stringify({...configured.event,organizerId:org,title:'Teste',slug:'teste-camarotes',published:true})])
+  assert.equal(await scalar("select count(*)::integer from ticket_types where details->>'tableOfferId'=$1",[configured.parentId]),10)
+  await assert.rejects(make(configured.parentId),/indisponível|disponível|Inativo|lote/i)
+  assert.equal(await scalar('select capacity from ticket_types where id=$1',[first]),1)
+  assert.equal(await scalar('select status from orders where id=$1',[priorReservation]),'pending')
+  assert.equal(await scalar('select ticket_type_id from orders where id=$1',[priorReservation]),first)
+  assert.equal(await scalar("select sum(batch_remaining(id))::integer from ticket_types where details->>'tableOfferId'=$1",[configured.parentId]),9)
+  await db.query("update public.profiles set role='cliente' where id=$1",[buyer])
+ }
  // Submitted together. PGlite serializes a single database connection; external PostgreSQL stress test is separate.
  const competing=await Promise.allSettled([make(first,key),make(first),make(first),make(first)])
  assert.equal(competing.filter(r=>r.status==='fulfilled').length,1)
  const id=competing.find(r=>r.status==='fulfilled').value
  assert.equal(await make(first,key),id)
  assert.equal(await scalar('select batch_remaining($1)',[first]),0)
- assert.equal((await scalar('select jsonb_agg(x) from camarote_availability($1) x',[event]))[0].status,'reserved')
+ assert.equal((await scalar('select jsonb_agg(x) from camarote_availability($1) x',[event])).find(r=>r.id===first).status,'reserved')
  assert.equal(await count(id),0)
  await assert.rejects(db.query("update ticket_types set capacity=2 where id=$1",[first]),/estoque 1/)
  await assert.rejects(db.query("update ticket_types set details='{\"wristbands\":9}' where id=$1",[first]),/histórico/)

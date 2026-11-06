@@ -1,6 +1,7 @@
 import {getReservedCategories,unitKind} from './reservedUnits.js'
 export const searchText=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()
 export function requiredUnitCategory(event,ticket){
+ if(event&&ticket?.numberedCategoryId)return getReservedCategories(event).find(c=>c.id===ticket.numberedCategoryId)||{id:ticket.numberedCategoryId,name:ticket.name}
  if(!event||!ticket||ticket.type==='camarote')return null
  const text=searchText([ticket.name,ticket.sector].join(' '))
  const numbered=(event.ticketTypes||[]).filter(t=>t.type==='camarote'&&!t.retiredForSales&&Number.isInteger(Number(t.unitNumber))&&Number(t.unitNumber)>0)

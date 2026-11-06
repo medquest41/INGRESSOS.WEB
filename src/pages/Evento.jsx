@@ -160,7 +160,7 @@ export default function Evento() {
           </div>
 
           <div className="purchase-layout">
-            <div className="ticket-options">{event.ticketTypes?.some(t=>isNumberedUnit(t)&&!t.retiredForSales)&&<button type="button" className="ticket-option" onClick={()=>setSeatingRequest(n=>n+1)}>Escolher unidade por categoria e número</button>}
+            <div className="ticket-options">{event.ticketTypes?.some(t=>isNumberedUnit(t)&&!t.retiredForSales)&&<button type="button" className="ticket-option" onClick={()=>{setSeatingCategory(null);setSeatingRequest(n=>n+1)}}>Escolher unidade por categoria e número</button>}
               {publicTicketOptions(event).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
