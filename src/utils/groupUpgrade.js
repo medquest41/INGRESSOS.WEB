@@ -1,3 +1,4 @@
+import {ticketHighlightScope} from './ticketPresentation.js'
 // A sold legacy SKU cannot become an exclusive group by reducing its stock to 1.
 // Keep its identity and capacity; create a distinct SKU for future group sales.
 export function editTicketDraft(event,index,field,value,{originalTickets=[],orders=[],id=()=>crypto.randomUUID()}={}){
@@ -13,5 +14,6 @@ export function editTicketDraft(event,index,field,value,{originalTickets=[],orde
   types[index]=next
   types.push({...original,active:false,retiredForSales:true})
  }
+ if(field==='highlight'&&ticketHighlightScope(ticket)){const scope=ticketHighlightScope(ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScope(t)===scope?{...t,highlight:normalized}:t)}}
  return {...event,ticketTypes:types}
 }

@@ -55,7 +55,7 @@ export default function Checkout() {
   const [hasReservation, setHasReservation] = useState(false)
   const [reservationId,setReservationId]=useState(null)
   const [reservedTotals,setReservedTotals]=useState(null)
-  const paymentConfirmed=useCallback(()=>{try{if(currentUser?.id&&event?.id&&ticket?.id)localStorage.removeItem('ingressos_checkout_draft_v1:'+currentUser.id+':'+event.id+':'+ticket.id)}catch{/* optional storage */}refresh?.();navigate('/ingressos',{replace:true,state:{approved:true}})},[navigate,refresh,currentUser?.id,event?.id,ticket?.id])
+  const paymentConfirmed=useCallback(()=>{try{if(currentUser?.id&&event?.id&&ticket?.id)localStorage.removeItem('ingressos_checkout_draft_v1:'+currentUser.id+':'+event.id+':'+ticket.id)}catch{/* optional storage */}refresh?.();navigate('/ingressos',{replace:true,state:{approved:true,approvedOrderId:reservationId}})},[navigate,refresh,currentUser?.id,event?.id,ticket?.id,reservationId])
   const draftKey=currentUser?.id&&event?.id&&ticket?.id?'ingressos_checkout_draft_v1:'+currentUser.id+':'+event.id+':'+ticket.id:null
   const [loadedDraftKey,setLoadedDraftKey]=useState(null)
   useEffect(()=>{
@@ -103,7 +103,7 @@ export default function Checkout() {
       const order = reservedOrder.current || await placeOrder({ eventId: event.id, ticketId: ticket.id, quantity, buyer: {...buyer,participants:holders,participantMode:participantCount===1?'same':participantMode,ageConfirmed,vipListId:params.get('vip')||null}, method, outcome, coupon, campaign: params.get('campaign') || '', source: /^[a-fA-F0-9-]{36}$/.test(params.get('ep')||'')?'event-promoter:'+params.get('ep'):params.get('ref') || params.get('utm_source') || 'direto', idempotencyKey: idempotencyKey.current })
       if (!isLocalDemo && totals.total > 0) { setReservedTotals(totals); reservedOrder.current = order; setHasReservation(true); setReservationId(order); return }
       try{if(draftKey)localStorage.removeItem(draftKey)}catch{/* optional storage */}
-      navigate('/ingressos', { replace: true, state: { approved: true } })
+      navigate('/ingressos', { replace: true, state: { approved: true, approvedOrderId: typeof order === 'string'?order:order.id } })
     } catch (err) { setError(err.message) } finally { pending.current = false; setBusy(false) }
   }
   const neededCategory=requiredUnitCategory(event,ticket)

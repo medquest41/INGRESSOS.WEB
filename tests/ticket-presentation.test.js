@@ -21,3 +21,9 @@ test('numbered tables remain discoverable when public API omits inactive parent'
  assert.equal(publicTicketOptions({ticketTypes:tables.map(t=>({...t,retiredForSales:true}))}).length,0)
  assert.equal(event.ticketTypes.length,16);assert.equal(event.ticketTypes[0].id,'mesa-1')
 })
+
+test('one table highlight appears on offer card and siblings, without leaking into other offers',()=>{
+ const first={id:'m1',type:'camarote',reservationKind:'table',unitNumber:1,reservationCategoryId:'a',tableOfferId:'parent',highlight:'value'}
+ const second={...first,id:'m2',unitNumber:2,highlight:''};const other={...second,id:'m3',reservationCategoryId:'b',tableOfferId:'other'};const event={ticketTypes:[second,other,first]}
+ assert.equal(ticketHighlightLabel(second,event),'Melhor custo-benefício');assert.equal(ticketHighlightLabel(other,event),'');assert.equal(ticketHighlightLabel(publicTicketOptions(event).find(t=>t.numberedCategoryId==='a')),'Melhor custo-benefício');assert.equal(second.highlight,'')
+})

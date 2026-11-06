@@ -35,7 +35,7 @@ export function configureNumberedTables(event,ticketId,{count,start=1},id=()=>cr
 export function applyTableQuantities(event){
  let next=event
  for(const ticket of event.ticketTypes){
-  if(!Object.hasOwn(ticket,'tableQuantityDraft')&&!Object.hasOwn(ticket,'tableStartDraft'))continue
+  if(ticket.tableQuantityDraft===undefined&&ticket.tableStartDraft===undefined)continue
   try{next=configureNumberedTables(next,ticket.id,{count:ticket.tableQuantityDraft??ticket.tableCount,start:ticket.tableStartDraft??ticket.tableStart??1}).event}
   catch(error){throw Object.assign(error,{ticketIndex:next.ticketTypes.findIndex(t=>t.id===ticket.id),field:'tableQuantityDraft'})}
  }

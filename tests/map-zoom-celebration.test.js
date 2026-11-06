@@ -1,0 +1,6 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {mapZoom,mapZoomKey} from '../src/utils/mapZoom.js'
+import {celebrationOrder,celebrationCopy} from '../src/utils/purchaseCelebration.js'
+test('map defaults safely and keeps event/image settings isolated',()=>{assert.equal(mapZoom(undefined),1);assert.equal(mapZoom(1.5),1.5);assert.equal(mapZoom(2),2);assert.equal(mapZoom(30),1);assert.notEqual(mapZoomKey({id:'a',venueMapZoom:1.5}),mapZoomKey({id:'a',venueMapZoom:2}))})
+test('celebration requires the exact approved order and existing valid tickets',()=>{const o={id:'paid',status:'approved',buyer:{name:'Ana Oliveira'},eventTitle:'Réveillon 2027',ticketCodes:[{status:'valid'}]};assert.equal(celebrationOrder([o],'paid'),o);for(const status of ['pending','cancelled','refunded','rejected'])assert.equal(celebrationOrder([{...o,status}],'paid'),null);assert.equal(celebrationOrder([{...o,paymentReview:true}],'paid'),null);assert.equal(celebrationOrder([{...o,ticketCodes:[]}],'paid'),null);assert.equal(celebrationOrder([o],'other'),null);assert.deepEqual(celebrationCopy(o,{location:'Praia Zucco'}),{title:'Parabéns, Ana!',place:'Praia Zucco',event:'Réveillon 2027'})})

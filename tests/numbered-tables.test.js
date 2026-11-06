@@ -34,3 +34,5 @@ test('reapplying is idempotent, growth preserves all existing edits and shrinkin
  assert.throws(()=>configureNumberedTables(grown.event,parentId,{count:12,start:2}),/preservadas/)
  for(const count of ['',0,101,2.5])assert.throws(()=>configureNumberedTables(initial,source.id,{count}),/Informe/)
 })
+
+test('choosing no numbering clears generation draft and preserves the original unit',()=>{const input={...initial,ticketTypes:[{...source,tableQuantityDraft:undefined,tableStartDraft:undefined},initial.ticketTypes[1]]};const result=applyTableQuantities(input);assert.equal(result,input);assert.equal(result.ticketTypes[0].id,'original-table');assert.equal(result.ticketTypes.length,2);assert.equal(result.ticketTypes[0].wristbands,4)})

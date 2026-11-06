@@ -19,3 +19,8 @@ test('unsold or existing numbered rooms never fork automatically',()=>{
   assert.equal(next.ticketTypes.length,1);assert.equal(next.ticketTypes[0].id,original.id)
  }
 })
+
+test('editing or clearing a numbered offer highlight updates its siblings only',()=>{
+ const event={ticketTypes:[{id:'parent',numberedCategoryId:'a',highlight:''},{id:'m1',reservationCategoryId:'a',highlight:''},{id:'m2',reservationCategoryId:'a',highlight:''},{id:'other',reservationCategoryId:'b',highlight:'popular'}]}
+ const changed=editTicketDraft(event,1,'highlight','value');assert.deepEqual(changed.ticketTypes.map(t=>t.highlight),['value','value','value','popular']);const cleared=editTicketDraft(changed,0,'highlight','');assert.deepEqual(cleared.ticketTypes.map(t=>t.highlight),['','','','popular']);assert.equal(event.ticketTypes[1].highlight,'')
+})

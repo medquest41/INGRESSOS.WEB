@@ -1,3 +1,5 @@
+import PurchaseCelebration from '../components/PurchaseCelebration'
+import {celebrationOrder} from '../utils/purchaseCelebration'
 import {ticketOrdinal} from '../utils/ticketNumbering'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
@@ -16,13 +18,14 @@ import './MeusIngressos.css'
 
 const status = value => ({pending:'Pendente',approved:'Confirmado',cancelled:'Cancelado',refunded:'Estornado',rejected:'Recusado',expired:'Expirado',in_process:'Em processamento',authorized:'Em processamento',review:'Em revisão',charged_back:'Contestado'}[value] || value)
 export default function MeusIngressos() {
-  const { orders, isLocalDemo, cancelOrder, refresh } = useEventStore()
+  const { orders, events, isLocalDemo, cancelOrder, refresh } = useEventStore()
   const { currentUser, logout } = useAuth()
   const location = useLocation()
   const [now] = useState(()=>Date.now())
   const [eventId,setEventId] = useState('')
   const [paying,setPaying]=useState(()=>new URLSearchParams(window.location.search).get('payment'))
-  const paymentConfirmed=useCallback(()=>{setPaying(null);refresh?.()},[refresh])
+  const [celebratingId,setCelebratingId]=useState(()=>location.state?.approvedOrderId||new URLSearchParams(window.location.search).get('payment'))
+  const paymentConfirmed=useCallback(()=>{setCelebratingId(paying);setPaying(null);refresh?.()},[refresh,paying])
   const [paymentError,setPaymentError]=useState('')
   const [cardEnabled,setCardEnabled]=useState(false),[cancelling,setCancelling]=useState(null)
   const [hiddenOrders,setHiddenOrders]=useState(()=>({userId:currentUser.id,ids:readHiddenOrders(currentUser.id)}))
@@ -53,9 +56,10 @@ export default function MeusIngressos() {
   const mine = allMine.filter(order=>!hiddenIds.includes(order.id)||!canHideUnpaidOrder(order))
   const groups = [...new Set(mine.map(order=>order.eventId))].map(id=>({id,title:mine.find(order=>order.eventId===id)?.eventTitle,orders:mine.filter(order=>order.eventId===id)}))
   const selected = groups.filter(group=>!eventId || String(group.id)===eventId)
+  const celebrated=celebrationOrder(allMine,celebratingId)
   return <div className="tickets-page">
     <header className="simple-header"><Link to="/eventos">Eventos</Link><Brand/><button className="ghost-btn" onClick={logout}>Sair</button></header>
-    <main className="tickets-wrap">
+    <main className="tickets-wrap">{celebrated&&<PurchaseCelebration key={celebrated.id} order={celebrated} event={events.find(e=>e.id===celebrated.eventId)}/>}
       <span className="section-kicker">MINHA CONTA • {currentUser.name}</span><h1>Meus ingressos.</h1><Link className="ghost-btn" to="/minhas-divulgacoes">Minhas divulgações de eventos</Link>{paymentError&&<p role="alert" className="auth-error">{paymentError}</p>}
       {currentUser.guest&&<section className="admin-panel"><h2>Sua compra rápida</h2><p>Seus ingressos ficam acessíveis neste navegador enquanto seu acesso de visitante estiver salvo. Baixe o PDF ou compartilhe os ingressos após a confirmação do pagamento.</p><p>Se trocar de aparelho, limpar os dados ou sair, você pode perder esse acesso. Para recuperar, entre ou crie uma conta com o mesmo e-mail informado na compra e confirme esse e-mail. Se precisar, peça ao organizador o reenvio dos ingressos já emitidos.</p><Link className="ghost-btn" to="/login?returnTo=%2Fingressos">Entrar / Criar conta</Link></section>}
       {location.state?.approved && <p role="status" className="team-success">{isLocalDemo?'Compra simulada aprovada. Seus ingressos estão abaixo.':'Pedido registrado. Confira o status abaixo.'}</p>}

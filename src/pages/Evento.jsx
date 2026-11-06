@@ -1,3 +1,7 @@
+import useEventMotion from '../hooks/useEventMotion'
+import FestivalLights from '../components/FestivalLights'
+import './EventFestival.css'
+import TicketJewels from '../components/TicketJewels'
 import {requiredUnitCategory} from '../utils/unitSelection'
 import {publicTicketOptions,ticketHighlightLabel,isNumberedUnit} from '../utils/ticketPresentation'
 import './TicketHighlights.css'
@@ -50,6 +54,7 @@ export default function Evento() {
     [events, eventKey],
   )
 
+  const {root:motionRoot,enabled:motionEnabled,paused:motionPaused,reduced:motionReduced,toggle:toggleMotion}=useEventMotion(event?.id)
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [quantity, setQuantity] = useState(1)
   const [copied, setCopied] = useState(false)
@@ -100,7 +105,7 @@ export default function Evento() {
   }
 
   return (
-    <div className="event-page">
+    <div ref={motionRoot} className="event-page event-festival" data-motion-paused={!motionEnabled}>
       <header className="event-page-header">
         <Link to="/eventos" className="event-back"><ArrowLeft size={18} />Eventos</Link>
         <Brand />
@@ -110,7 +115,7 @@ export default function Evento() {
 
       {preview && <div className="preview-banner">MODO DE VISUALIZAÇÃO DO ADMIN • ESTE EVENTO PODE NÃO ESTAR PUBLICADO</div>}
 
-      <section className="event-hero">
+      <section className="event-hero"><FestivalLights/>
         <div className="event-hero-image"><img src={event.image} alt={event.title} /></div>
         <div className="event-hero-overlay" />
         <div className="event-hero-glow" />
@@ -128,7 +133,7 @@ export default function Evento() {
       </section>
 
       <EventBackdrop event={event} />
-      <main className="event-main">
+      <main className="event-main"><div className="festival-motion-control"><button type="button" className="ghost-btn" aria-pressed={motionPaused||motionReduced} disabled={motionReduced} onClick={toggleMotion}>{motionReduced?'Animações reduzidas pelo aparelho':motionPaused?'Ativar efeitos visuais':'Reduzir efeitos visuais'}</button></div>
         <section className="event-information">
           <div className="event-about">
             <span className="section-kicker"><Sparkles size={14} />SOBRE O EVENTO</span>
@@ -164,9 +169,9 @@ export default function Evento() {
               {publicTicketOptions(event).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 return (
-                  <button key={ticket.id} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''}`} onClick={() => choose(ticket)}>
+                  <button key={ticket.id} data-highlight={ticket.highlight||undefined} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''}`} onClick={() => choose(ticket)}>
                     {ticketHighlightLabel(ticket)&&<span className="ticket-highlight-ribbon">{ticketHighlightLabel(ticket)}</span>}
-                    <div className="ticket-option-main">
+                    <TicketJewels/><div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
                       <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>
                     </div>

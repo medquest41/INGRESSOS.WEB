@@ -1,3 +1,4 @@
+import PublicMotionShell from './components/PublicMotionShell'
 import EventSalesPortal from './pages/EventSalesPortal'
 import './promoterNavigation.css'
 import PromoterAdmin from './pages/PromoterAdmin'
@@ -26,7 +27,7 @@ import './eventCinematic.css'
 
 export default function App() {
   return (
-    <><Routes><Route path="/convite-divulgador/:secret" element={<EventSalesPortal/>}/><Route path="/minhas-divulgacoes" element={<EventSalesPortal/>}/><Route path="/indicacao/:token" element={<PromoterReferral/>}/><Route path="/admin/promotores" element={<ProtectedRoute roles={['admin']}><PromoterAdmin/></ProtectedRoute>}/><Route path="/preferencias-legais" element={<LegalPreferences/>}/><Route path="/promotores" element={<PromoterApplication/>}/>
+    <PublicMotionShell><Routes><Route path="/convite-divulgador/:secret" element={<EventSalesPortal/>}/><Route path="/minhas-divulgacoes" element={<EventSalesPortal/>}/><Route path="/indicacao/:token" element={<PromoterReferral/>}/><Route path="/admin/promotores" element={<ProtectedRoute roles={['admin']}><PromoterAdmin/></ProtectedRoute>}/><Route path="/preferencias-legais" element={<LegalPreferences/>}/><Route path="/promotores" element={<PromoterApplication/>}/>
       <Route path="/ingresso-compartilhado" element={<SharedTicket/>}/>
       <Route path="/institucional/:slug" element={<Institutional/>}/>
       <Route path="/organizador/:organizerId" element={<OrganizerEvents/>}/>
@@ -43,6 +44,6 @@ export default function App() {
       <Route path="/admin" element={<ProtectedRoute roles={['admin', 'organizador', 'financeiro', 'checkin']}><Admin /></ProtectedRoute>} />
       <Route path="/admin/evento/:eventKey/:section?" element={<ProtectedRoute roles={['admin','organizador','financeiro','checkin']}><Admin /></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes><Footer/><CookieBanner/></>
+    </Routes><Footer/><CookieBanner/></PublicMotionShell>
   )
 }

@@ -1,0 +1,2 @@
+export function celebrationOrder(orders,id){return orders.find(o=>o.id===id&&o.status==='approved'&&!o.paymentReview&&(o.ticketCodes||[]).some(t=>t.status!=='cancelled'&&!t.used))||null}
+export function celebrationCopy(order,event){const name=String(order.buyer?.name||'').trim().split(/\s+/)[0];const personal=name&&!/^(venda|visitante)$/i.test(name)?', '+name:'';return {title:'Parabéns'+personal+'!',place:event?.location||order.eventTitle||'O evento',event:order.eventTitle||event?.title||'Sua próxima experiência'}}
