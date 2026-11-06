@@ -21,7 +21,7 @@ test('quantity creates ten exclusive tables and preserves original identity, sto
  assert.ok(event.ticketTypes.indexOf(tables[0])<event.ticketTypes.indexOf(parent))
  assert.ok(tables.every(t=>t.available===1&&t.wristbands===4&&t.price===389));assert.equal(parent.active,false)
  assert.equal(new Set(tables.map(t=>t.id)).size,10);assert.equal(new Set(tables.map(t=>t.name)).size,10)
- assert.equal(requiredUnitCategory(event,parent).id,parent.numberedCategoryId);assert.deepEqual(publicTicketOptions(event).map(t=>t.id),[parentId]);assert.equal(JSON.stringify(initial),before)
+ assert.equal(requiredUnitCategory(event,parent).id,parent.numberedCategoryId);assert.deepEqual(publicTicketOptions(event).map(t=>t.id),[parentId,'unit-category:camarote']);assert.equal(JSON.stringify(initial),before)
  assert.equal(tables[1].mapPositioned,false)
 })
 test('reapplying is idempotent, growth preserves all existing edits and shrinking cannot erase sold stock',()=>{
