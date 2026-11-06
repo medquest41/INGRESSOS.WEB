@@ -1,4 +1,16 @@
 import {test,expect} from './support/offline-network.js'
+for(const width of [390,1280])test('enter sixteen and save directly creates numbered choices without preview button '+width,async({page})=>{
+ await page.setViewportSize({width,height:1000});await seed(page);await page.goto('/admin?tab=events');await page.getByRole('button',{name:'Editar',exact:true}).click()
+ const section=page.getByRole('group',{name:'Ingressos e preços',exact:true});await section.locator('summary').first().click();const editor=section.locator('.ticket-batch-editor').first();await editor.locator('summary').first().click()
+ await expect(editor.getByLabel('Quantidade de ingressos',{exact:true})).toHaveCount(0)
+ await editor.getByLabel('Quantidade total de mesas').fill('16');await editor.locator('.table-quantity-editor').screenshot({path:'test-results-numbered-tables/quantidade-16-'+width+'.png'})
+ await page.getByRole('button',{name:'Salvar ingressos e preços',exact:true}).click();await expect(page.getByRole('button',{name:'Editar',exact:true})).toBeVisible()
+ await page.goto('/evento/mesas-teste');await page.locator('.ticket-options').getByRole('heading',{name:'COMBO VIP',exact:true}).click()
+ const dialog=page.getByRole('dialog');await expect(dialog.locator('.unit-results button')).toHaveCount(16);await expect(dialog.locator('.reserved-categories button')).toHaveCount(1);await expect(dialog.locator('.camarote-pin')).toHaveCount(0)
+ await dialog.getByRole('complementary').getByRole('button',{name:/Mesa 16/}).click();await dialog.screenshot({path:'test-results-numbered-tables/mesas-16-'+width+'.png'})
+ await dialog.getByRole('button',{name:'Continuar para pagamento'}).click();await expect(page.getByRole('region',{name:'Conferir unidade e ingressos inclusos'})).toContainText('Mesa 16');await expect(page.getByRole('region',{name:'Conferir unidade e ingressos inclusos'})).toContainText('4 ingressos individuais')
+ const state=await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_platform_v2')));expect(state.orders.length).toBe(0);expect(state.events[0].ticketTypes.filter(t=>t.tableOfferId).length).toBe(16)
+})
 test('uploaded plan is clean by default and Admin can opt into markers without changing units',async({page})=>{
  await page.route('https://mapa.example.test/**',route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="600" height="420"><rect width="600" height="420" fill="#d8e4da"/></svg>'}))
  await page.goto('/tests/fixtures/seating-flow-preview.html?photo=1');await page.getByRole('button',{name:'Ver mapa e escolher número',exact:true}).click();await expect(page.getByRole('dialog').locator('.camarote-pin')).toHaveCount(0)

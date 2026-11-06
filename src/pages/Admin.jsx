@@ -3,7 +3,7 @@ import {searchText} from '../utils/unitSelection'
 import {eventSaveError,focusEditorError,clearEditorFieldError} from '../utils/eventSaveError'
 import EditorSection from '../components/EditorSection'
 import {editTicketDraft} from '../utils/groupUpgrade'
-import {configureNumberedTables} from '../utils/numberedTables'
+import {applyTableQuantities,configureNumberedTables} from '../utils/numberedTables'
 import {validateTicketDrafts} from '../utils/reservedUnits'
 import { eventAdminRole } from '../utils/eventAccess'
 import EventSalesPromoters from '../components/EventSalesPromoters'
@@ -237,9 +237,7 @@ export default function Admin() {
     setNewTicketId(id)
     setEditing(current=>({
       ...current,
-      ticketTypes: [
-        ...current.ticketTypes,
-        {
+      ticketTypes: [        {
           id,
           name: '',
           batch: '',
@@ -248,6 +246,7 @@ export default function Admin() {
           available: '',
           type: 'individual',
         },
+        ...current.ticketTypes,
       ],
     }))
   }
@@ -271,14 +270,16 @@ export default function Admin() {
     }
 
     setSaveError('')
+    let draft
+    try{draft=applyTableQuantities(editing);if(draft!==editing)setEditing(draft)}catch(error){showSaveError(error.message,`.ticket-batch-editor[data-ticket-index="${error.ticketIndex}"] [data-field="${error.field}"]`);return}
     for(const [key,label] of [['title','nome do evento'],['date','data do evento'],['time','horário'],['location','local'],['address','endereço'],['city','cidade/UF']]){
-      if(!String(editing[key]||'').trim()){showSaveError('Preencha o campo '+label+' antes de salvar.', '#event-'+key);return}
+      if(!String(draft[key]||'').trim()){showSaveError('Preencha o campo '+label+' antes de salvar.', '#event-'+key);return}
     }
-    try{validateTicketDrafts(editing.ticketTypes)}catch(error){showSaveError(error.message,error.field?`.ticket-batch-editor[data-ticket-index="${error.ticketIndex}"] [data-field="${error.field}"]`:undefined);return}
+    try{validateTicketDrafts(draft.ticketTypes)}catch(error){showSaveError(error.message,error.field?`.ticket-batch-editor[data-ticket-index="${error.ticketIndex}"] [data-field="${error.field}"]`:undefined);return}
     let whatsapp
-    try{whatsapp=normalizeEventWhatsapp(editing.whatsapp)}catch(error){showSaveError(error.message,'#event-whatsapp');return}
-    const minimumPrice = editing.ticketTypes.length
-      ? Math.min(...editing.ticketTypes.map((ticket) => Number(ticket.price) || 0))
+    try{whatsapp=normalizeEventWhatsapp(draft.whatsapp)}catch(error){showSaveError(error.message,'#event-whatsapp');return}
+    const minimumPrice = draft.ticketTypes.length
+      ? Math.min(...draft.ticketTypes.map((ticket) => Number(ticket.price) || 0))
       : 0
 
     const enforcedOrganizer = role === 'organizador'
@@ -286,17 +287,17 @@ export default function Admin() {
       : {}
 
     let venueMapImage
-    try{venueMapImage=venueMapUrl(editing.venueMapImage,{local:isLocalDemo})}catch(error){showSaveError(error.message);return}
+    try{venueMapImage=venueMapUrl(draft.venueMapImage,{local:isLocalDemo})}catch(error){showSaveError(error.message);return}
     let mapsUrl
-    try { mapsUrl = normalizeMapsUrl(editing.mapsUrl) }
+    try { mapsUrl = normalizeMapsUrl(draft.mapsUrl) }
     catch (error) { showSaveError(error.message,'#event-maps'); return }
 
     try { await saveEvent({
-      ...editing,
+      ...draft,
       ...enforcedOrganizer,
-      slug: editing.slug?.trim() || slugifyEventTitle(editing.title),
-      archived: Boolean(editing.archived),
-      attractions: prepareAttractions(editing.attractions, isLocalDemo),
+      slug: draft.slug?.trim() || slugifyEventTitle(draft.title),
+      archived: Boolean(draft.archived),
+      attractions: prepareAttractions(draft.attractions, isLocalDemo),
       mapsUrl,
       venueMapImage,
       whatsapp,

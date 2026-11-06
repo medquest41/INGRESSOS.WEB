@@ -1,11 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {configureNumberedTables} from '../src/utils/numberedTables.js'
+import {applyTableQuantities,configureNumberedTables} from '../src/utils/numberedTables.js'
 import {requiredUnitCategory} from '../src/utils/unitSelection.js'
 import {publicTicketOptions} from '../src/utils/ticketPresentation.js'
 const source={id:'original-table',type:'camarote',reservationKind:'table',name:'COMBO VIP',price:389,wristbands:4,available:1,active:true,mapX:33,mapY:66}
 const initial={id:'e',venueMapImage:'https://example.test/map.png',ticketTypes:[source,{id:'room',type:'camarote',name:'Camarote 01',unitNumber:1,available:1,price:1500,wristbands:15}]}
 const ids=()=>{let n=0;return()=>`id-${++n}`}
+test('saving a quantity draft creates sixteen tables once and clears pending fields',()=>{
+ const input={...initial,ticketTypes:[{...source,tableQuantityDraft:'16',tableStartDraft:'1'},initial.ticketTypes[1]]}
+ const output=applyTableQuantities(input),parent=output.ticketTypes.find(t=>t.numberedCategoryId)
+ assert.equal(output.ticketTypes.filter(t=>t.tableOfferId===parent.id).length,16)
+ assert.ok(output.ticketTypes.every(t=>!Object.hasOwn(t,'tableQuantityDraft')&&!Object.hasOwn(t,'tableStartDraft')))
+ assert.equal(applyTableQuantities(output),output)
+ assert.throws(()=>applyTableQuantities({...initial,ticketTypes:[{...source,tableQuantityDraft:''}]}),error=>error.field==='tableQuantityDraft'&&error.ticketIndex===0)
+})
 test('quantity creates ten exclusive tables and preserves original identity, stock and map',()=>{
  const before=JSON.stringify(initial),{event,parentId}=configureNumberedTables(initial,source.id,{count:10},ids())
  const tables=event.ticketTypes.filter(t=>t.tableOfferId===parentId),parent=event.ticketTypes.find(t=>t.id===parentId)

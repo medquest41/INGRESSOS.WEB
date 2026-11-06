@@ -1,16 +1,16 @@
 import {test,expect} from './support/offline-network.js'
 for(const width of [390,1280])test('add ticket clears search, opens new form and focuses name without reopening on edits '+width,async({page})=>{
  await page.setViewportSize({width,height:900});await seed(page)
- await page.addInitScript(()=>{const users=JSON.parse(localStorage.getItem('ingressos_auth_users_v1'));users[0]={...users[0],role:'admin',guest:false,email:'admin@example.test'};localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(users))})
+ await page.addInitScript(()=>{const users=JSON.parse(localStorage.getItem('ingressos_auth_users_v1'));users[0]={...users[0],role:'admin',guest:false,email:'admin@example.test'};const state=JSON.parse(localStorage.getItem('ingressos_platform_v2'));state.events[0].ticketTypes.push(...Array.from({length:17},(_,i)=>({id:'ordinary-'+i,type:'individual',name:'Lote '+i,price:10,available:5})));localStorage.setItem('ingressos_platform_v2',JSON.stringify(state));localStorage.setItem('ingressos_auth_users_v1',JSON.stringify(users))})
  await page.goto('/admin?tab=events');await page.getByRole('button',{name:'Editar',exact:true}).first().click()
  const section=page.getByRole('group',{name:'Ingressos e preços',exact:true});await section.locator('summary').first().click()
  await section.getByRole('searchbox').fill('inexistente');await section.getByRole('button',{name:'Adicionar tipo de ingresso',exact:true}).click()
- const fresh=section.locator('.ticket-batch-editor').last();const name=fresh.locator('[data-field="name"]')
+ const fresh=section.locator('.ticket-batch-editor').first();const name=fresh.locator('[data-field="name"]')
  await expect(fresh).toHaveAttribute('open','');await expect(name).toBeFocused();await expect(section.getByRole('searchbox')).toHaveValue('');await expect(name).toBeInViewport()
  await expect(section.locator('.ticket-batch-editor[open]')).toHaveCount(1)
  await name.fill('Novo ingresso teste');await fresh.locator('summary').first().click();await expect(fresh).not.toHaveAttribute('open','');await section.getByRole('searchbox').fill('teste');await expect(fresh).not.toHaveAttribute('open','');await fresh.locator('summary').first().click();await expect(name).toHaveValue('Novo ingresso teste')
  await page.screenshot({path:'test-results-unit-route/adicionar-aberto-'+width+'.png'})
- await section.getByRole('button',{name:'Adicionar tipo de ingresso',exact:true}).click();await expect(section.locator('.ticket-batch-editor').last().locator('[data-field="name"]')).toBeFocused();await expect(section.locator('.ticket-batch-editor')).toHaveCount(5)
+ await section.getByRole('button',{name:'Adicionar tipo de ingresso',exact:true}).click();await expect(section.locator('.ticket-batch-editor').first().locator('[data-field="name"]')).toBeFocused();await expect(section.locator('.ticket-batch-editor')).toHaveCount(22)
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('ingressos_platform_v2')).orders.length)).toBe(0)
 })
 for(const width of [390,1280])test('new group appears with optional ribbon and reaches existing checkout '+width,async({page})=>{

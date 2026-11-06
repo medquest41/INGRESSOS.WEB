@@ -12,6 +12,7 @@ export function configureNumberedTables(event,ticketId,{count,start=1},id=()=>cr
  if(existing.length&&(start!==Number(source.tableStart)||count<existing.length))throw Error('As mesas existentes foram preservadas. Mantenha o número inicial e uma quantidade igual ou maior. Para bloquear uma mesa, desative sua venda no cartão dela.')
  const name=source.name.trim()
  const parent={...source,id:parentId,active:false,numberedCategoryId:categoryId,tableCount:count,tableStart:start,tableUnitsActive:source.tableUnitsActive??source.active!==false}
+ delete parent.tableQuantityDraft;delete parent.tableStartDraft
  const first=source.numberedCategoryId?null:source
  const names=new Set(event.ticketTypes.filter(t=>t.id!==first?.id).map(t=>String(t.name||'').trim().toLocaleLowerCase('pt-BR')))
  const added=[]
@@ -21,7 +22,7 @@ export function configureNumberedTables(event,ticketId,{count,start=1},id=()=>cr
   names.add(unitName.toLocaleLowerCase('pt-BR'))
   const original=i===0?first:null
   const unit={...(original||source),id:original?.id||id(),name:unitName,unitNumber:number,tableOfferId:parentId,reservationCategoryId:categoryId,reservationCategoryName:name.slice(0,60),reservationKind:'table',active:original?original.active!==false:parent.tableUnitsActive,available:1,mapPositioned:original?original.mapX!=null&&original.mapY!=null:false}
-  for(const field of ['numberedCategoryId','tableCount','tableStart','tableUnitsActive'])delete unit[field]
+  for(const field of ['numberedCategoryId','tableCount','tableStart','tableUnitsActive','tableQuantityDraft','tableStartDraft'])delete unit[field]
   if(!original){delete unit.mapX;delete unit.mapY}
   added.push(unit)
  }
@@ -29,4 +30,14 @@ export function configureNumberedTables(event,ticketId,{count,start=1},id=()=>cr
  // Rename the original before inserting the selector: save_event persists in order
  // and the database enforces unique names for exclusive SKUs.
  return {parentId,event:{...event,reservationCategories:categories.some(c=>c.id===categoryId)?categories:[...categories,{id:categoryId,name:name.slice(0,60),prefix:'Mesa'}],ticketTypes:event.ticketTypes.flatMap(t=>t.id===source.id?[...(first?[added.shift()]:[]),parent]:[t]).concat(added)}}
+}
+
+export function applyTableQuantities(event){
+ let next=event
+ for(const ticket of event.ticketTypes){
+  if(!Object.hasOwn(ticket,'tableQuantityDraft')&&!Object.hasOwn(ticket,'tableStartDraft'))continue
+  try{next=configureNumberedTables(next,ticket.id,{count:ticket.tableQuantityDraft??ticket.tableCount,start:ticket.tableStartDraft??ticket.tableStart??1}).event}
+  catch(error){throw Object.assign(error,{ticketIndex:next.ticketTypes.findIndex(t=>t.id===ticket.id),field:'tableQuantityDraft'})}
+ }
+ return next
 }
