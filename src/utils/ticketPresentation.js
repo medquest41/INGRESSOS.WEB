@@ -8,13 +8,14 @@ export const ticketHighlights = [
   {value:'last',label:'Últimos ingressos'},
   {value:'custom',label:'Texto personalizado'},
 ]
-export const ticketHighlightScope=ticket=>ticket?.numberedCategoryId||ticket?.reservationCategoryId||(ticket?.tableOfferId?'offer:'+ticket.tableOfferId:null)
+export const ticketHighlightScope=ticket=>ticket?.numberedCategoryId||ticket?.reservationCategoryId||(ticket?.tableOfferId?'offer:'+ticket.tableOfferId:ticket?.type==='camarote'&&ticket.reservationKind!=='group'&&Number(ticket.unitNumber)>0?(ticket.reservationKind==='table'?'table':'camarote'):null)
+export const ticketHighlightScopeForEvent=(event,ticket)=>ticketHighlightScope(ticket)||(event?requiredUnitCategory(event,ticket)?.id:null)
 const knownHighlight=value=>ticketHighlights.some(h=>h.value===value&&value)?value:''
 function ticketHighlightSource(ticket,event){
- const scope=ticketHighlightScope(ticket)
+ const scope=ticketHighlightScopeForEvent(event,ticket)
  if(!scope||!event)return ticket
- const peers=(event.ticketTypes||[]).filter(t=>!t.retiredForSales&&ticketHighlightScope(t)===scope)
- const parent=peers.find(t=>t.numberedCategoryId&&knownHighlight(t.highlight))
+ const peers=(event.ticketTypes||[]).filter(t=>!t.retiredForSales&&ticketHighlightScopeForEvent(event,t)===scope)
+ const parent=peers.find(t=>(t.numberedCategoryId||t.type!=='camarote')&&knownHighlight(t.highlight))
  const first=peers.filter(t=>knownHighlight(t.highlight)).sort((a,b)=>Number(a.unitNumber||0)-Number(b.unitNumber||0)||String(a.id).localeCompare(String(b.id)))[0]
  return parent||first||ticket
 }

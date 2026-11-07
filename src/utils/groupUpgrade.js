@@ -1,4 +1,5 @@
-import {ticketHighlightScope} from './ticketPresentation.js'
+import {ticketHighlightScopeForEvent} from './ticketPresentation.js'
+import {requiredUnitCategory} from './unitSelection.js'
 // A sold legacy SKU cannot become an exclusive group by reducing its stock to 1.
 // Keep its identity and capacity; create a distinct SKU for future group sales.
 export function editTicketDraft(event,index,field,value,{originalTickets=[],orders=[],id=()=>crypto.randomUUID()}={}){
@@ -14,6 +15,8 @@ export function editTicketDraft(event,index,field,value,{originalTickets=[],orde
   types[index]=next
   types.push({...original,active:false,retiredForSales:true})
  }
- if(['highlight','highlightText'].includes(field)&&ticketHighlightScope(ticket)){const scope=ticketHighlightScope(ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScope(t)===scope?{...t,highlight:next.highlight||'',highlightText:next.highlightText||''}:t)}}
+ const scheduleScope=['startsAt','endsAt'].includes(field)&&requiredUnitCategory(event,ticket)?.id
+ if(scheduleScope)return {...event,ticketTypes:types.map(t=>ticketHighlightScopeForEvent(event,t)===scheduleScope?{...t,[field]:normalized}:t)}
+ if(['highlight','highlightText'].includes(field)&&ticketHighlightScopeForEvent(event,ticket)){const scope=ticketHighlightScopeForEvent(event,ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScopeForEvent(event,t)===scope?{...t,highlight:next.highlight||'',highlightText:next.highlightText||''}:t)}}
  return {...event,ticketTypes:types}
 }

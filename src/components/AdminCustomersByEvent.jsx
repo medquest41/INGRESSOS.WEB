@@ -1,8 +1,9 @@
+import CustomerContactCard from './CustomerContactCard'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Search, Ticket, Users } from 'lucide-react'
 import { approved } from '../utils/commerce'
-import { formatCpf, matchesBuyerSearch } from '../utils/buyerSearch'
+import { matchesBuyerSearch } from '../utils/buyerSearch'
 import './AdminCustomersByEvent.css'
 
 function keyFor(order){return String(order.buyer?.cpf||'').replace(/\D/g,'') || order.buyer?.email || order.id}
@@ -44,6 +45,6 @@ export default function AdminCustomersByEvent({ events, orders }) {
         {visibleRows.length===0&&<p>Nenhum evento encontrado.</p>}
       </div>
     </section>
-    {globalOpen&&<section className="admin-panel global-customer-search"><div className="team-card-title"><Users/><div><h2>Todos os clientes</h2><p>Use quando você souber o nome, e-mail ou CPF, mas não souber em qual evento a pessoa comprou.</p></div></div><div className="account-search"><Search/><input value={globalSearch} onChange={e=>setGlobalSearch(e.target.value)} placeholder="Nome, e-mail ou CPF"/></div>{globalCustomers.map(item=><div className="order-row" key={keyFor({buyer:item.buyer})}><div><strong>{item.buyer.name}</strong><span>CPF: {formatCpf(item.buyer.cpf)}</span><span>{item.buyer.email}</span><small>{[...item.events].join(' • ')}</small></div><span>{item.orders} pedido{item.orders===1?'':'s'}</span></div>)}{globalCustomers.length===0&&<p>Nenhum cliente encontrado.</p>}</section>}
+    {globalOpen&&<section className="admin-panel global-customer-search"><div className="team-card-title"><Users/><div><h2>Todos os clientes</h2><p>Use quando você souber o nome, e-mail ou CPF, mas não souber em qual evento a pessoa comprou.</p></div></div><div className="account-search"><Search/><input value={globalSearch} onChange={e=>setGlobalSearch(e.target.value)} placeholder="Nome, e-mail ou CPF"/></div>{globalCustomers.map(item=><CustomerContactCard key={keyFor({buyer:item.buyer})} buyer={item.buyer} detail={[...item.events].join(' • ')+' • '+item.orders+' pedido(s)'}/>)}{globalCustomers.length===0&&<p>Nenhum cliente encontrado.</p>}</section>}
   </>
 }

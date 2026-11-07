@@ -1,3 +1,5 @@
+import {scheduledTicketRelease} from '../utils/ticketRelease'
+import useTicketReleaseClock from '../hooks/useTicketReleaseClock'
 import {mapZoom,mapZoomKey} from '../utils/mapZoom'
 import {unitMarkerLabel} from '../utils/unitSelection'
 import UnitShoppingList from './UnitShoppingList'
@@ -5,7 +7,7 @@ import {calculateFees} from '../utils/fees'
 import MapItemsMenu from './MapItemsMenu'
 import {markerPosition,moveMarker,nudgeMarker,markerSize,mapCoordinate} from '../utils/mapEditing'
 import {unitKind,getReservedCategories} from '../utils/reservedUnits'
-import {useEffect,useLayoutEffect,useRef,useState} from 'react'
+import {useCallback,useEffect,useLayoutEffect,useRef,useState} from 'react'
 import {rpc} from '../services/remoteData'
 import {venueMapUrl} from '../utils/venueMap'
 import './CamaroteMap.css'
@@ -19,6 +21,8 @@ export default function CamaroteMap({event,getRemaining=()=>1,onSelect,onBuy,sel
  const initialZoom=mapZoom(event.venueMapZoom)
  const zoom=zoomChoice?.key===zoomKey?zoomChoice.value:initialZoom
  function setZoom(value){const next=mapZoom(value);setZoomChoice({key:zoomKey,value:next});if(editor)onEditEvent?.(current=>({...current,venueMapZoom:next}))}
+ const recheckRelease=useCallback(()=>setRetry(n=>n+1),[])
+ const releaseNow=useTicketReleaseClock(event,recheckRelease)
  const [removedMarker,setRemovedMarker]=useState(null)
  const shopping=!!buyLabel&&!editor&&!readOnly
  const verified=editor||local||availability.eventId===event.id&&availability.state==='ready'
@@ -74,7 +78,7 @@ export default function CamaroteMap({event,getRemaining=()=>1,onSelect,onBuy,sel
  }
  if(!hasRooms&&!editor)return null
  let url='';try{url=venueMapUrl(event.venueMapImage,{local})}catch{/* schematic remains usable */}
- const status=t=>t.active===false?'blocked':!verified?'unavailable':(!editor&&!local?statuses[t.id]||'unavailable':getRemaining(event,t)>0?'available':'unavailable')
+ const status=t=>t.active===false?'blocked':!editor&&scheduledTicketRelease(t,releaseNow)?'unavailable':!verified?'unavailable':(!editor&&!local?statuses[t.id]||'unavailable':getRemaining(event,t)>0?'available':'unavailable')
  const current=visibleRooms.find(t=>t.id===currentId)
  return <section className={'camarote-section'+(editor?' editor-mode':shopping?' shopping-mode':'')} id="unidades-numeradas" aria-label={editor?'Posicionar unidades numeradas':readOnly?'Mapa da unidade escolhida':'Escolha sua unidade numerada'}>
   <div className="map-section-heading"><h2>{editor?'Posicione as unidades numeradas':readOnly?'Confira sua unidade no mapa':event.venueMapTitle||'Camarotes, mesas e unidades numeradas'}</h2>{editor&&onEditEvent&&<MapItemsMenu event={event} onChange={onEditEvent} onAdded={selectEditing}/>}</div>
@@ -90,7 +94,7 @@ export default function CamaroteMap({event,getRemaining=()=>1,onSelect,onBuy,sel
   </div>
   {url&&<p><a className="ghost-btn" href={url} target="_blank" rel="noopener noreferrer">Ver planta original enviada ↗</a><small> A mesma imagem cadastrada pelo organizador, sem os marcadores do site.</small></p>}
   {event.venueMapDescription&&<p>{event.venueMapDescription}</p>}
-  <p className="camarote-legend"><span className="available">● Disponível</span> · <span className="reserved">● Reservado</span> · <span className="sold">● Vendido</span> · <span className="blocked">● Bloqueado</span></p></div>{shopping&&<UnitShoppingList event={event} numberOnly={!!categoryOnly&&visibleRooms.every(t=>t.reservationKind==='table')} key={activeCategory} units={visibleRooms} status={status} disabled={!verified} selectedId={current?.id} onSelect={t=>{setSelected(t.id);onSelect?.(t)}}/>}</div>
+  <p className="camarote-legend"><span className="available">● Disponível</span> · <span className="reserved">● Reservado</span> · <span className="sold">● Vendido</span> · <span className="blocked">● Bloqueado</span></p></div>{shopping&&<UnitShoppingList now={releaseNow} event={event} numberOnly={!!categoryOnly&&visibleRooms.every(t=>t.reservationKind==='table')} key={activeCategory} units={visibleRooms} status={status} disabled={!verified} selectedId={current?.id} onSelect={t=>{setSelected(t.id);onSelect?.(t)}}/>}</div>
   {shopping&&!current&&<p className="unit-selection-prompt">Escolha um número disponível no mapa ou na lista para ver o valor e continuar.</p>}
   {current&&<div className="camarote-detail" role="status"><strong>{current.name} • {brl(current.price)}</strong><p>{current.wristbands||8} ingressos individuais • {readOnly?'Unidade selecionada':labels[status(current)]}</p>{shopping&&<><p className="unit-payment-note">Compra da unidade inteira. Cada pessoa recebe seu próprio QR Code após a confirmação do pagamento.</p><p className="unit-total">Total com taxa: <strong>{brl(calculateFees(Number(current.price),0,event.feeRate??0.1,event.feePayer||'buyer').total)}</strong><small>Valor antes de cupons. A seleção só é reservada no checkout.</small></p>{status(current)!=='available'&&<p role="alert">Esta unidade não está disponível. Escolha outro número ou atualize a consulta.</p>}</>}{!editor&&!readOnly&&onBuy&&<button type="button" className="primary-small" disabled={status(current)!=='available'} onClick={()=>onBuy(current)}>{buyLabel||('Comprar '+current.name)}</button>}{editor&&<div className="map-marker-tools">{onUpdate&&<div className="map-remove-tools">{current.mapHidden?<button type="button" className="ghost-btn" onClick={()=>onUpdate(current.id,{mapHidden:false,mapPositioned:true})}>Recolocar no mapa</button>:<button type="button" className="danger" onClick={()=>removeMarker(current)}>Remover do mapa</button>}{removedMarker&&<button type="button" className="ghost-btn" onClick={()=>{onUpdate(removedMarker.id,{mapHidden:removedMarker.hidden??false});setRemovedMarker(null)}}>Desfazer remoção</button>}<small>Remove somente a marcação. O ingresso, o estoque e os pedidos são preservados. Também pode usar Delete com o marcador selecionado.</small></div>}<p className="map-direct-hint">Selecionado: pode arrastar ou usar as setas do teclado agora.</p>{onUpdate&&<label className="reserved-zoom">Tamanho do quadrado<input type="range" min="1" max="14" step=".25" value={markerSize(current.mapSize)} onChange={e=>onUpdate(current.id,{mapSize:Number(e.target.value)})}/><output>{markerSize(current.mapSize)}%</output></label>}<details className="map-advanced"><summary>Ajuste avançado por coordenadas</summary><div className="form-grid">{['mapX','mapY'].map(key=><label key={key}>{key==='mapX'?'Posição horizontal (%)':'Posição vertical (%)'}<input type="number" min="0" max="100" step="0.01" value={current[key]??50} onChange={e=>onMove(current.id,key==='mapX'?Number(e.target.value):Number(current.mapX??50),key==='mapY'?Number(e.target.value):Number(current.mapY??50))}/></label>)}</div></details></div>}</div>}
   {!readOnly&&!shopping&&<details className="camarote-list-toggle"><summary>Escolher pela lista de nomes e números</summary><div className="camarote-list">{visibleRooms.map(t=><button type="button" key={t.id} disabled={!editor&&(readOnly||status(t)!=='available')} onClick={()=>editor?selectEditing(t.id):(setSelected(t.id),onSelect?.(t))}>{t.name} • {brl(t.price)} • {t.wristbands||8} pulseiras • {labels[status(t)]}</button>)}</div></details>}

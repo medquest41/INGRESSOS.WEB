@@ -1,0 +1,5 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import {customerWhatsapp,customerPhoneLabel} from '../src/utils/customerContact.js'
+test('WhatsApp customer contact normalizes DDD and preserves existing Brazilian country code',()=>{for(const phone of ['(45) 99999-0000','45999990000','+55 (45) 99999-0000']){const contact=customerWhatsapp({name:'Ana Cliente',phone,cpf:'52998224725',email:'ana@example.test'},'Evento de teste');assert.equal(new URL(contact.url).pathname,'/5545999990000');const text=new URL(contact.url).searchParams.get('text');assert.match(text,/Olá, Ana!/);assert.match(text,/Evento de teste/);assert.doesNotMatch(text,/52998224725|ana@example/)}assert.equal(customerPhoneLabel({phone:'45999990000'}),'+55 (45) 99999-0000')})
+test('missing or malformed phone never opens a generic or incorrect WhatsApp conversation',()=>{for(const phone of ['',undefined,'123','00000000000','5545999990000123','+1 555 123 4567'])assert.equal(customerWhatsapp({name:'Ana',phone}),null);assert.equal(customerPhoneLabel({phone:''}),'Não informado')})

@@ -41,7 +41,7 @@ export default function TicketBatchEditor({ ticket, index, isLocalDemo, hasOrder
     {(!isLocalDemo||ticket.type==='camarote') && <>
       {!ticket.numberedCategoryId&&<label className="ticket-batch-check"><input type="checkbox" checked={ticket.active !== false} onChange={e => onChange('active', e.target.checked)} /><span>Disponível para venda</span></label>}
       <details className="ticket-batch-schedule">
-        <summary>Período de venda e ordem dos lotes</summary>
+        <summary>Período de venda e ordem dos lotes</summary><small>Para abrir automaticamente, mantenha a unidade disponível para venda e defina o início. No cartão principal de uma categoria numerada, as alterações de início e fim serão aplicadas às unidades dessa categoria ao salvar. Bloqueios manuais são preservados.</small>
         <p>Opcional. Sem datas, o lote fica disponível enquanto houver estoque. Horário de Brasília.</p>
         <div className="ticket-batch-fields">
           <label>Começar as vendas em<input type="datetime-local" value={toBrasiliaInput(ticket.startsAt)} onChange={e => onChange('startsAt', fromBrasiliaInput(e.target.value))} /></label>

@@ -1,3 +1,5 @@
+import {publicTicketRelease} from '../utils/ticketRelease'
+import useTicketReleaseClock from '../hooks/useTicketReleaseClock'
 import useEventMotion from '../hooks/useEventMotion'
 import FestivalLights from '../components/FestivalLights'
 import './EventFestival.css'
@@ -46,7 +48,7 @@ export default function Evento() {
   const eventKey = routeParams.eventKey ?? routeParams.id ?? routeParams.slug ?? ''
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { events, getRemaining, isLocalDemo } = useEventStore()
+  const { events, getRemaining, isLocalDemo, refresh } = useEventStore()
   const { currentUser, organizations=[] } = useAuth()
 
   const event = useMemo(
@@ -60,6 +62,7 @@ export default function Evento() {
   const [copied, setCopied] = useState(false)
   const [seatingRequest,setSeatingRequest]=useState(0)
   const [seatingCategory,setSeatingCategory]=useState(null)
+  const releaseNow=useTicketReleaseClock(event,refresh)
   const preview = searchParams.get('preview') === '1' && canManage(currentUser, event)
 
   if (!event || ((!event.published || event.archived) && !preview)) {
@@ -168,14 +171,15 @@ export default function Evento() {
             <div className="ticket-options">{event.ticketTypes?.some(t=>isNumberedUnit(t)&&!t.retiredForSales)&&<button type="button" className="ticket-option" onClick={()=>{setSeatingCategory(null);setSeatingRequest(n=>n+1)}}>Escolher unidade por categoria e número</button>}
               {publicTicketOptions(event).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
+                const release=publicTicketRelease(event,ticket,releaseNow)
                 return (
-                  <button key={ticket.id} data-highlight={ticket.highlight||undefined} disabled={(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''}`} onClick={() => choose(ticket)}>
+                  <button key={ticket.id} data-highlight={ticket.highlight||undefined} disabled={!!release||(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''} ${release?'ticket-upcoming':''}`} onClick={() => choose(ticket)}>
                     {ticketHighlightLabel(ticket)&&<span className="ticket-highlight-ribbon">{ticketHighlightLabel(ticket)}</span>}
                     <TicketJewels/><div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
-                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>
+                      <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{release&&<div className="ticket-release-note"><CalendarDays size={20} aria-hidden="true"/><div><strong>Vendas abrem em</strong><time dateTime={release.iso}>{release.label}</time><small>Horário de Brasília{ticket.sequential?' • Depende também dos lotes anteriores':''}</small></div></div>}{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>
                     </div>
-                    <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>Escolher número</strong><span>Ver unidades disponíveis</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{getRemaining(event, ticket)} disponíveis</span></>}</div>
+                    <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>{release?'Em breve':'Escolher número'}</strong><span>{release?'Abertura programada':'Ver unidades disponíveis'}</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{release?'Abertura programada':getRemaining(event,ticket)+' disponíveis'}</span></>}</div>
                     <div className="ticket-selected-check"><Check size={17} /></div>
                   </button>
                 )
