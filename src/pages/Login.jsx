@@ -1,3 +1,4 @@
+import {setAuthWelcome} from '../utils/authWelcome'
 import { existingAccountMessage, isExistingAccountError, loginErrorMessage } from '../utils/signupResult'
 import './LoginFields.css'
 import { legalCatalog, acceptanceClaims } from '../services/legal'
@@ -40,7 +41,7 @@ export default function Login() {
   async function submit(event) {
     event.preventDefault()
     setBusy(true)
-    setError('');setNotice('');setExistingAccount(false)
+    setError('');setNotice('');setExistingAccount(false);setAuthWelcome(register?'signup':'login')
 
     try {
       if (setup) {
@@ -50,13 +51,14 @@ export default function Login() {
         const legalAcceptances=acceptanceClaims(legal,['termos','privacidade']);
         validateBuyer(form);
         const response = await registerCustomer({ ...form, legalAcceptances, marketing, returnTo: destination })
-        if (response?.existingAccount) { setExistingAccount(true);setRegister(false);setForm(v=>({...v,password:''}));setNotice(promoterAccess?existingAccountMessage:'Você já possui uma conta. Entre ou recupere sua senha para continuar.');return }
-        if (response?.confirmationRequired) { setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':promoterAccess?'Conta criada. Confirme seu e-mail e entre para completar seu cadastro de promotor e informar seu Pix.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
+        if (response?.existingAccount) { setAuthWelcome(null); setExistingAccount(true);setRegister(false);setForm(v=>({...v,password:''}));setNotice(promoterAccess?existingAccountMessage:'Você já possui uma conta. Entre ou recupere sua senha para continuar.');return }
+        if (response?.confirmationRequired) { setAuthWelcome(null); setNotice(portaria?'Cadastro recebido. Confirme seu e-mail para ativar a conta e voltar à validação deste evento. Use o mesmo e-mail autorizado pelo organizador.':promoterAccess?'Conta criada. Confirme seu e-mail e entre para completar seu cadastro de promotor e informar seu Pix.':'Cadastro recebido. Confirme seu e-mail antes de entrar. Depois você também poderá criar seu próprio evento.'); setRegister(false); return }
       } else {
         await login(form.email, form.password)
       }
       navigate(destination, { replace: true })
     } catch (err) {
+      setAuthWelcome(null);
       if(register&&isExistingAccountError(err.message)){setExistingAccount(true);setRegister(false);setForm(v=>({...v,password:''}));setNotice(promoterAccess?existingAccountMessage:'Você já possui uma conta. Entre ou recupere sua senha para continuar.');setError('')}else setError(loginErrorMessage(err.message))
     } finally {
       setBusy(false)

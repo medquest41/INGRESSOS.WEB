@@ -5,18 +5,22 @@ export const ticketHighlights = [
   {value:'value',label:'Melhor custo-benefício'},
   {value:'recommended',label:'Recomendado'},
   {value:'special',label:'Oferta especial'},
+  {value:'last',label:'Últimos ingressos'},
+  {value:'custom',label:'Texto personalizado'},
 ]
 export const ticketHighlightScope=ticket=>ticket?.numberedCategoryId||ticket?.reservationCategoryId||(ticket?.tableOfferId?'offer:'+ticket.tableOfferId:null)
 const knownHighlight=value=>ticketHighlights.some(h=>h.value===value&&value)?value:''
-export function ticketHighlightValue(ticket,event){
+function ticketHighlightSource(ticket,event){
  const scope=ticketHighlightScope(ticket)
- if(!scope||!event)return knownHighlight(ticket?.highlight)
+ if(!scope||!event)return ticket
  const peers=(event.ticketTypes||[]).filter(t=>!t.retiredForSales&&ticketHighlightScope(t)===scope)
  const parent=peers.find(t=>t.numberedCategoryId&&knownHighlight(t.highlight))
  const first=peers.filter(t=>knownHighlight(t.highlight)).sort((a,b)=>Number(a.unitNumber||0)-Number(b.unitNumber||0)||String(a.id).localeCompare(String(b.id)))[0]
- return knownHighlight((parent||first||ticket)?.highlight)
+ return parent||first||ticket
 }
-export const ticketHighlightLabel = (ticket,event) => ticketHighlights.find(item=>item.value===ticketHighlightValue(ticket,event))?.label.replace(/^Sem destaque$/,'')||''
+export const ticketHighlightValue=(ticket,event)=>knownHighlight(ticketHighlightSource(ticket,event)?.highlight)
+export const ticketHighlightText=(ticket,event)=>String(ticketHighlightSource(ticket,event)?.highlightText||'').replace(/\s+/g,' ').trim().slice(0,48)
+export const ticketHighlightLabel = (ticket,event) => ticketHighlightValue(ticket,event)==='custom'?ticketHighlightText(ticket,event):ticketHighlights.find(item=>item.value===ticketHighlightValue(ticket,event))?.label.replace(/^Sem destaque$/,'')||''
 export const isNumberedUnit = ticket => ticket.type==='camarote'&&ticket.reservationKind!=='group'&&Number.isInteger(Number(ticket.unitNumber))&&Number(ticket.unitNumber)>0
 export function publicTicketOptions(event){
  const tickets=(event.ticketTypes||[]).filter(t=>!t.retiredForSales)
@@ -33,5 +37,5 @@ export function publicTicketOptions(event){
   result.push({id:'unit-category:'+category,name:ticket.reservationCategoryName||(ticket.reservationKind==='table'?'Mesas VIP':'Camarotes'),type:'category',numberedCategoryId:category,price:0})
   represented.add(category)
  }
- return result.map(ticket=>({...ticket,highlight:ticketHighlightValue(ticket,event)}))
+ return result.map(ticket=>({...ticket,highlight:ticketHighlightValue(ticket,event),highlightText:ticketHighlightText(ticket,event)}))
 }

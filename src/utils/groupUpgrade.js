@@ -14,6 +14,6 @@ export function editTicketDraft(event,index,field,value,{originalTickets=[],orde
   types[index]=next
   types.push({...original,active:false,retiredForSales:true})
  }
- if(field==='highlight'&&ticketHighlightScope(ticket)){const scope=ticketHighlightScope(ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScope(t)===scope?{...t,highlight:normalized}:t)}}
+ if(['highlight','highlightText'].includes(field)&&ticketHighlightScope(ticket)){const scope=ticketHighlightScope(ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScope(t)===scope?{...t,highlight:next.highlight||'',highlightText:next.highlightText||''}:t)}}
  return {...event,ticketTypes:types}
 }

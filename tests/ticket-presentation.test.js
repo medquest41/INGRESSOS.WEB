@@ -27,3 +27,8 @@ test('one table highlight appears on offer card and siblings, without leaking in
  const second={...first,id:'m2',unitNumber:2,highlight:''};const other={...second,id:'m3',reservationCategoryId:'b',tableOfferId:'other'};const event={ticketTypes:[second,other,first]}
  assert.equal(ticketHighlightLabel(second,event),'Melhor custo-benefício');assert.equal(ticketHighlightLabel(other,event),'');assert.equal(ticketHighlightLabel(publicTicketOptions(event).find(t=>t.numberedCategoryId==='a')),'Melhor custo-benefício');assert.equal(second.highlight,'')
 })
+
+test('custom text and last-tickets highlights inherit without HTML interpretation',()=>{
+ const first={id:'m1',type:'camarote',reservationKind:'table',unitNumber:1,reservationCategoryId:'a',highlight:'custom',highlightText:'  Especial   para amigos  '},second={...first,id:'m2',unitNumber:2,highlight:'',highlightText:''},event={ticketTypes:[first,second]}
+ assert.equal(ticketHighlightLabel(second,event),'Especial para amigos');assert.equal(ticketHighlightLabel(publicTicketOptions(event)[0]),'Especial para amigos');assert.equal(ticketHighlightLabel({highlight:'last'}),'Últimos ingressos');assert.equal(ticketHighlightLabel({highlight:'custom',highlightText:''}),'');assert.equal(ticketHighlightLabel({highlight:'custom',highlightText:'x'.repeat(80)}).length,48);assert.equal(ticketHighlightLabel({highlight:'custom',highlightText:'<b>VIP</b>'}),'<b>VIP</b>')
+})
