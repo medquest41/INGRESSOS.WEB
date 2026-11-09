@@ -1,5 +1,6 @@
 /* oxlint-disable react/only-export-components -- Context provider and shared hook are intentionally colocated. */
 import { createContext, useContext, useEffect, useState } from 'react'
+import {createDemoLocalSale} from '../utils/localSale'
 import { defaultEvents } from '../data/defaultEvents'
 import { getEventSlug } from '../utils/eventSlug'
 import { PRIMARY_ADMIN_EMAIL, useAuth } from './AuthStore'
@@ -151,7 +152,8 @@ export function LocalEventProvider({ children }) {
   }
   const events = data.events.filter(e => (e.published && !e.archived) || ownsEvent(currentUser, e))
   const orders = data.orders.filter(o => ownsOrder(currentUser, o) || (['admin', 'organizador', 'financeiro', 'checkin'].includes(currentUser?.role) && ownsEvent(currentUser, data.events.find(e => e.id === o.eventId))))
-  return <EventContext.Provider value={{ events, orders, recordPayout, saveEvent, deleteEvent, placeOrder, cancelOrder, markTicketUsed, saveCoupon, coupons: data.coupons.filter(c => ownsEvent(currentUser, data.events.find(e => e.id === c.eventId))), history: data.history.filter(h => currentUser?.role === 'admin' || ownsEvent(currentUser, data.events.find(e => e.id === h.eventId))), getRemaining: (event, ticket) => remaining(event, ticket, data.orders), getQuote: (event, ticket, quantity, coupon) => quote(event, ticket, quantity, coupon, data.coupons, data.orders) }}>{children}</EventContext.Provider>
+  const createLocalSale=input=>mutate('Venda local registrada sem taxa',input.eventId,fresh=>createDemoLocalSale(fresh,currentUser,input))
+  return <EventContext.Provider value={{ events, orders, recordPayout, createLocalSale, saveEvent, deleteEvent, placeOrder, cancelOrder, markTicketUsed, saveCoupon, coupons: data.coupons.filter(c => ownsEvent(currentUser, data.events.find(e => e.id === c.eventId))), history: data.history.filter(h => currentUser?.role === 'admin' || ownsEvent(currentUser, data.events.find(e => e.id === h.eventId))), getRemaining: (event, ticket) => remaining(event, ticket, data.orders), getQuote: (event, ticket, quantity, coupon) => quote(event, ticket, quantity, coupon, data.coupons, data.orders) }}>{children}</EventContext.Provider>
 }
 export function useLocalEventStore() {
   const ctx = useContext(EventContext)

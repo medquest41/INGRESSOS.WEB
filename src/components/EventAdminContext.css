@@ -18,3 +18,5 @@
   .admin-page .admin-sidebar .admin-back { position: static; width: auto; font-size: 13px; }
   .admin-page .admin-sidebar .admin-logout { width: auto; font-size: 13px; }
 }
+
+.event-admin-context .local-sale-shortcut{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:50px;padding:13px 22px;border:1px solid #ffe49a;border-radius:99px;background:linear-gradient(135deg,#ffe6a3,#c99a32);color:#102016;font-size:16px;font-weight:900;text-decoration:none;box-shadow:0 5px 0 #795b22,0 8px 26px #e3bd4c35;box-sizing:border-box}.local-sale-shortcut svg{width:23px;height:23px}.event-admin-context .local-sale-shortcut:hover{filter:brightness(1.08)}.event-admin-context .local-sale-shortcut:focus-visible{outline:3px solid white;outline-offset:5px}@media(max-width:650px){.event-admin-context .event-visual-shortcut-slot{justify-content:stretch}.event-admin-context .local-sale-shortcut,.event-admin-context .event-visual-shortcut-slot .support-whatsapp{flex:1 1 200px}}

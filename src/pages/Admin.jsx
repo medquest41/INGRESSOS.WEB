@@ -1,3 +1,4 @@
+import LocalSaleForm from '../components/LocalSaleForm'
 import TicketEditorTools from '../components/TicketEditorTools'
 import {searchText} from '../utils/unitSelection'
 import {eventSaveError,focusEditorError,clearEditorFieldError} from '../utils/eventSaveError'
@@ -133,7 +134,7 @@ export default function Admin() {
   const defaultTab = role === 'checkin' ? 'checkin' : role === 'financeiro' ? 'orders' : 'dashboard'
 
 
-  const tab = role === 'checkin' ? 'checkin' : ['dashboard','events','orders','checkin','team','event_team','event_promoters','customers','finance','reports','history','coupons','fees'].includes(requestedTab) ? requestedTab : defaultTab
+  const tab = role === 'checkin' ? 'checkin' : ['dashboard','events','orders','checkin','team','event_team','event_promoters','customers','finance','reports','history','coupons','fees','local_sale'].includes(requestedTab) ? requestedTab : defaultTab
   function setTab(next) {
     if (eventKey && next !== 'team') navigate('/admin/evento/' + encodeURIComponent(eventKey) + '/' + next)
     else setSearchParams(previous => { const params = new URLSearchParams(previous);params.set('tab',next);return params })
@@ -408,6 +409,7 @@ export default function Admin() {
 
       <main className="admin-main">
         {!editing && tab !== 'team' && <EventAdminContext event={selectedEvent} eventId={eventId} events={availableEvents} eventPage={Boolean(eventKey)} tab={tab} role={role} canManageFees={isPrimaryAdmin} onSelect={selectEvent} onEdit={()=>editEvent(selectedEvent)}/>}
+        {tab==='local_sale'&&canManageEvents&&selectedEvent&&<LocalSaleForm key={selectedEvent.id} event={selectedEvent}/>}
         {isLocalDemo && <p className="demo-warning">Demonstração local — login, vendas e check-in neste navegador. Pagamentos simulados.</p>}
         {tab==='customers' && isPrimaryAdmin && !eventId
           ? <AdminCustomersByEvent events={availableEvents} orders={orders} />

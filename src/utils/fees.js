@@ -8,6 +8,6 @@ export function calculateFees(subtotal, discount = 0, rate = 0.1, payer = 'buyer
 }
 
 export function payoutAmount(order) {
-  if (order.providerFee == null || order.paymentReview) return null
+  if (order.saleChannel==='local'||order.providerFee == null || order.paymentReview) return null
   return Math.round((Number(order.total) - Number(order.platformFee ?? order.fee ?? 0) - Number(order.providerFee)) * 100) / 100
 }
