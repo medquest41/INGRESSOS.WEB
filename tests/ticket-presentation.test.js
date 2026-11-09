@@ -1,6 +1,20 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {publicTicketOptions,ticketHighlightLabel} from '../src/utils/ticketPresentation.js'
+test('deleted inactive tickets disappear while sold-out and scheduled active tickets remain',()=>{
+ const deleted={id:'deleted',name:'novoteste',type:'individual',active:false,available:1,remaining:0}
+ const soldOut={id:'sold-out',type:'individual',active:true,remaining:0}
+ const scheduled={id:'scheduled',type:'individual',active:true,startsAt:'2099-01-01T00:00:00Z'}
+ const event={ticketTypes:[deleted,soldOut,scheduled]}
+ assert.deepEqual(publicTicketOptions(event).map(t=>t.id),['sold-out','scheduled'])
+ assert.equal(event.ticketTypes[0],deleted)
+})
+test('inactive numbered units do not resurrect deleted category cards',()=>{
+ const unit={id:'table',type:'camarote',reservationKind:'table',unitNumber:1,reservationCategoryId:'tables',active:false}
+ const parent={id:'parent',numberedCategoryId:'tables',active:false}
+ assert.deepEqual(publicTicketOptions({ticketTypes:[parent,unit]}),[])
+ assert.equal(publicTicketOptions({ticketTypes:[parent,{...unit,active:true}]}).length,1)
+})
 test('new groups and unnumbered units stay visible; numbered units use map and retired history stays hidden',()=>{
  const ticketTypes=[{id:'individual',type:'individual'},{id:'group',type:'camarote',reservationKind:'group'},{id:'unit',type:'camarote'},{id:'room',type:'camarote',unitNumber:15},{id:'table',type:'camarote',reservationKind:'table',unitNumber:1},{id:'old',type:'individual',retiredForSales:true}]
  assert.deepEqual(publicTicketOptions({ticketTypes}).map(t=>t.id),['individual','group','unit','unit-category:camarote','unit-category:table'])

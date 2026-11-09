@@ -24,7 +24,10 @@ export const ticketHighlightText=(ticket,event)=>String(ticketHighlightSource(ti
 export const ticketHighlightLabel = (ticket,event) => ticketHighlightValue(ticket,event)==='custom'?ticketHighlightText(ticket,event):ticketHighlights.find(item=>item.value===ticketHighlightValue(ticket,event))?.label.replace(/^Sem destaque$/,'')||''
 export const isNumberedUnit = ticket => ticket.type==='camarote'&&ticket.reservationKind!=='group'&&Number.isInteger(Number(ticket.unitNumber))&&Number(ticket.unitNumber)>0
 export function publicTicketOptions(event){
- const tickets=(event.ticketTypes||[]).filter(t=>!t.retiredForSales)
+ // Removed SKUs are retained inactive by save_event for historical integrity.
+ // Inactive category parents are navigation only and need live child units.
+ const availableTickets=(event.ticketTypes||[]).filter(t=>!t.retiredForSales)
+ const tickets=availableTickets.filter(t=>t.active!==false||(t.numberedCategoryId&&availableTickets.some(unit=>unit.active!==false&&isNumberedUnit(unit)&&(unit.reservationCategoryId||(unit.reservationKind==='table'?'table':'camarote'))===t.numberedCategoryId)))
  const result=tickets.filter(t=>!isNumberedUnit(t))
  const represented=new Set(result.map(t=>t.numberedCategoryId).filter(Boolean))
  for(const ticket of tickets){
