@@ -1,6 +1,6 @@
 # Gerar ingresso — venda local sem taxa
 
-Estado: implementação e testes locais concluídos. Migração 029 não aplicada em produção; frontend desta função ainda não publicado.
+Estado: migração 029 aplicada com autorização no Supabase ingressos-web (oavpsfcosidlvoinbjst), em 09/11/2026. Conferência pós-aplicação: emissor existente, acesso anon negado, chamada autenticada sujeita às verificações internas de administrador/organizador, snapshot da função anterior salvo (1) e proteção de repasse instalada (1). Nenhuma venda local emitida nesta verificação. Frontend encaminhado para publicação junto deste relatório.
 
 ## Comportamento
 
