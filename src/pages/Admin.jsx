@@ -1,3 +1,4 @@
+import {orderFilterStatus,orderReportDetail,matchesOrderStatus,orderDetailLabels} from '../utils/orderReport'
 import LocalSaleForm from '../components/LocalSaleForm'
 import TicketEditorTools from '../components/TicketEditorTools'
 import {searchText} from '../utils/unitSelection'
@@ -118,11 +119,16 @@ export default function Admin() {
     isLocalDemo, organizations = [],
   } = useAuth()
 
-  const [orderSearch,setOrderSearch]=useState('')
-  const [orderStatus,setOrderStatus]=useState('')
   const { eventKey, section } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
+  const orderStatus=orderFilterStatus(searchParams.get('status'))
+  const orderSearch=searchParams.get('q')||''
+  const reportDetail=orderReportDetail(searchParams.get('detail'))
+  function changeOrderQuery(key,value){setSearchParams(previous=>{const next=new URLSearchParams(previous);if(value)next.set(key,value);else next.delete(key);return next},{replace:true})}
+  const setOrderStatus=value=>changeOrderQuery('status',value)
+  const setOrderSearch=value=>changeOrderQuery('q',value)
+  function clearOrderFilters(){setSearchParams(previous=>{const next=new URLSearchParams(previous);['status','detail','q'].forEach(key=>next.delete(key));return next})}
   const eventId = eventKey || searchParams.get('event') || ''
   const requestedTab = eventKey ? section : searchParams.get('tab')
   const role = eventAdminRole(currentUser, events.find(event => String(event.id) === eventId), summary, requestedTab)
@@ -566,8 +572,9 @@ export default function Admin() {
           <>
             <div className="admin-title"><div><span className="section-kicker">VENDAS</span><h1>{selectedEvent ? 'Pedidos deste evento.' : 'Pedidos.'}</h1></div></div>
             <SalesCleanup event={selectedEvent} orders={visibleOrders}/><section className="admin-panel">
-              <div className="form-grid"><label>Buscar cliente ou pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Nome, CPF, e-mail, telefone ou número do pedido"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="approved">Aprovado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
-              <EventOrderList key={eventId + ':' + orderStatus + ':' + orderSearch} eventId={eventId} events={visibleEvents} orders={visibleOrders.filter(o=>(!orderStatus||(o.status||'approved')===orderStatus)&&matchesBuyerSearch(o,orderSearch))} cancelOrder={cancelOrder} canViewCpf={['admin','organizador'].includes(role)}/>
+              <div className="form-grid"><label>Buscar cliente ou pedido<input value={orderSearch} onChange={e=>setOrderSearch(e.target.value)} placeholder="Nome, CPF, e-mail, telefone ou número do pedido"/></label><label>Status do pedido<select value={orderStatus} onChange={e=>setOrderStatus(e.target.value)}><option value="">Todos</option><option value="pending">Pendente</option><option value="paid">Pago confirmado</option><option value="approved">Aprovado</option><option value="cancelled_refunded">Cancelado ou estornado</option><option value="cancelled">Cancelado</option><option value="refunded">Estornado</option></select></label></div>
+              {(orderStatus||reportDetail||orderSearch)&&<div className="report-filter-notice" role="status"><span>{orderStatus==='paid'?'Exibindo somente pedidos pagos confirmados.':orderStatus==='cancelled_refunded'?'Exibindo pedidos cancelados e estornados.':'Filtros aplicados aos pedidos.'}{reportDetail?' Destaque por pedido: '+orderDetailLabels[reportDetail]+'.':''}</span><button type="button" className="ghost-btn" onClick={clearOrderFilters}>Limpar filtros</button></div>}
+              <EventOrderList key={eventId + ':' + orderStatus + ':' + orderSearch} eventId={eventId} events={visibleEvents} filterStatus={orderStatus} reportDetail={reportDetail} autoExpand={Boolean(orderStatus)} orders={visibleOrders.filter(o=>matchesOrderStatus(o,orderStatus)&&matchesBuyerSearch(o,orderSearch))} cancelOrder={cancelOrder} canViewCpf={['admin','organizador'].includes(role)}/>
             </section>
           </>
         )}

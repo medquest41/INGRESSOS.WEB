@@ -1,0 +1,35 @@
+import {test,expect} from './support/offline-network.js'
+async function seed(page,role='organizador'){
+ await page.addInitScript(({role})=>{
+  if(localStorage.getItem('reports-seeded'))return;localStorage.setItem('reports-seeded','1');localStorage.setItem('ingressos_cookies',JSON.stringify({essential:true,analytics:false,version:16}))
+  localStorage.setItem('ingressos_auth_users_v1',JSON.stringify([{id:'issuer',name:'Responsável teste',role,organizerId:'org',active:true,email:'organizer@example.test'}]));localStorage.setItem('ingressos_auth_session_v1','issuer')
+  const event=(id,org='org')=>({id,slug:id,title:'Evento '+id,organizerId:org,published:true,ticketTypes:[],date:'01/01/2027',location:'Local teste'})
+  const order=(id,status,total,eventId='e1',extra={})=>({id,status,total,eventId,userId:'buyer',ticketId:'ticket',ticketName:'Pista',quantity:1,subtotal:total,platformFee:0,createdAt:'2026-11-09T12:00:00Z',buyer:{name:id,email:id+'@example.test'},ticketCodes:[],...extra})
+  localStorage.setItem('ingressos_platform_v2',JSON.stringify({events:[event('e1'),event('e2'),event('foreign','other')],orders:[order('Pago', 'approved',104.5,'e1',{subtotal:100,discount:5,platformFee:9.5}),order('Dinheiro','approved',50,'e1',{saleChannel:'local'}),order('Cancelado','cancelled',20),order('Estornado','refunded',30),order('Pendente','pending',40),order('EmConferencia','approved',999,'e1',{paymentReview:true}),order('OutroPago','approved',200,'e2',{platformFee:20}),order('OutroCancelado','cancelled',33,'e2'),order('SemPermissao','approved',500,'foreign')],coupons:[],history:[]}))
+ },{role})
+}
+for(const width of [390,1280])test('report menus open exact event orders and corresponding fee amounts '+width,async({page})=>{
+ await page.setViewportSize({width,height:1000});await seed(page);await page.goto('/admin/evento/e1/reports')
+ const cards=page.locator('.report-summary-cards');await expect(cards.locator('.report-summary-card')).toHaveCount(4)
+ await expect(cards.locator('.report-summary-card').filter({hasText:'Vendas aprovadas'})).toContainText('154,50')
+ await expect(cards.locator('.report-summary-card').filter({hasText:'Cancelados'}).locator('strong')).toHaveText('2')
+ const menu=page.getByRole('button',{name:'Opções de Vendas aprovadas',exact:true});await menu.click();await page.keyboard.press('Escape');await expect(menu).toHaveAttribute('aria-expanded','false');await expect(menu).toBeFocused()
+ await page.getByRole('button',{name:'Opções de Cancelados',exact:true}).click();await page.getByRole('link',{name:'Ver cancelados e estornados',exact:true}).click()
+ await expect(page).toHaveURL(/e1\/orders\?status=cancelled_refunded/);await expect(page.getByLabel('Status do pedido')).toHaveValue('cancelled_refunded')
+ await expect(page.locator('.event-order-item')).toHaveCount(2);await expect(page.locator('.event-order-groups')).toContainText('Cancelado');await expect(page.locator('.event-order-groups')).toContainText('Estornado');await expect(page.locator('.event-order-groups')).not.toContainText('OutroCancelado')
+ await page.reload();await expect(page.locator('.event-order-item')).toHaveCount(2)
+ await page.goto('/admin/evento/e1/reports');await page.getByRole('button',{name:'Opções de Taxas',exact:true}).click();await page.getByRole('link',{name:'Ver taxas dos pedidos pagos',exact:true}).click()
+ await expect(page).toHaveURL(/status=paid&detail=fees/);await expect(page.locator('.event-order-item')).toHaveCount(2);await expect(page.locator('.report-order-amount').first()).toContainText('9,50');await expect(page.locator('.report-order-amount').last()).toContainText('0,00');await expect(page.locator('.event-order-groups')).not.toContainText('EmConferencia')
+ await page.getByRole('button',{name:'Limpar filtros',exact:true}).click();await expect(page.getByLabel('Status do pedido')).toHaveValue('');await expect(page.locator('.event-order-item')).toHaveCount(6)
+ await page.goto('/admin/evento/e1/reports');await page.getByRole('button',{name:'Opções de Valor dos ingressos',exact:true}).click();await page.getByRole('link',{name:'Ver valores dos ingressos pagos',exact:true}).click()
+ await expect(page).toHaveURL(/status=paid&detail=net/);await expect(page.locator('.report-order-amount').first()).toContainText('95,00');await expect(page.locator('.report-order-amount').last()).toContainText('50,00')
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
+ await page.goto('/admin/evento/e1/reports');await page.getByRole('button',{name:'Opções de Cancelados',exact:true}).click();await cards.screenshot({path:'test-results-report-menus/menu-'+width+'.png'})
+})
+test('global report links retain authorized events and existing finance restrictions',async({page})=>{
+ await seed(page,'financeiro');await page.goto('/admin?tab=reports')
+ await page.getByRole('button',{name:'Opções de Vendas aprovadas',exact:true}).click();await page.getByRole('link',{name:'Ver pedidos pagos',exact:true}).click()
+ await expect(page).toHaveURL(/status=paid&tab=orders/)
+ await expect(page.locator('.event-order-group')).toHaveCount(2);await expect(page.locator('.event-order-item')).toHaveCount(3)
+ await expect(page.locator('.event-order-groups')).not.toContainText('SemPermissao');await expect(page.locator('.order-buyer-ticket-link')).toHaveCount(0);await expect(page.getByText(/CPF:/)).toHaveCount(0)
+})
