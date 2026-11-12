@@ -1,3 +1,4 @@
+import {closeSoldOutSales,preserveRemovedTickets} from '../utils/soldOutCelebration.js'
 /* oxlint-disable react/only-export-components -- Context provider and shared hook are intentionally colocated. */
 import { createContext, useContext, useEffect, useState } from 'react'
 import {createDemoLocalSale} from '../utils/localSale'
@@ -47,7 +48,7 @@ export function LocalEventProvider({ children }) {
     return mutate('Evento salvo', input.id, fresh => {
       const old = fresh.events.find(e => e.id === input.id)
       if (!canManage(currentUser, old || input)) throw new Error('Sem permissão para editar este evento.')
-      const event = normalize(input)
+      const event = normalize(closeSoldOutSales(preserveRemovedTickets(input,old?.ticketTypes)))
       if(currentUser.role!=='admin'||currentUser.email!==PRIMARY_ADMIN_EMAIL){for(const key of ['activityMode','activityMin','activityMax'])event[key]=old?.[key]}
       if(!['Livre','12+','14+','16+','18+'].includes(event.ageRating||'Livre'))throw Error('Classificação inválida.')
       const primaryAdmin = currentUser.role === 'admin' && String(currentUser.email || '').toLowerCase() === PRIMARY_ADMIN_EMAIL

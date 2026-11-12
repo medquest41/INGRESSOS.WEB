@@ -1,4 +1,4 @@
-import {soldOutCelebration} from '../utils/soldOutCelebration'
+import {soldOutCelebration,ticketAvailabilityLabel} from '../utils/soldOutCelebration'
 import './TicketSoldOut.css'
 import {publicTicketRelease} from '../utils/ticketRelease'
 import useTicketReleaseClock from '../hooks/useTicketReleaseClock'
@@ -94,7 +94,7 @@ export default function Evento() {
     if (source) params.set('ref', source)
     if (/^[a-fA-F0-9-]{36}$/.test(searchParams.get('ep')||'')) params.set('ep',searchParams.get('ep'))
     if (searchParams.get('campaign')) params.set('campaign',searchParams.get('campaign'))
-    
+
     recordActivity(event.id,'checkout');navigate(`/checkout?${params}`)
   }
 
@@ -183,7 +183,7 @@ export default function Evento() {
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
                       <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{release&&<div className="ticket-release-note"><CalendarDays size={20} aria-hidden="true"/><div><strong>Vendas abrem em</strong><time dateTime={release.iso}>{release.label}</time><small>Horário de Brasília{ticket.sequential?' • Depende também dos lotes anteriores':''}</small></div></div>}{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>
                     </div>
-                    <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>{release?'Em breve':'Escolher número'}</strong><span>{release?'Abertura programada':'Ver unidades disponíveis'}</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{release?'Abertura programada':getRemaining(event,ticket)+' disponíveis'}</span></>}</div>
+                    <div className="ticket-option-price">{requiredUnitCategory(event,ticket)?<><strong>{release?'Em breve':'Escolher número'}</strong><span>{release?'Abertura programada':'Ver unidades disponíveis'}</span></>:<><small>A partir de</small><strong>{brl(ticket.price)}</strong><span>{release?'Abertura programada':ticketAvailabilityLabel(ticket,getRemaining(event,ticket),releaseNow)}</span></>}</div>
                     <div className="ticket-selected-check"><Check size={17} /></div>
                   </button>
                 )

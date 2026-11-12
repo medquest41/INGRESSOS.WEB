@@ -1,10 +1,11 @@
+import {ticketSalesClosed,preserveRemovedTickets} from '../utils/soldOutCelebration.js'
 /* oxlint-disable react/only-export-components, react/set-state-in-effect -- Synchronize the authenticated remote dataset; never carry data between accounts. */
 import { createContext,useContext,useEffect,useRef,useState } from 'react'
 import { Link,useLocation } from 'react-router-dom'
 import { useAuth } from './AuthStore'
 import { LocalEventProvider,useLocalEventStore } from './LocalEventStore'
 import { isLocalDemo } from '../lib/supabase'
-import { eventPayload,loadRemote,rpc } from '../services/remoteData'
+import { eventPayload,loadCatalog,loadRemote,rpc } from '../services/remoteData'
 import LoadingScreen from '../components/LoadingScreen'
 import { validateBuyer } from '../utils/commerce'
 import { calculateFees } from '../utils/fees'
@@ -29,17 +30,25 @@ function RemoteEventProvider({children}){
   loadRemote(currentUser).then(next=>{if(live&&epoch.current===generation)setData(next)}).catch(err=>{if(live&&epoch.current===generation)setError('Não foi possível carregar o banco: '+err.message)}).finally(()=>{if(live&&epoch.current===generation)setLoading(false)})
   return()=>{live=false}
  },[currentUser,authLoading,revision])
+ useEffect(()=>{
+  if(authLoading||/^\/admin(?:\/|$)/.test(location.pathname))return
+  let live=true,busy=false;const generation=epoch.current
+  const update=async()=>{if(busy||document.hidden)return;busy=true;try{const events=await loadCatalog();if(live&&epoch.current===generation)setData(current=>({...current,events}))}catch{/* Keep current catalog; purchase authorization remains on the server. */}finally{busy=false}}
+  const timer=setInterval(update,30000);const visible=()=>{if(!document.hidden)update()}
+  document.addEventListener('visibilitychange',visible)
+  return()=>{live=false;clearInterval(timer);document.removeEventListener('visibilitychange',visible)}
+ },[currentUser,authLoading,location.pathname,revision])
  const refresh=()=>setRevision(v=>v+1)
  useEffect(()=>{const onFocus=()=>refresh();window.addEventListener('focus',onFocus);return()=>window.removeEventListener('focus',onFocus)},[])
  async function mutate(name,args){const response=await rpc(name,args);refresh();return response}
- async function saveEvent(input){return mutate('save_event',{payload:eventPayload(input,organizations)})}
+ async function saveEvent(input){return mutate('save_event',{payload:eventPayload(preserveRemovedTickets(input,data.events.find(e=>e.id===input.id)?.ticketTypes),organizations)})}
  async function placeOrder(input){validateBuyer({...input.buyer,email:currentUser.guest?input.buyer.email:currentUser.email});return mutate('create_order',{batch_id:input.ticketId,units:input.quantity,buyer_data:input.buyer,coupon_code:input.coupon||'',request_id:input.idempotencyKey,referral:input.source||null,campaign_name:input.campaign||null})}
  async function markTicketUsed(code,eventId){
   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code.trim()))return {found:false}
   const status=await mutate(eventId?'check_in_event':'check_in',eventId?{ticket_code:code.trim(),expected_event:eventId}:{ticket_code:code.trim()});return {found:['valid','used','cancelled'].includes(status),alreadyUsed:status==='used',cancelled:status==='cancelled',forbidden:status==='forbidden',wrongEvent:status==='wrong_event'}
  }
- const value={...data,loading,error,refresh,isLocalDemo:false,saveEvent,createLocalSale:async input=>{const order=await createRemoteLocalSale(input);refresh();return order},deleteEvent:id=>mutate('delete_event',{target:id}),placeOrder,markTicketUsed,startPayment,recordPayout:(id,reference)=>mutate('record_payout',{purchase_id:id,transfer_reference:reference}),cancelOrder:id=>mutate('cancel_order',{purchase_id:id}),saveCoupon:payload=>mutate('save_coupon',{payload}),getRemaining:(_event,ticket)=>ticket?.open?ticket.remaining:0,
- getQuote:(event,ticket,quantity)=>{if(!event?.published||event.archived||!ticket?.open)throw new Error('Ingresso indisponível neste lote.');if(!Number.isInteger(quantity)||quantity<1||quantity>10||quantity>ticket.remaining)throw new Error('Quantidade indisponível.');const subtotal=ticket.price*quantity;return {subtotal,discount:0,...calculateFees(subtotal,0,event.feeRate??0.1,event.feePayer||'buyer')}},
+ const value={...data,loading,error,refresh,isLocalDemo:false,saveEvent,createLocalSale:async input=>{const order=await createRemoteLocalSale(input);refresh();return order},deleteEvent:id=>mutate('delete_event',{target:id}),placeOrder,markTicketUsed,startPayment,recordPayout:(id,reference)=>mutate('record_payout',{purchase_id:id,transfer_reference:reference}),cancelOrder:id=>mutate('cancel_order',{purchase_id:id}),saveCoupon:payload=>mutate('save_coupon',{payload}),getRemaining:(event,ticket)=>!ticketSalesClosed(event,ticket)&&ticket?.open?ticket.remaining:0,
+ getQuote:(event,ticket,quantity)=>{if(!event?.published||event.archived||!ticket?.open||ticketSalesClosed(event,ticket))throw new Error('Ingresso indisponível neste lote.');if(!Number.isInteger(quantity)||quantity<1||quantity>10||quantity>ticket.remaining)throw new Error('Quantidade indisponível.');const subtotal=ticket.price*quantity;return {subtotal,discount:0,...calculateFees(subtotal,0,event.feeRate??0.1,event.feePayer||'buyer')}},
  quoteRemote}
  const isAuthPage=['/login','/redefinir-senha'].includes(location.pathname)
  return <Context.Provider value={value}>{!isAuthPage&&error?<main className="empty-page"><h1>Não foi possível carregar os dados</h1><p role="alert">{error}</p><button className="primary-small" onClick={refresh}>Tentar novamente</button><Link to="/login">Acessar conta</Link></main>:!isAuthPage&&(loading||authLoading)?<LoadingScreen/>:children}</Context.Provider>

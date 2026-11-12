@@ -15,8 +15,8 @@ export function editTicketDraft(event,index,field,value,{originalTickets=[],orde
   types[index]=next
   types.push({...original,active:false,retiredForSales:true})
  }
- const scheduleScope=['startsAt','endsAt'].includes(field)&&requiredUnitCategory(event,ticket)?.id
+ const scheduleScope=['startsAt','endsAt','active','sequential'].includes(field)&&requiredUnitCategory(event,ticket)?.id
  if(scheduleScope)return {...event,ticketTypes:types.map(t=>ticketHighlightScopeForEvent(event,t)===scheduleScope?{...t,[field]:normalized}:t)}
- if(['highlight','highlightText'].includes(field)&&ticketHighlightScopeForEvent(event,ticket)){const scope=ticketHighlightScopeForEvent(event,ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScopeForEvent(event,t)===scope?{...t,highlight:next.highlight||'',highlightText:next.highlightText||''}:t)}}
+ if(['highlight','highlightText','soldOutDays'].includes(field)&&ticketHighlightScopeForEvent(event,ticket)){const scope=ticketHighlightScopeForEvent(event,ticket);return {...event,ticketTypes:types.map(t=>ticketHighlightScopeForEvent(event,t)===scope?{...t,highlight:next.highlight||'',highlightText:next.highlightText||'',soldOutDays:next.soldOutDays||''}:t)}}
  return {...event,ticketTypes:types}
 }

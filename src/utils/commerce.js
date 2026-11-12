@@ -1,3 +1,4 @@
+import {ticketSalesClosed} from './soldOutCelebration.js'
 import { calculateFees } from './fees.js'
 export const money = value => Math.round((Number(value) + Number.EPSILON) * 100) / 100
 export const ownsEvent = (user, event) => Boolean(user && event && (user.role === 'admin' || (user.role !== 'cliente' && user.organizerId && user.organizerId === event.organizerId)))
@@ -21,6 +22,7 @@ export function validateBuyer(buyer) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(buyer.birthDate || '') || !Number.isFinite(date.getTime()) || date > new Date() || date.getFullYear() < 1900 || date.toISOString().slice(0, 10) !== buyer.birthDate) throw new Error('Informe uma data de nascimento válida.')
 }
 export function remaining(event, ticket, orders) {
+  if(ticketSalesClosed(event,ticket))return 0
   return Math.max(0, Number(ticket.available) - orders.filter(order => (approved(order)||!order.status) && String(order.eventId) === String(event.id) && order.ticketId === ticket.id).reduce((sum, order) => sum + Number(order.quantity), 0))
 }
 export function quote(event, ticket, quantity, couponCode, coupons, orders) {
