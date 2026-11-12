@@ -1,3 +1,5 @@
+import {soldOutCelebration} from '../utils/soldOutCelebration'
+import './TicketSoldOut.css'
 import {publicTicketRelease} from '../utils/ticketRelease'
 import useTicketReleaseClock from '../hooks/useTicketReleaseClock'
 import useEventMotion from '../hooks/useEventMotion'
@@ -172,9 +174,11 @@ export default function Evento() {
               {publicTicketOptions(event).map((ticket) => {
                 const selected = selectedTicket?.id === ticket.id
                 const release=publicTicketRelease(event,ticket,releaseNow)
+                const soldOut=soldOutCelebration(event,ticket,releaseNow,release)
                 return (
-                  <button key={ticket.id} data-highlight={ticket.highlight||undefined} disabled={!!release||(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''} ${release?'ticket-upcoming':''}`} onClick={() => choose(ticket)}>
-                    {ticketHighlightLabel(ticket)&&<span className="ticket-highlight-ribbon">{ticketHighlightLabel(ticket)}</span>}
+                  <button key={ticket.id} data-highlight={ticket.highlight||undefined} disabled={!!soldOut||!!release||(!requiredUnitCategory(event,ticket)&&!getRemaining(event, ticket)) || !event.published || event.archived} className={`ticket-option ${selected ? 'selected' : ''} ${ticketHighlightLabel(ticket)?'ticket-highlighted':''} ${release?'ticket-upcoming':''} ${soldOut?'ticket-sold-out':''}`} onClick={() => choose(ticket)}>
+                    {!soldOut&&ticket.highlight!=='soldout'&&ticketHighlightLabel(ticket)&&<span className="ticket-highlight-ribbon">{ticketHighlightLabel(ticket)}</span>}
+                    {soldOut&&<div className="sold-out-celebration"><span className="sold-out-confetti" aria-hidden="true">✦ · ✧ · ✦</span><strong>ESGOTADO</strong>{soldOut.daysLabel&&<span>{soldOut.daysLabel}</span>}<small>Obrigado por fazer parte dessa história!</small></div>}
                     <TicketJewels/><div className="ticket-option-main">
                       <div className="ticket-option-icon">{ticket.type === 'table' ? <Users /> : <Ticket />}</div>
                       <div><span>{ticket.batch}</span><h3>{ticket.name}</h3>{release&&<div className="ticket-release-note"><CalendarDays size={20} aria-hidden="true"/><div><strong>Vendas abrem em</strong><time dateTime={release.iso}>{release.label}</time><small>Horário de Brasília{ticket.sequential?' • Depende também dos lotes anteriores':''}</small></div></div>}{ticket.sector&&<p className="ticket-sector-label">Setor: {ticket.sector}</p>}<p>{ticket.description}</p>{requiredUnitCategory(event,ticket)?<p>Escolha o número no mapa ou na lista antes de continuar. O valor e os ingressos inclusos são os da unidade selecionada.</p>:ticket.type==='individual'&&<p>Uma unidade gera 1 ingresso com QR Code individual.</p>}{ticket.type==='camarote'&&<p>{ticket.reservationKind==='group'?'Grupo completo':ticket.reservationKind==='table'?'Mesa inteira':'Unidade inteira'} • {ticket.wristbands||8} ingressos individuais</p>}</div>

@@ -6,6 +6,7 @@ export const ticketHighlights = [
   {value:'recommended',label:'Recomendado'},
   {value:'special',label:'Oferta especial'},
   {value:'last',label:'Últimos ingressos'},
+  {value:'soldout',label:'Esgotado — comemoração'},
   {value:'custom',label:'Texto personalizado'},
 ]
 export const ticketHighlightScope=ticket=>ticket?.numberedCategoryId||ticket?.reservationCategoryId||(ticket?.tableOfferId?'offer:'+ticket.tableOfferId:ticket?.type==='camarote'&&ticket.reservationKind!=='group'&&Number(ticket.unitNumber)>0?(ticket.reservationKind==='table'?'table':'camarote'):null)
@@ -21,7 +22,7 @@ function ticketHighlightSource(ticket,event){
 }
 export const ticketHighlightValue=(ticket,event)=>knownHighlight(ticketHighlightSource(ticket,event)?.highlight)
 export const ticketHighlightText=(ticket,event)=>String(ticketHighlightSource(ticket,event)?.highlightText||'').replace(/\s+/g,' ').trim().slice(0,48)
-export const ticketHighlightLabel = (ticket,event) => ticketHighlightValue(ticket,event)==='custom'?ticketHighlightText(ticket,event):ticketHighlights.find(item=>item.value===ticketHighlightValue(ticket,event))?.label.replace(/^Sem destaque$/,'')||''
+export const ticketHighlightLabel = (ticket,event) => ticketHighlightValue(ticket,event)==='soldout'?'':ticketHighlightValue(ticket,event)==='custom'?ticketHighlightText(ticket,event):ticketHighlights.find(item=>item.value===ticketHighlightValue(ticket,event))?.label.replace(/^Sem destaque$/,'')||''
 export const isNumberedUnit = ticket => ticket.type==='camarote'&&ticket.reservationKind!=='group'&&Number.isInteger(Number(ticket.unitNumber))&&Number(ticket.unitNumber)>0
 export function publicTicketOptions(event){
  // Removed SKUs are retained inactive by save_event for historical integrity.
@@ -41,5 +42,5 @@ export function publicTicketOptions(event){
   result.push({id:'unit-category:'+category,name:ticket.reservationCategoryName||(ticket.reservationKind==='table'?'Mesas VIP':'Camarotes'),type:'category',numberedCategoryId:category,price:0})
   represented.add(category)
  }
- return result.map(ticket=>({...ticket,highlight:ticketHighlightValue(ticket,event),highlightText:ticketHighlightText(ticket,event)}))
+ return result.map(ticket=>({...ticket,highlight:ticketHighlightValue(ticket,event),highlightText:ticketHighlightText(ticket,event),soldOutDays:ticketHighlightSource(ticket,event)?.soldOutDays}))
 }
